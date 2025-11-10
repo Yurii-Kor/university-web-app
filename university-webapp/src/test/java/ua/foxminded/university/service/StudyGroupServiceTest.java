@@ -102,7 +102,7 @@ class StudyGroupServiceTest {
 
 		var result = assertDoesNotThrow(() -> groupService.deleteByIds(List.of(saved.getId())),
 				"deleteByIds should not throw");
-		assertEquals(List.of(saved.getId()), result.deletedIds(), "Deleted must contain id");
+		assertEquals(Set.of(saved.getId()), result.deletedIds(), "Deleted must contain id");
 		assertTrue(result.notFoundIds().isEmpty(), "notFound must be empty");
 
 		var afterDelete = groupService.findByIds(List.of(saved.getId()));
@@ -129,12 +129,14 @@ class StudyGroupServiceTest {
 	}
 
 	@Test
-	@DisplayName("createAll: only nulls -> IllegalArgumentException (после фильтра список пуст)")
-	void createAll_onlyNulls_illegalArgument() {
-		assertThrows(IllegalArgumentException.class,
-				() -> groupService.createAll(Arrays.asList(null, null)),
-				"only-null input must fail with IllegalArgumentException");
+	@DisplayName("createAll: only nulls -> returns empty list")
+	void createAll_onlyNulls_returnsEmptyList() {
+		var result = groupService.createAll(Arrays.asList(null, null));
+
+		assertNotNull(result, "result must not be null");
+		assertTrue(result.isEmpty(), "only-null input must result in empty list");
 	}
+
 
 	@Test
 	@DisplayName("createAll: invalid name -> ConstraintViolationException")
@@ -275,8 +277,8 @@ class StudyGroupServiceTest {
 		var g = groupService.createAll(List.of(StudyGroup.builder().name(TO_DELETE).build())).get(0);
 
 		var res = groupService.deleteByIds(Arrays.asList(g.getId(), MISSING_ID, null));
-		assertEquals(List.of(g.getId()), res.deletedIds(), "should delete existing id");
-		assertEquals(List.of(MISSING_ID), res.notFoundIds(), "should report missing id");
+		assertEquals(Set.of(g.getId()), res.deletedIds(), "should delete existing id");
+		assertEquals(Set.of(MISSING_ID), res.notFoundIds(), "should report missing id");
 	}
 
 	@Test
@@ -292,7 +294,7 @@ class StudyGroupServiceTest {
 	void deleteByIds_onlyMissing_returnsNotFound() {
 		var res = groupService.deleteByIds(Arrays.asList(null, MISSING_ID));
 		assertTrue(res.deletedIds().isEmpty(), "nothing should be deleted");
-		assertEquals(List.of(MISSING_ID), res.notFoundIds(), "missing should be reported");
+		assertEquals(Set.of(MISSING_ID), res.notFoundIds(), "missing should be reported");
 	}
 
 	@Test
@@ -300,7 +302,7 @@ class StudyGroupServiceTest {
 	void deleteByIds_duplicatedInput_ok() {
 		var g = groupService.createAll(List.of(StudyGroup.builder().name(TO_DELETE).build())).get(0);
 		var res = groupService.deleteByIds(Arrays.asList(g.getId(), g.getId()));
-		assertEquals(List.of(g.getId()), res.deletedIds());
+		assertEquals(Set.of(g.getId()), res.deletedIds());
 		assertTrue(res.notFoundIds().isEmpty());
 	}
 }

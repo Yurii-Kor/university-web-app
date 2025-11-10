@@ -173,8 +173,8 @@ class ScheduleEntryServiceTest {
 
 		DeleteResult res = assertDoesNotThrow(
 				() -> scheduleService.deleteByIds(List.of(created.getId(), MISSING_ID), teacherAlgDs.getId()));
-		assertEquals(List.of(created.getId()), res.deletedIds());
-		assertEquals(List.of(MISSING_ID), res.notFoundIds());
+		assertEquals(Set.of(created.getId()), res.deletedIds());
+		assertEquals(Set.of(MISSING_ID), res.notFoundIds());
 	}
 
 	@Test

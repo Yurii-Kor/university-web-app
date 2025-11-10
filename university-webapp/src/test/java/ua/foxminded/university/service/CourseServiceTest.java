@@ -146,7 +146,7 @@ class CourseServiceTest {
 
 		var result = assertDoesNotThrow(() -> courseService.deleteByIds(List.of(afterCode.getId())),
 				"deleteByIds should not throw");
-		assertEquals(List.of(afterCode.getId()), result.deletedIds());
+		assertEquals(Set.of(afterCode.getId()), result.deletedIds());
 		assertTrue(result.notFoundIds().isEmpty());
 
 		var afterDelete = courseService.findByIds(List.of(afterCode.getId()));
@@ -199,9 +199,12 @@ class CourseServiceTest {
 	}
 
 	@Test
-	@DisplayName("createAll: only nulls -> IllegalArgumentException")
-	void createAll_onlyNulls_illegalArgument() {
-		assertThrows(IllegalArgumentException.class, () -> courseService.createAll(Arrays.asList(null, null)));
+	@DisplayName("createAll: only nulls -> returns empty list")
+	void createAll_onlyNulls_returnsEmptyList() {
+		var result = courseService.createAll(Arrays.asList(null, null));
+
+		assertNotNull(result, "result must not be null");
+		assertTrue(result.isEmpty(), "only-null input must result in empty list");
 	}
 
 	@Test
@@ -469,7 +472,7 @@ class CourseServiceTest {
 	void deleteByIds_mixed_returnsSplit() {
 		var c = courseService.createAll(List.of(newCourse(TO_DELETE_CODE, TO_DELETE_NAME, null, true, false))).get(0);
 		var res = courseService.deleteByIds(Arrays.asList(c.getId(), NON_EXISTENT_ID, null));
-		assertEquals(List.of(c.getId()), res.deletedIds(), "should delete existing id");
-		assertEquals(List.of(NON_EXISTENT_ID), res.notFoundIds(), "should report missing id");
+		assertEquals(Set.of(c.getId()), res.deletedIds(), "should delete existing id");
+		assertEquals(Set.of(NON_EXISTENT_ID), res.notFoundIds(), "should report missing id");
 	}
 }

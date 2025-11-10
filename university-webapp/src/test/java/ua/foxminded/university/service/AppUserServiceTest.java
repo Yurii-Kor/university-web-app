@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
 
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.ConstraintViolationException;
@@ -118,8 +119,8 @@ class AppUserServiceTest {
 
 		DeleteResult del = assertDoesNotThrow(
 				() -> appUserService.deleteAdminsByIds(List.of(created.getId(), MISSING_ID)));
-		assertEquals(List.of(created.getId()), del.deletedIds());
-		assertEquals(List.of(MISSING_ID), del.notFoundIds());
+		assertEquals(Set.of(created.getId()), del.deletedIds());
+		assertEquals(Set.of(MISSING_ID), del.notFoundIds());
 
 		assertThrows(IllegalStateException.class, () -> appUserService.deleteAdminsByIds(List.of(testAdmin.getId())));
 	}

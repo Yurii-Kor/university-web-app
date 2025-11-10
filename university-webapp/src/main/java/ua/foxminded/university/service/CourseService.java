@@ -17,12 +17,15 @@ import ua.foxminded.university.model.repository.TeacherRepository;
 import ua.foxminded.university.service.dto.DeleteResult;
 
 import java.util.*;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 @Transactional
 public class CourseService {
+	
+	private final Integer NOT_UPDATED  = 0;
 
 	private static final Logger log = LoggerFactory.getLogger(CourseService.class);
 
@@ -33,16 +36,12 @@ public class CourseService {
 
 	@Transactional(value = TxType.REQUIRES_NEW)
 	public List<Course> createAll(Collection<Course> courses) {
-		if (courses == null || courses.isEmpty()) {
-			log.warn("createAll called with null/empty list");
-			return List.of();
-		}
-
 		var toPersist = normalizeCoursesToPersist(courses);
 		if (toPersist.isEmpty()) {
-			log.warn("createAll: nothing to persist after filtering (all items null)");
-			throw new IllegalArgumentException("No valid courses in request");
+			log.warn("createAll: nothing to persist (null/empty input or all items null)");
+			return List.of();
 		}
+	    
 		validator.validateAll(toPersist, OnCreate.class);
 
 		assertTeachersExist(toPersist);
@@ -64,36 +63,43 @@ public class CourseService {
 
 	@Transactional(value = TxType.SUPPORTS)
 	public List<Course> findByIds(Collection<Long> ids) {
-		if (ids == null || ids.isEmpty()) {
-			log.warn("findByIds called with null/empty list");
+		var distinct = Optional.ofNullable(ids)
+				.orElseGet(Collections::emptySet)
+				.stream()
+				.filter(Objects::nonNull)
+				.collect(Collectors.toSet());
+
+		if (distinct.isEmpty()) {
+			log.warn("findByIds: null/empty input or only nulls after filtering");
 			return List.of();
 		}
 
-		var filtered = ids.stream().filter(Objects::nonNull).distinct().toList();
-		return courseRepository.findAllById(filtered);
+		return courseRepository.findAllById(distinct);
 	}
 
 	@Transactional(value = TxType.REQUIRES_NEW)
 	public Course updateSelf(Course patch) {
-		if (patch == null || patch.getId() == null) {
+		Optional.ofNullable(patch).map(Course::getId).orElseThrow(() -> {
 			log.error("updateSelf: invalid args: patch or id is null");
-			throw new IllegalArgumentException("course.id must not be null for update");
-		}
+			return new IllegalArgumentException("course.id must not be null for update");
+		});
 
 		var managed = courseRepository.findById(patch.getId()).orElseThrow(() -> {
 			log.error("updateSelf: Course not found: id={}", patch.getId());
 			return new EntityNotFoundException("Course not found: id=" + patch.getId());
 		});
-
-		if (patch.getName() != null && !managed.getName().equalsIgnoreCase(patch.getName().trim())) {
-			assertNamesFreeInDb(List.of(patch.getName().trim().toLowerCase()));
-			managed.setName(patch.getName().trim());
-		}
-
-		if (patch.getDescription() != null) {
-			var desc = patch.getDescription().trim();
-			managed.setDescription(desc.isEmpty() ? null : desc);
-		}
+		
+		Optional.ofNullable(patch.getName())
+				.map(String::trim)
+				.filter(newName -> !newName.equalsIgnoreCase(managed.getName()))
+				.ifPresent(newName -> {
+					assertNamesFreeInDb(List.of(newName.toLowerCase()));
+					managed.setName(newName);
+				});
+		
+		Optional.ofNullable(patch.getDescription())
+				.map(String::trim)
+				.ifPresent(desc -> managed.setDescription(desc.isEmpty() ? null : desc));
 
 		validator.validateAll(List.of(managed));
 		log.debug("updateSelf: updated name/description for courseId={}", managed.getId());
@@ -102,72 +108,84 @@ public class CourseService {
 
 	@Transactional(value = TxType.REQUIRES_NEW)
 	public Integer updateCodes(Map<Long, String> codeByCourseId) {
-		if (codeByCourseId == null || codeByCourseId.isEmpty()) {
-			log.warn("updateCodes: empty/null map");
-			return 0;
-		}
-		assertIdsNotNull(codeByCourseId);
-		assertCodesNotNull(codeByCourseId);
+		return Optional.ofNullable(codeByCourseId)
+				.filter(Predicate.not(Map::isEmpty))
+				.map(this::doUpdateCodes)
+				.orElseGet(() -> {
+					log.warn("updateCodes: empty/null map");
+					return NOT_UPDATED;
+				});
+	}
 
-		var normalized = codeByCourseId.entrySet()
-				.stream()
-				.collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue().trim().toUpperCase()));
+	private Integer doUpdateCodes(Map<Long, String> codeByCourseId) {
+	    assertIdsNotNull(codeByCourseId);
+	    assertCodesNotNull(codeByCourseId);
 
-		var ids = List.copyOf(normalized.keySet());
-		var codes = List.copyOf(normalized.values());
+	    var normalized = codeByCourseId.entrySet().stream()
+	            .collect(Collectors.toMap(Map.Entry::getKey, e -> e.getValue().trim().toUpperCase()));
 
-		assertNoDuplicateCodesInRequest(codes);
-		validator.validateCourseCodes(codes);
+	    var ids   = List.copyOf(normalized.keySet());
+	    var codes = List.copyOf(normalized.values());
 
-		assertCourseIdsExist(ids);
-		assertCodesFreeInDb(normalized);
+	    assertNoDuplicateCodesInRequest(codes);
+	    validator.validateCourseCodes(codes);
 
-		var existing = courseRepository.findAllById(ids);
-		existing.forEach(c -> c.setCode(normalized.get(c.getId())));
-		log.info("updateCodes: updated {}", existing.size());
-		return existing.size();
+	    assertCourseIdsExist(ids);
+	    assertCodesFreeInDb(normalized);
+
+	    var existing = courseRepository.findAllById(ids);
+	    existing.forEach(c -> c.setCode(normalized.get(c.getId())));
+	    log.info("updateCodes: updated {}", existing.size());
+	    return existing.size();
 	}
 
 	@Transactional(value = TxType.REQUIRES_NEW)
 	public Integer addGroupsToCourse(Long courseId, Collection<Long> groupIds) {
-		if (courseId == null) {
+		Optional.ofNullable(courseId).orElseThrow(() -> {
 			log.error("addGroupsToCourse: courseId is null");
-			throw new IllegalArgumentException("courseId must not be null");
-		}
-		if (groupIds == null || groupIds.isEmpty()) {
-			log.warn("addGroupsToCourse: null/empty groupIds");
-			return 0;
+			return new IllegalArgumentException("courseId must not be null");
+		});
+
+		var distinct = Optional.ofNullable(groupIds)
+				.orElseGet(Collections::emptyList)
+				.stream()
+				.filter(Objects::nonNull)
+				.collect(Collectors.toSet());
+
+		if (distinct.isEmpty()) {
+			log.warn("addGroupsToCourse: null/empty groupIds or only nulls -> nothing to do");
+			return NOT_UPDATED;
 		}
 
+		var existing = new HashSet<>(groupRepository.findExistingIds(distinct));
+		
+		var missing = distinct.stream().filter(id -> !existing.contains(id)).toList();
+		Optional.of(missing).filter(Predicate.not(Collection::isEmpty)).ifPresent(m -> {
+			log.error("addGroupsToCourse: StudyGroups not found: {}", m);
+			throw new EntityNotFoundException("StudyGroups not found: " + m);
+		});
+
+		return attachExistingGroupsToCourse(courseId, existing);
+	}
+
+	private Integer attachExistingGroupsToCourse(Long courseId, Set<Long> existingGroupIds) {
 		var course = courseRepository.findById(courseId).orElseThrow(() -> {
 			log.error("addGroupsToCourse: course not found: id={}", courseId);
 			return new EntityNotFoundException("Course not found: id=" + courseId);
 		});
 
-		var distinct = groupIds.stream().filter(Objects::nonNull).distinct().toList();
-		if (distinct.isEmpty()) {
-			log.warn("addGroupsToCourse: only nulls in groupIds -> nothing to do");
-			return 0;
-		}
+		var groupsSet = Optional.ofNullable(course.getGroups()).orElseGet(() -> {
+			course.setGroups(new LinkedHashSet<StudyGroup>());
+			return course.getGroups();
+		});
 
-		var existing = new HashSet<>(groupRepository.findExistingIds(distinct));
-		var missing = distinct.stream().filter(id -> !existing.contains(id)).toList();
-		if (!missing.isEmpty()) {
-			log.error("addGroupsToCourse: StudyGroups not found: {}", missing);
-			throw new EntityNotFoundException("StudyGroups not found: " + missing);
-		}
+		var already = groupsSet.stream().map(StudyGroup::getId).filter(Objects::nonNull).collect(Collectors.toSet());
 
-		var groupsSet = course.getGroups();
-		if (groupsSet == null) {
-			course.setGroups(new LinkedHashSet<>());
-		}
-		var already = groupsSet.stream().map(StudyGroup::getId).collect(Collectors.toSet());
-
-		var toAddIds = distinct.stream().filter(id -> !already.contains(id)).toList();
+		var toAddIds = existingGroupIds.stream().filter(id -> !already.contains(id)).collect(Collectors.toSet());
 
 		if (toAddIds.isEmpty()) {
 			log.info("addGroupsToCourse: nothing new to add for courseId={}", courseId);
-			return 0;
+			return NOT_UPDATED;
 		}
 
 		toAddIds.stream().map(groupRepository::getReferenceById).forEach(groupsSet::add);
@@ -176,37 +194,43 @@ public class CourseService {
 		return toAddIds.size();
 	}
 
+
 	@Transactional(value = TxType.REQUIRES_NEW)
 	public Integer removeGroupsFromCourse(Long courseId, Collection<Long> groupIds) {
-		if (courseId == null) {
+		Optional.ofNullable(courseId).orElseThrow(() -> {
 			log.error("removeGroupsFromCourse: courseId is null");
-			throw new IllegalArgumentException("courseId must not be null");
-		}
-		if (groupIds == null || groupIds.isEmpty()) {
-			log.warn("removeGroupsFromCourse: null/empty groupIds");
-			return 0;
-		}
+			return new IllegalArgumentException("courseId must not be null");
+		});
 
+		var distinct = Optional.ofNullable(groupIds)
+				.orElseGet(Collections::emptyList)
+				.stream()
+				.filter(Objects::nonNull)
+				.collect(Collectors.toSet());
+
+		if (distinct.isEmpty()) {
+			log.warn("addGroupsToCourse: null/empty groupIds or only nulls -> nothing to do");
+			return NOT_UPDATED;
+		}
+		
+		return doRemoveGroupsFromCourse(courseId, distinct);
+	}
+	
+	private Integer doRemoveGroupsFromCourse(Long courseId, Collection<Long> groupIds) {
 		var course = courseRepository.findById(courseId).orElseThrow(() -> {
 			log.error("removeGroupsFromCourse: course not found: id={}", courseId);
 			return new EntityNotFoundException("Course not found: id=" + courseId);
 		});
 
-		var distinct = groupIds.stream().filter(Objects::nonNull).distinct().toList();
-		if (distinct.isEmpty()) {
-			log.warn("removeGroupsFromCourse: only nulls in groupIds -> nothing to do");
-			return 0;
-		}
-
 		var groupsSet = course.getGroups();
-		if (groupsSet == null || groupsSet.isEmpty()) {
+		if (Optional.ofNullable(groupsSet).map(Collection::isEmpty).orElse(true)) {
 			log.info("removeGroupsFromCourse: courseId={} has no groups -> nothing to remove", courseId);
-			return 0;
+			return NOT_UPDATED;
 		}
 
-		var toRemove = new HashSet<>(distinct);
+
 		int before = groupsSet.size();
-		groupsSet.removeIf(g -> toRemove.contains(g.getId()));
+		groupsSet.removeIf(g -> groupIds.contains(g.getId()));
 		int removed = before - groupsSet.size();
 
 		log.info("removeGroupsFromCourse: removed {} group(s) from courseId={}", removed, courseId);
@@ -215,17 +239,16 @@ public class CourseService {
 
 	@Transactional(value = TxType.REQUIRES_NEW)
 	public DeleteResult deleteByIds(Collection<Long> ids) {
-		if (ids == null || ids.isEmpty()) {
+		if (Optional.ofNullable(ids).map(Collection::isEmpty).orElse(true)) {
 			log.warn("deleteByIds called with null/empty list");
-			return new DeleteResult(List.of(), List.of());
+			return new DeleteResult(Set.of(), Set.of());
 		}
 
-		var distinct = ids.stream().filter(Objects::nonNull).distinct().toList();
+		var distinct = ids.stream().filter(Objects::nonNull).collect(Collectors.toSet());
 		var existing = courseRepository.findAllById(distinct);
 
-		var deletedIds = existing.stream().map(Course::getId).toList();
-		var deletedSet = new HashSet<>(deletedIds);
-		var notFound = distinct.stream().filter(id -> !deletedSet.contains(id)).toList();
+		var deletedIds = existing.stream().map(Course::getId).collect(Collectors.toSet());
+		var notFound = distinct.stream().filter(id -> !deletedIds.contains(id)).collect(Collectors.toSet());
 
 		courseRepository.deleteAll(existing);
 		log.info("Deleted {} course(s); not found: {}", deletedIds.size(), notFound);
@@ -233,20 +256,27 @@ public class CourseService {
 	}
 
 	private List<Course> normalizeCoursesToPersist(Collection<Course> coursesToPersist) {
-		return coursesToPersist.stream().filter(Objects::nonNull).peek(c -> {
-			c.setId(null);
-			if (c.getCode() != null)
-				c.setCode(c.getCode().trim().toUpperCase());
-			if (c.getName() != null)
-				c.setName(c.getName().trim());
-		}).toList();
+		return Optional.ofNullable(coursesToPersist)
+				.orElseGet(List::of)
+				.stream()
+				.filter(Objects::nonNull)
+				.map(this::normalizeCourseInPlace)
+				.toList();
+	}
+
+	private Course normalizeCourseInPlace(Course c) {
+		c.setId(null);
+		Optional.ofNullable(c.getCode()).map(String::trim).map(String::toUpperCase).ifPresent(c::setCode);
+		Optional.ofNullable(c.getName()).map(String::trim).ifPresent(c::setName);
+		
+		return c;
 	}
 
 	private void assertTeachersExist(Collection<Course> courses) {
-		var teacherIds = courses.stream().map(c -> c.getTeacher().getId()).distinct().toList();
+		var teacherIds = courses.stream().map(c -> c.getTeacher().getId()).collect(Collectors.toSet());
 
 		var existing = new HashSet<>(teacherRepository.findExistingIds(teacherIds));
-		var missing = teacherIds.stream().filter(id -> !existing.contains(id)).toList();
+		var missing = teacherIds.stream().filter(id -> !existing.contains(id)).collect(Collectors.toSet());
 
 		if (!missing.isEmpty()) {
 			log.error("createAll: teachers not found: {}", missing);
@@ -260,7 +290,7 @@ public class CourseService {
 		if (groupIds.isEmpty())	return;
 
 		var existing = new HashSet<>(groupRepository.findExistingIds(groupIds));
-		var missing = groupIds.stream().filter(id -> !existing.contains(id)).toList();
+		var missing = groupIds.stream().filter(id -> !existing.contains(id)).collect(Collectors.toSet());
 
 		if (!missing.isEmpty()) {
 			log.error("createAll: study groups not found: {}", missing);
@@ -269,14 +299,15 @@ public class CourseService {
 	}
 
 	private void assertCourseIdsExist(Collection<Long> ids) {
-		if (ids.stream().anyMatch(Objects::isNull)) {
+		Optional.ofNullable(ids).filter(c -> c.stream().noneMatch(Objects::isNull)).orElseThrow(() -> {
 			log.error("assertCourseIdsExist: list contains null id");
-			throw new IllegalArgumentException("courseId must not be null");
-		}
-		var distinct = ids.stream().distinct().toList();
+			return new IllegalArgumentException("courseId must not be null");
+		});
+
+		var distinct = ids.stream().collect(Collectors.toSet());
 
 		var existing = new HashSet<>(courseRepository.findExistingIds(distinct));
-		var missing = distinct.stream().filter(id -> !existing.contains(id)).toList();
+		var missing = distinct.stream().filter(id -> !existing.contains(id)).collect(Collectors.toSet());
 
 		if (!missing.isEmpty()) {
 			log.error("assertCourseIdsExist: missing course ids {}", missing);
@@ -313,9 +344,9 @@ public class CourseService {
 				.filter(Objects::nonNull)
 				.map(s -> s.trim().toLowerCase())
 				.collect(Collectors.toSet());
+		
 		var ids = List.copyOf(codeById.keySet());
-		if (codes.isEmpty())
-			return;
+		if (codes.isEmpty()) return;
 
 		var conflicts = courseRepository.findConflictingCodesIgnoreCase(codes, ids);
 		if (!conflicts.isEmpty()) {
@@ -331,7 +362,7 @@ public class CourseService {
 	private void attachGroupRefs(Collection<Course> courses) {
 		courses.forEach(c -> {
 			var groups = c.getGroups();
-			if (groups == null || groups.isEmpty())	return;
+			if (Optional.ofNullable(groups).map(Collection::isEmpty).orElse(true)) return;
 
 			var refs = groups.stream()
 					.filter(Objects::nonNull)
@@ -339,11 +370,12 @@ public class CourseService {
 					.filter(Objects::nonNull)
 					.map(groupRepository::getReferenceById)
 					.collect(Collectors.toCollection(LinkedHashSet::new));
+			
 			c.setGroups(refs);
 		});
 	}
 
-	private List<Long> getGroupsIds(Collection<Course> courses) {
+	private Set<Long> getGroupsIds(Collection<Course> courses) {
 		return courses.stream()
 				.map(Course::getGroups)
 				.filter(Objects::nonNull)
@@ -351,8 +383,7 @@ public class CourseService {
 				.filter(Objects::nonNull)
 				.map(StudyGroup::getId)
 				.filter(Objects::nonNull)
-				.distinct()
-				.toList();
+				.collect(Collectors.toSet());
 	}
 
 	private void assertNoDuplicateCodesInRequest(Collection<String> codes) {
@@ -364,7 +395,7 @@ public class CourseService {
 				.stream()
 				.filter(e -> e.getValue() > 1)
 				.map(Map.Entry::getKey)
-				.toList();
+				.collect(Collectors.toSet());
 
 		if (!dup.isEmpty()) {
 			log.warn("duplicate normalized course codes in request: {}", dup);
@@ -381,7 +412,7 @@ public class CourseService {
 				.stream()
 				.filter(e -> e.getValue() > 1)
 				.map(Map.Entry::getKey)
-				.toList();
+				.collect(Collectors.toSet());
 
 		if (!dup.isEmpty()) {
 			log.warn("duplicate normalized course names in request: {}", dup);

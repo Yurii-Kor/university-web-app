@@ -1,9 +1,13 @@
 package ua.foxminded.university.service;
 
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,7 +27,6 @@ import ua.foxminded.university.model.repository.CourseRepository;
 import ua.foxminded.university.model.repository.ScheduleEntryRepository;
 import ua.foxminded.university.model.repository.StudyGroupRepository;
 import ua.foxminded.university.model.repository.TeacherRepository;
-import ua.foxminded.university.model.repository.dto.OverlapHit;
 import ua.foxminded.university.service.dto.DeleteResult;
 import ua.foxminded.university.service.exception.ScheduleConflictException;
 import ua.foxminded.university.service.exception.dto.RequestedSlot;
@@ -49,8 +52,8 @@ public class ScheduleEntryService {
 		var normalized = normalizeInputData(draft);
 		validator.validateAll(List.of(normalized), OnCreate.class);
 
-		Long courseId = normalized.getCourse().getId();
-		Long groupId = normalized.getGroup().getId();
+		var courseId = normalized.getCourse().getId();
+		var groupId = normalized.getGroup().getId();
 
 		normalized.setCourse(requireCourseRef(courseId));
 		normalized.setGroup(requireGroupRef(groupId));
@@ -88,37 +91,47 @@ public class ScheduleEntryService {
 
 	@Transactional(value = TxType.SUPPORTS)
 	public List<ScheduleEntry> findByIds(Collection<Long> ids) {
-		if (ids == null || ids.isEmpty()) {
-			log.warn("findByIds called with null/empty list");
+		var distinct = Optional.ofNullable(ids)
+				.orElseGet(Collections::emptySet)
+				.stream()
+				.filter(Objects::nonNull)
+				.collect(Collectors.toSet());
+
+		if (distinct.isEmpty()) {
+			log.warn("findByIds: null/empty input or only nulls after filtering");
 			return List.of();
 		}
-
-		var filtered = ids.stream().filter(Objects::nonNull).distinct().toList();
-		return filtered.isEmpty() ? List.of() : scheduleRepository.findAllById(filtered);
+		
+		return scheduleRepository.findAllById(distinct);
 	}
 
 	@Transactional(value = TxType.REQUIRES_NEW)
 	public DeleteResult deleteByIds(Collection<Long> ids, Long teacherId) {
-		if (ids == null || ids.isEmpty()) {
-			log.warn("deleteByIds called with null/empty ids");
-			return new DeleteResult(List.of(), List.of());
-		}
-		if (teacherId == null) {
+		Optional.ofNullable(teacherId).orElseThrow(() -> {
 			log.error("deleteByIds called with null teacherId");
 			throw new IllegalArgumentException("teacherId must not be null");
-		}
+		});
 
-		var distinct = ids.stream().filter(Objects::nonNull).distinct().toList();
+		var distinct = Optional.ofNullable(ids)
+				.orElseGet(Collections::emptyList)
+				.stream()
+				.filter(Objects::nonNull)
+				.collect(Collectors.toSet());
+
 		if (distinct.isEmpty()) {
-			log.warn("deleteByIds: only nulls in ids -> nothing to do");
-			return new DeleteResult(List.of(), List.of());
+			log.warn("deleteByIds: null/empty ids or only nulls -> nothing to delete");
+			return new DeleteResult(Set.of(), Set.of());
 		}
-
-		var existing = new HashSet<>(scheduleRepository.findExistingIds(distinct));
-		var notFound = distinct.stream().filter(id -> !existing.contains(id)).toList();
+		
+		return doDeleteByIds(distinct, teacherId);
+	}
+	
+	private DeleteResult doDeleteByIds(Collection<Long> distinctIds, Long teacherId) {
+		var existing = new HashSet<>(scheduleRepository.findExistingIds(distinctIds));
+		var notFound = distinctIds.stream().filter(id -> !existing.contains(id)).collect(Collectors.toSet());
 		if (existing.isEmpty()) {
-			log.info("deleteByIds: nothing exists among {}", distinct);
-			return new DeleteResult(List.of(), notFound);
+			log.info("deleteByIds: nothing exists among {}", distinctIds);
+			return new DeleteResult(Set.of(), notFound);
 		}
 
 		assertScheduleEntriesBelongToTeacher(existing, teacherId);
@@ -126,41 +139,45 @@ public class ScheduleEntryService {
 		scheduleRepository.deleteAllByIdInBatch(existing);
 		log.info("Deleted {} schedule entry(ies)", existing.size());
 
-		return new DeleteResult(existing.stream().toList(), notFound);
+		return new DeleteResult(existing, notFound);
 	}
 
 	private void updateCourse(ScheduleEntry managed, ScheduleEntry patch, Long teacherId) {
-		if (patch.getCourse() == null || patch.getCourse().getId() == null) {
+		Optional<Long> newIdOpt = Optional.ofNullable(patch).map(ScheduleEntry::getCourse).map(Course::getId);
+		if (newIdOpt.isEmpty()) {
 			log.debug("updateCourse: no-op (patch.course is null) for entry id={}", managed.getId());
 			return;
 		}
+		var newCourseId = newIdOpt.get();
 
-		var newCourseId = patch.getCourse().getId();
-		if (Objects.equals(managed.getCourse().getId(), newCourseId)) {
+		if (Optional.ofNullable(managed.getCourse())
+				.map(Course::getId)
+				.map(id -> Objects.equals(id, newCourseId))
+				.orElse(false)) {
+			
 			log.debug("updateCourse: no-op (same courseId={}) for entry id={}", newCourseId, managed.getId());
 			return;
 		}
 
-		var oldCourseId = managed.getCourse() != null ? managed.getCourse().getId() : null;
-
 		assertCourseBelongsToTeacher(newCourseId, teacherId);
 		managed.setCourse(requireCourseRef(newCourseId));
 
-		log.info("updateCourse: entry id={} course {} -> {}", managed.getId(), oldCourseId, newCourseId);
+		log.info("updateCourse: entry id={} course -> {}", managed.getId(), newCourseId);
 	}
 
+
 	private void assertCourseBelongsToTeacher(Long courseId, Long teacherId) {
-		boolean ok = courseRepository.existsByIdAndTeacher_Id(courseId, teacherId);
-		if (!ok) {
+		var isExist = courseRepository.existsByIdAndTeacher_Id(courseId, teacherId);
+		if (!isExist) {
 			log.error("teacher {} is not owner of course {}", teacherId, courseId);
 			throw new IllegalStateException("Course does not belong to the teacher");
 		}
 	}
 
 	private void assertScheduleEntriesBelongToTeacher(Collection<Long> existingIds, Long teacherId) {
-		var ids = existingIds.stream().filter(Objects::nonNull).distinct().toList();
+		var ids = existingIds.stream().filter(Objects::nonNull).collect(Collectors.toSet());
 		var owned = new HashSet<>(scheduleRepository.findOwnedIds(ids, teacherId));
-		var notOwned = ids.stream().filter(id -> !owned.contains(id)).toList();
+		var notOwned = ids.stream().filter(id -> !owned.contains(id)).collect(Collectors.toSet());
 
 		if (!notOwned.isEmpty()) {
 			log.error("deleteByIds: entries do not belong to teacher {}: {}", teacherId, notOwned);
@@ -169,25 +186,26 @@ public class ScheduleEntryService {
 	}
 
 	private void updateGroup(ScheduleEntry managed, ScheduleEntry patch) {
-		if (patch.getGroup() == null || patch.getGroup().getId() == null) {
+		Optional<Long> newGroupIdOpt = Optional.ofNullable(patch).map(ScheduleEntry::getGroup).map(StudyGroup::getId);
+		if (newGroupIdOpt.isEmpty()) {
 			log.debug("updateGroup: no-op (patch.group is null) for entry id={}", managed.getId());
 			return;
 		}
-		Long newGroupId = patch.getGroup().getId();
-		if (Objects.equals(managed.getGroup().getId(), newGroupId)) {
+		var newGroupId = newGroupIdOpt.get();
+		
+		Optional<Long> currentGroupIdOpt = Optional.ofNullable(managed.getGroup()).map(StudyGroup::getId);
+		if (currentGroupIdOpt.map(id -> Objects.equals(id, newGroupId)).orElse(false)) {
 			log.debug("updateGroup: no-op (same groupId={}) for entry id={}", newGroupId, managed.getId());
 			return;
 		}
 
-		Long oldGroupId = managed.getGroup() != null ? managed.getGroup().getId() : null;
-
 		managed.setGroup(requireGroupRef(newGroupId));
-		log.info("updateGroup: entry id={} group {} -> {}", managed.getId(), oldGroupId, newGroupId);
+		log.info("updateGroup: entry id={} group -> {}", managed.getId(), newGroupId);
 	}
 
 	private void assertGroupAttachedToCourse(ScheduleEntry draft) {
-		var ok = courseRepository.existsByIdAndGroups_Id(draft.getCourse().getId(), draft.getGroup().getId());
-		if (!ok) {
+		var isExist = courseRepository.existsByIdAndGroups_Id(draft.getCourse().getId(), draft.getGroup().getId());
+		if (!isExist) {
 			log.error("group {} is not attached to course {}", draft.getGroup().getId(), draft.getCourse().getId());
 			throw new IllegalStateException("Group is not attached to the course");
 		}
@@ -208,18 +226,18 @@ public class ScheduleEntryService {
 	}
 
 	private void updateScheduleEntryTime(ScheduleEntry managed, ScheduleEntry patch) {
-		if (patch.getStartTime() == null && patch.getEndTime() == null) {
-			log.debug("updateScheduleEntryTime: no-op (both start/end are null) for entry id={}", managed.getId());
+		if (Optional.ofNullable(patch).map(p -> p.getStartTime() == null && p.getEndTime() == null).orElse(true)) {
+			log.debug("updateScheduleEntryTime: no-op (patch is null) for entry id={}", managed.getId());
 			return;
 		}
 
-		var startTime = patch.getStartTime() != null ? patch.getStartTime() : managed.getStartTime();
-		var endTime = patch.getEndTime() != null ? patch.getEndTime() : managed.getEndTime();
+		var startTime = Optional.ofNullable(patch.getStartTime()).orElseGet(managed::getStartTime);
+		var endTime = Optional.ofNullable(patch.getEndTime()).orElseGet(managed::getEndTime);
 
-		if (!endTime.isAfter(startTime)) {
+		Optional.ofNullable(endTime).filter(et -> et.isAfter(startTime)).orElseThrow(() -> {
 			log.error("updateSelf: endTime {} must be after startTime {}", endTime, startTime);
-			throw new IllegalStateException("End time must be strictly after start time");
-		}
+			return new IllegalStateException("End time must be strictly after start time");
+		});
 
 		managed.setStartTime(startTime);
 		managed.setEndTime(endTime);
@@ -228,10 +246,15 @@ public class ScheduleEntryService {
 	}
 
 	private void updateRoom(ScheduleEntry managed, ScheduleEntry patch) {
-		if (patch.getRoom() == null || patch.getRoom().trim().isEmpty()) {
+		if (Optional.ofNullable(patch)
+				.map(ScheduleEntry::getRoom)
+				.map(String::trim)
+				.filter(s -> !s.isEmpty())
+				.isEmpty()) {
 			log.debug("updateRoom: no-op (patch.room is blank) for entry id={}", managed.getId());
 			return;
 		}
+
 
 		var normalizedRoom = patch.getRoom().trim().toUpperCase();
 
@@ -243,13 +266,14 @@ public class ScheduleEntryService {
 			log.debug("updateRoom: normalized equals current -> no change '{}'", normalizedRoom);
 			return;
 		}
+		
 		managed.setRoom(normalizedRoom);
 		log.info("updateRoom: entry id={} room {} -> {}", managed.getId(), old, normalizedRoom);
 	}
 
 	private void assertRoomIsNotTeacherOffice(String room) {
-		if (room == null)
-			return;
+		if (Optional.ofNullable(room).isEmpty()) return;
+		
 		if (teacherRepository.existsByOfficeIgnoreCase(room)) {
 			log.error("room '{}' is a teacher office", room);
 			throw new IllegalStateException("Room is reserved as a teacher office");
@@ -257,22 +281,33 @@ public class ScheduleEntryService {
 	}
 
 	private void assertNoOverlaps(ScheduleEntry draft, Long teacherId) {
-		var start = draft.getStartTime();
-		var end = draft.getEndTime();
+		var start = Optional.ofNullable(draft).map(ScheduleEntry::getStartTime).orElseThrow(() -> {
+			log.error("assertNoOverlaps: startTime is null");
+			return new IllegalArgumentException("startTime must not be null");
+		});
 
-		Objects.requireNonNull(start, "startTime must not be null");
-		Objects.requireNonNull(end, "endTime must not be null");
+		var end = Optional.ofNullable(draft).map(ScheduleEntry::getEndTime).orElseThrow(() -> {
+			log.error("assertNoOverlaps: endTime is null");
+			return new IllegalArgumentException("endTime must not be null");
+		});
 
-		var groupHits = scheduleRepository.findGroupOverlaps(draft.getGroup().getId(), start, end);
+		var groupId = Optional.ofNullable(draft.getGroup()).map(StudyGroup::getId).orElseThrow(() -> {
+			log.error("assertNoOverlaps: group.id is null");
+			return new IllegalArgumentException("group.id must not be null");
+		});
+
+		var groupHits = scheduleRepository.findGroupOverlaps(groupId, start, end);
 		var teacherHits = scheduleRepository.findTeacherOverlaps(teacherId, start, end);
-		var roomHits = draft.getRoom() == null ? List.<OverlapHit>of()
-				: scheduleRepository.findRoomOverlaps(draft.getRoom(), start, end);
 
-		if (draft.getId() != null) {
-			groupHits.removeIf(h -> Objects.equals(h.entryId(), draft.getId()));
-			teacherHits.removeIf(h -> Objects.equals(h.entryId(), draft.getId()));
-			roomHits.removeIf(h -> Objects.equals(h.entryId(), draft.getId()));
-		}
+		var roomHits = Optional.ofNullable(draft.getRoom())
+				.map(room -> scheduleRepository.findRoomOverlaps(room, start, end))
+				.orElseGet(List::of);
+
+		Optional.ofNullable(draft.getId()).ifPresent(selfId -> {
+			groupHits.removeIf(h -> Objects.equals(h.entryId(), selfId));
+			teacherHits.removeIf(h -> Objects.equals(h.entryId(), selfId));
+			roomHits.removeIf(h -> Objects.equals(h.entryId(), selfId));
+		});
 
 		if (!groupHits.isEmpty() || !teacherHits.isEmpty() || !roomHits.isEmpty()) {
 			log.error("Conflicts: group={}, teacher={}, room={}",
@@ -283,8 +318,9 @@ public class ScheduleEntryService {
 		}
 	}
 
+
 	private void updateLessonType(ScheduleEntry managed, ScheduleEntry patch) {
-		if (patch.getLessonType() == null) {
+		if (Optional.ofNullable(patch).map(ScheduleEntry::getLessonType).isEmpty()) {
 			log.debug("updateLessonType: null in patch -> skip");
 			return;
 		}
@@ -294,53 +330,56 @@ public class ScheduleEntryService {
 	}
 
 	private void updateDescription(ScheduleEntry managed, ScheduleEntry patch) {
-		if (patch.getDescription() == null) {
+		if (Optional.ofNullable(patch).map(ScheduleEntry::getDescription).isEmpty()) {
 			log.debug("updateDescription: null in patch -> skip");
 			return;
 		}
+
 		var d = patch.getDescription().trim();
 		managed.setDescription(d.isEmpty() ? null : d);
 		log.info("updateDescription: len {}", d.length());
 	}
 
 	private void assertCreateArgsNotNull(ScheduleEntry draft, Long teacherId) {
-		if (draft == null) {
+		Optional.ofNullable(draft).orElseThrow(() -> {
 			log.error("create: draft is null");
-			throw new IllegalArgumentException("scheduleEntry must not be null");
-		}
-		if (teacherId == null) {
+			return new IllegalArgumentException("scheduleEntry must not be null");
+		});
+
+		Optional.ofNullable(teacherId).orElseThrow(() -> {
 			log.error("create: teacherId is null");
-			throw new IllegalArgumentException("teacherId must not be null");
-		}
+			return new IllegalArgumentException("teacherId must not be null");
+		});
 	}
 
 	private void assertUpdateSelfArgsNotNull(ScheduleEntry patch, Long teacherId) {
-		if (patch == null || patch.getId() == null) {
-			log.error("updateSelf: invalid args: patchIsNull={}, id={}",
-					patch == null,
-					patch == null ? null : patch.getId());
-			throw new IllegalArgumentException("scheduleEntry.id must not be null for update");
-		}
-		if (teacherId == null) {
+		Optional.ofNullable(patch).map(ScheduleEntry::getId).orElseThrow(() -> {
+			log.error("updateSelf: invalid args: patch or patch.id is null");
+			return new IllegalArgumentException("scheduleEntry.id must not be null for update");
+		});
+
+		Optional.ofNullable(teacherId).orElseThrow(() -> {
 			log.error("updateSelf: teacherId is null");
-			throw new IllegalArgumentException("teacherId must not be null");
-		}
+			return new IllegalArgumentException("teacherId must not be null");
+		});
 	}
 
 	private ScheduleEntry normalizeInputData(ScheduleEntry entry) {
 		entry.setId(null);
 
-		if (entry.getRoom() != null) {
-			entry.setRoom(entry.getRoom().trim().toUpperCase());
-		}
-		if (entry.getDescription() != null) {
-			var d = entry.getDescription().trim();
-			entry.setDescription(d.isEmpty() ? null : d);
-		}
+		Optional.ofNullable(entry.getRoom())
+				.map(String::trim)
+				.map(String::toUpperCase)
+				.filter(newVal -> !Objects.equals(newVal, entry.getRoom()))
+				.ifPresent(entry::setRoom);
 
-		if (entry.getLessonType() == null) {
-			entry.setLessonType(LessonType.OTHER);
-		}
+		Optional.ofNullable(entry.getDescription())
+				.map(String::trim)
+				.map(s -> s.isEmpty() ? null : s)
+				.filter(newVal -> !Objects.equals(newVal, entry.getDescription()))
+				.ifPresent(entry::setDescription);
+
+		entry.setLessonType(Optional.ofNullable(entry.getLessonType()).orElse(LessonType.OTHER));
 
 		return entry;
 	}

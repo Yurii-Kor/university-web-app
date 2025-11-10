@@ -20,6 +20,13 @@ public interface AppUserRepository extends JpaRepository<AppUser, Long> {
 	long countByRole(UserRole role);
 
 	long countByRoleAndEnabled(UserRole role, boolean enabled);
+	
+	@Query("""
+			select lower(u.email)
+			from AppUser u
+			where lower(u.email) in :emails
+			""")
+	List<String> findExistingEmailsIgnoreCase(@Param("emails") Collection<String> emails);
 
 	@Query("select u.id from AppUser u where u.id in :ids")
 	List<Long> findExistingIds(@Param("ids") Collection<Long> ids);

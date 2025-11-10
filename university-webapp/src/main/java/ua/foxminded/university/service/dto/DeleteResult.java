@@ -1,6 +1,6 @@
 package ua.foxminded.university.service.dto;
 
-import java.util.List;
+import java.util.Collection;
 
-public record DeleteResult(List<Long> deletedIds, List<Long> notFoundIds) {
+public record DeleteResult(Collection<Long> deletedIds, Collection<Long> notFoundIds) {
 }

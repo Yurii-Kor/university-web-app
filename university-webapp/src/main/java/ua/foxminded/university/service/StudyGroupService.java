@@ -1,10 +1,12 @@
 package ua.foxminded.university.service;
 
 import java.util.Collection;
-import java.util.HashSet;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import jakarta.persistence.EntityNotFoundException;
@@ -26,6 +28,8 @@ import ua.foxminded.university.service.dto.DeleteResult;
 @RequiredArgsConstructor
 @Transactional
 public class StudyGroupService {
+	
+	private final Integer NOT_UPDATED  = 0;
 
 	private static final Logger log = LoggerFactory.getLogger(StudyGroupService.class);
 
@@ -34,15 +38,10 @@ public class StudyGroupService {
 
 	@Transactional(value = TxType.REQUIRES_NEW)
 	public List<StudyGroup> createAll(Collection<StudyGroup> groups) {
-		if (groups == null || groups.isEmpty()) {
-			log.warn("createAll called with null/empty list");
-			return List.of();
-		}
-
 		var toPersist = normalizeGroupsToPersist(groups);
 		if (toPersist.isEmpty()) {
-			log.warn("createAll: nothing to persist after filtering (all items null)");
-			throw new IllegalArgumentException("No valid groups in request");
+			log.warn("createAll: nothing to persist (null/empty input or all items null)");
+			return List.of();
 		}
 
 		var names = toPersist.stream().map(StudyGroup::getName).toList();
@@ -55,20 +54,24 @@ public class StudyGroupService {
 
 	@Transactional(value = TxType.SUPPORTS)
 	public List<StudyGroup> findByIds(Collection<Long> ids) {
-		if (ids == null || ids.isEmpty()) {
-			log.warn("findByIds called with null/empty list");
+		var distinct = Optional.ofNullable(ids)
+				.orElseGet(Collections::emptySet)
+				.stream()
+				.filter(Objects::nonNull)
+				.collect(Collectors.toSet());
+
+		if (distinct.isEmpty()) {
+			log.warn("findByIds: null/empty input or only nulls after filtering");
 			return List.of();
 		}
-
-		var filtered = ids.stream().filter(Objects::nonNull).distinct().toList();
-		return groupRepository.findAllById(filtered);
+		return groupRepository.findAllById(distinct);
 	}
 
 	@Transactional(value = TxType.REQUIRES_NEW)
 	public int rename(Map<Long, String> newNameById) {
-		if (newNameById == null || newNameById.isEmpty()) {
+		if (Optional.ofNullable(newNameById).map(Map::isEmpty).orElse(true)) {
 			log.warn("rename: empty/null map");
-			return 0;
+			return NOT_UPDATED;
 		}
 
 		assertIdsNotNull(newNameById);
@@ -93,24 +96,23 @@ public class StudyGroupService {
 
 	@Transactional(value = TxType.REQUIRES_NEW)
 	public DeleteResult deleteByIds(Collection<Long> ids) {
-		if (ids == null || ids.isEmpty()) {
+		if (Optional.ofNullable(ids).map(Collection::isEmpty).orElse(true)) {
 			log.warn("deleteByIds called with null/empty list");
-			return new DeleteResult(List.of(), List.of());
+			return new DeleteResult(Set.of(), Set.of());
 		}
 
-		var distinct = ids.stream().filter(Objects::nonNull).distinct().toList();
+		var distinct = ids.stream().filter(Objects::nonNull).collect(Collectors.toSet());
 
 		assertGroupsHaveNoStudents(distinct);
 
 		var existing = groupRepository.findAllById(distinct);
 
-		var deletedIds = existing.stream().map(StudyGroup::getId).toList();
-		var deletedSet = new HashSet<>(deletedIds);
-		var notFound = distinct.stream().filter(id -> !deletedSet.contains(id)).toList();
+		var deletedIds = existing.stream().map(StudyGroup::getId).collect(Collectors.toSet());
+		var notFound = distinct.stream().filter(id -> !deletedIds.contains(id)).collect(Collectors.toSet());
 
 		if (existing.isEmpty()) {
 			log.info("deleteByIds: nothing to delete; not found: {}", notFound);
-			return new DeleteResult(List.of(), notFound);
+			return new DeleteResult(Set.of(), notFound);
 		}
 
 		groupRepository.deleteAll(existing);
@@ -189,7 +191,7 @@ public class StudyGroupService {
 				.stream()
 				.filter(e -> e.getValue() > 1)
 				.map(Map.Entry::getKey)
-				.toList();
+				.collect(Collectors.toSet());
 
 		if (!dup.isEmpty()) {
 			log.warn("duplicate normalized group names in request: {}", dup);
@@ -198,11 +200,10 @@ public class StudyGroupService {
 	}
 
 	private List<StudyGroup> normalizeGroupsToPersist(Collection<StudyGroup> groupsToPersist) {
-		return groupsToPersist.stream().filter(Objects::nonNull).peek(g -> {
+		return Optional.ofNullable(groupsToPersist).orElseGet(List::of).stream().filter(Objects::nonNull).map(g -> {
 			g.setId(null);
-			if (g.getName() != null) {
-				g.setName(normalizeGroupName(g.getName()));
-			}
+			Optional.ofNullable(g.getName()).map(this::normalizeGroupName).ifPresent(g::setName);
+			return g;
 		}).toList();
 	}
 

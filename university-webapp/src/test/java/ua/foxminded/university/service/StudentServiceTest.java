@@ -4,13 +4,13 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
 
 import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.context.annotation.Import;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.test.context.ActiveProfiles;
 
 import jakarta.persistence.EntityManager;
@@ -111,7 +111,7 @@ class StudentServiceTest {
 		var result = assertDoesNotThrow(() -> studentService.deleteByIds(List.of(saved.getId())),
 				"deleteByIds should not throw for existing id");
 
-		assertEquals(List.of(saved.getId()),
+		assertEquals(Set.of(saved.getId()),
 				result.deletedIds(),
 				"Deleted IDs should contain exactly the student's id");
 		assertTrue(result.notFoundIds().isEmpty(), "notFound should be empty for existing id");
@@ -144,7 +144,7 @@ class StudentServiceTest {
 		var s1 = Student.builder().user(u1).group(defaultGroup).enrollmentYear(VALID_ENROLLMENT_YEAR).build();
 		var s2 = Student.builder().user(u2).group(defaultGroup).enrollmentYear(VALID_ENROLLMENT_YEAR).build();
 
-		assertThrows(DataIntegrityViolationException.class,
+		assertThrows(IllegalArgumentException.class,
 				() -> studentService.createAll(List.of(s1, s2)),
 				"Batch with duplicate user.email must fail on unique constraint");
 	}
@@ -176,7 +176,7 @@ class StudentServiceTest {
 
 		var second = Student.builder().user(dupUser).group(defaultGroup).enrollmentYear(VALID_ENROLLMENT_YEAR).build();
 
-		assertThrows(DataIntegrityViolationException.class,
+		assertThrows(IllegalArgumentException.class,
 				() -> studentService.createAll(List.of(second)),
 				"Second insert with duplicate user.email must fail on unique constraint");
 	}
@@ -330,7 +330,7 @@ class StudentServiceTest {
 
 		var result = studentService.deleteByIds(Arrays.asList(saved.getId(), NON_EXISTENT_ID, null));
 
-		assertEquals(List.of(saved.getId()), result.deletedIds(), "should delete existing id");
-		assertEquals(List.of(NON_EXISTENT_ID), result.notFoundIds(), "should report missing id");
+		assertEquals(Set.of(saved.getId()), result.deletedIds(), "should delete existing id");
+		assertEquals(Set.of(NON_EXISTENT_ID), result.notFoundIds(), "should report missing id");
 	}
 }

@@ -6,6 +6,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.ConstraintViolationException;
@@ -15,7 +16,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.context.annotation.Import;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.test.context.ActiveProfiles;
 
 import ua.foxminded.university.TestcontainersConfiguration;
@@ -100,7 +100,7 @@ class TeacherServiceTest {
 
 		var result = assertDoesNotThrow(() -> teacherService.deleteByIds(List.of(saved.getId())),
 				"deleteByIds should not throw");
-		assertEquals(List.of(saved.getId()), result.deletedIds(), "Deleted must contain teacher id");
+		assertEquals(Set.of(saved.getId()), result.deletedIds(), "Deleted must contain teacher id");
 		assertTrue(result.notFoundIds().isEmpty(), "notFound must be empty");
 
 		var afterDelete = teacherService.findByIds(List.of(saved.getId()));
@@ -113,7 +113,7 @@ class TeacherServiceTest {
 		var t1 = newTeacher(DUP_EMAIL, OFFICE_A, RANK_A);
 		var t2 = newTeacher(DUP_EMAIL, OFFICE_B, RANK_A);
 
-		assertThrows(DataIntegrityViolationException.class,
+		assertThrows(IllegalArgumentException.class,
 				() -> teacherService.createAll(List.of(t1, t2)),
 				"Batch with duplicate user.email must fail on unique constraint");
 	}
@@ -126,7 +126,7 @@ class TeacherServiceTest {
 
 		var t2 = newTeacher(DUP_EMAIL, OFFICE_B, RANK_A);
 
-		assertThrows(DataIntegrityViolationException.class,
+		assertThrows(IllegalArgumentException.class,
 				() -> teacherService.createAll(List.of(t2)),
 				"Second insert with duplicate email must fail");
 	}
@@ -138,7 +138,7 @@ class TeacherServiceTest {
 				.user(AppUser.builder()
 						.email("badrole-teacher@example.com")
 						.password(VALID_PASSWORD)
-						.role(UserRole.STUDENT) // НЕ TEACHER
+						.role(UserRole.STUDENT)
 						.firstName(FIRST_NAME)
 						.lastName(LAST_NAME)
 						.enabled(true)
@@ -280,7 +280,7 @@ class TeacherServiceTest {
 
 		var result = teacherService.deleteByIds(Arrays.asList(saved.getId(), NON_EXISTENT_ID, null));
 
-		assertEquals(List.of(saved.getId()), result.deletedIds(), "should delete existing id");
-		assertEquals(List.of(NON_EXISTENT_ID), result.notFoundIds(), "should report missing id");
+		assertEquals(Set.of(saved.getId()), result.deletedIds(), "should delete existing id");
+		assertEquals(Set.of(NON_EXISTENT_ID), result.notFoundIds(), "should report missing id");
 	}
 }
