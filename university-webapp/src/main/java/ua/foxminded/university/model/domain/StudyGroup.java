@@ -1,7 +1,6 @@
 package ua.foxminded.university.model.domain;
 
 import jakarta.persistence.*;
-import jakarta.validation.constraints.*;
 import lombok.*;
 
 import java.util.ArrayList;
@@ -25,13 +24,7 @@ public class StudyGroup {
 	@ToString.Include
 	private Long id;
 
-	@NotBlank
-	@Size(max = 255)
-	@Pattern(
-			regexp = "^[A-Z]{2}-\\d{3}$", 
-			message = "Group name must look like 'CS-101'"
-			)
-	@Column(name = "name", nullable = false, length = 255)
+	@Column()
 	@ToString.Include
 	private String name;
 

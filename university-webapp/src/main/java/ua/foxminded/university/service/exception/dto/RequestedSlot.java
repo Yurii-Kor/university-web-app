@@ -2,7 +2,7 @@ package ua.foxminded.university.service.exception.dto;
 
 import java.time.OffsetDateTime;
 
-import ua.foxminded.university.model.domain.ScheduleEntry;
+import ua.foxminded.university.model.domain.Lesson;
 
 public record RequestedSlot(
      Long groupId,
@@ -14,7 +14,7 @@ public record RequestedSlot(
      String lessonType,
      String description
 ) {
- public static RequestedSlot from(ScheduleEntry draft, Long teacherId) {
+ public static RequestedSlot from(Lesson draft, Long teacherId) {
      return new RequestedSlot(
              draft.getGroup()  != null ? draft.getGroup().getId()  : null,
              draft.getCourse() != null ? draft.getCourse().getId() : null,

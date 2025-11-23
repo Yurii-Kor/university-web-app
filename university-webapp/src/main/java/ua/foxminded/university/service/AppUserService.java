@@ -4,11 +4,9 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
-import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
@@ -21,17 +19,24 @@ import jakarta.transaction.Transactional.TxType;
 import lombok.RequiredArgsConstructor;
 import ua.foxminded.university.model.domain.AppUser;
 import ua.foxminded.university.model.domain.enums.UserRole;
-import ua.foxminded.university.model.domain.validation.EntityValidatior;
 import ua.foxminded.university.model.repository.AppUserRepository;
 import ua.foxminded.university.security.PasswordPolicy;
-import ua.foxminded.university.service.dto.DeleteResult;
+import ua.foxminded.university.service.dto.request.AppUserDto;
+import ua.foxminded.university.service.dto.response.DeleteResult;
+import ua.foxminded.university.service.util.DtoMapper;
+import ua.foxminded.university.service.util.DuplicateGuard;
+import ua.foxminded.university.service.util.RequestDtoNormalizer;
+import ua.foxminded.university.service.util.validation.EntityValidatior;
+import ua.foxminded.university.service.util.validation.groups.OnChangePassword;
+import ua.foxminded.university.service.util.validation.groups.OnCreate;
+import ua.foxminded.university.service.util.validation.groups.OnUpdateSelf;
 
 @Service
 @RequiredArgsConstructor
 @Transactional
 public class AppUserService {
-	
-	private final Integer NOT_UPDATED  = 0;
+
+	private static final int NOT_UPDATED = 0;
 
 	private static final Logger log = LoggerFactory.getLogger(AppUserService.class);
 
@@ -39,32 +44,43 @@ public class AppUserService {
 	private final PasswordPolicy passwordPolicy;
 	private final EntityValidatior validator;
 
-	@Transactional(value = TxType.REQUIRES_NEW)
-	public List<AppUser> createAdmins(Collection<AppUser> drafts) {
-		var prepared = normalizeAdminsToPersist(drafts);
+	private final RequestDtoNormalizer normalizer;
+	private final DtoMapper mapper;
+	private final DuplicateGuard duplicateGuard;
 
-		if (prepared.isEmpty()) {
-			log.warn("createAdmins: nothing to persist (null/empty input or all items null)");
+	@Transactional(value = TxType.REQUIRES_NEW)
+	public List<AppUser> createAdmins(Collection<AppUserDto> drafts) {
+		var norm = normalizer.normalizeUsers(drafts);
+		if (norm.isEmpty()) {
+			log.warn("createAdmins: nothing to persist (null/empty input)");
 			return List.of();
 		}
 
-		assertEmailsAndPasswordsNotNull(prepared);
-		assertNoDuplicateEmailsInRequest(prepared);
+		validator.validateAll(norm, OnCreate.class);
 
-		var emails = prepared.stream().map(AppUser::getEmail).toList();
+		var emails = norm.stream()
+				.map(AppUserDto::email)
+				.filter(Objects::nonNull)
+				.map(String::trim)
+				.map(String::toLowerCase)
+				.toList();
+		duplicateGuard.assertNoDuplicates(emails, "emails");
 		assertEmailsFreeInDb(emails);
 
-		var admins = prepareAdminsForPersist(prepared);
+		var admins = mapper.toAppUserEntities(norm);
 
-		validator.validateAll(admins);
+		admins.forEach(a -> {
+			a.setPassword(passwordPolicy.encodePassword(a.getPassword()));
+			a.setRole(UserRole.ADMIN);
+		});
+
 		return usersRepository.saveAll(admins);
 	}
-
 
 	@Transactional(value = TxType.SUPPORTS)
 	public List<AppUser> findByIds(Collection<Long> ids) {
 		var distinct = Optional.ofNullable(ids)
-				.orElseGet(Collections::emptySet)
+				.orElseGet(Collections::emptyList)
 				.stream()
 				.filter(Objects::nonNull)
 				.collect(Collectors.toSet());
@@ -73,43 +89,57 @@ public class AppUserService {
 			log.warn("findByIds: null/empty input or only nulls after filtering");
 			return List.of();
 		}
-		
+
 		return usersRepository.findAllById(distinct);
 	}
 
 	@Transactional(value = TxType.REQUIRES_NEW)
-	public void changePasswordSelf(Long userId, String currentRaw, String newRaw) {
-		assertChangePasswordSelfArgsNotNull(userId, currentRaw, newRaw);
+	public void changePasswordSelf(AppUserDto dto) {
+		var norm = normalizer.normalizeUser(dto)
+				.orElseThrow(() -> new IllegalArgumentException("DTO must not be null"));
+		validator.validate(norm, OnChangePassword.class);
 
-		validator.validateRawPassword(newRaw);
-
-		var user = usersRepository.findById(userId).orElseThrow(() -> {
-			log.warn("changePasswordSelf: user not found (userId={})", userId);
-			return new EntityNotFoundException("User not found: id=" + userId);
+		var user = usersRepository.findById(norm.id()).orElseThrow(() -> {
+			log.warn("changePasswordSelf: user not found (userId={})", norm.id());
+			return new EntityNotFoundException("User not found: id=" + norm.id());
 		});
 
-		passwordPolicy.assertCurrentMatches(currentRaw, user.getPassword());
-
-		var encoded = passwordPolicy.encodeForChange(newRaw);
-		user.setPassword(encoded);
-		log.info("changePasswordSelf: password changed (userId={})", userId);
+		passwordPolicy.assertCurrentMatches(norm.currentPassword(), user.getPassword());
+		passwordPolicy.assertNewDifferentFromCurrent(norm.currentPassword(), norm.newPassword());
+		
+		user.setPassword(passwordPolicy.encodePassword(norm.newPassword()));
+		log.info("changePasswordSelf: password changed (userId={})", norm.id());
 	}
 
 	@Transactional(TxType.REQUIRES_NEW)
-	public void updateProfileFields(Long userId, AppUser patch) {
-		assertUpdateProfileFieldsArgsNotNull(userId, patch);
+	public void updateProfileFields(AppUserDto patchDto) {
+		var norm = normalizer.normalizeUser(patchDto)
+				.orElseThrow(() -> new IllegalArgumentException("DTO must not be null"));
 
-		var user = usersRepository.findById(userId).orElseThrow(() -> {
-			log.error("updateProfileFields: AppUser not found: id={}", userId);
-			return new EntityNotFoundException("AppUser not found: id=" + userId);
+		validator.validate(norm, OnUpdateSelf.class);
+
+		var user = usersRepository.findById(norm.id()).orElseThrow(() -> {
+			log.error("updateProfileFields: AppUser not found: id={}", norm.id());
+			return new EntityNotFoundException("AppUser not found: id=" + norm.id());
 		});
 
-		updateEmail(user, patch);
-		updateFirstName(user, patch);
-		updateLastName(user, patch);
+		Optional.ofNullable(norm.email()).ifPresent(newEmail -> {
+			var same = Optional.ofNullable(user.getEmail()).filter(newEmail::equals).isPresent();
+			if (!same) {
+				assertEmailUniqueForAnother(newEmail, user.getId());
+				user.setEmail(newEmail);
+			}
+		});
 
-		validator.validate(user);
-		log.debug("updateProfileFields: updated profile fields for userId={}", userId);
+		Optional.ofNullable(norm.firstName())
+				.filter(newFirst -> !newFirst.equals(Optional.ofNullable(user.getFirstName()).orElse(null)))
+				.ifPresent(user::setFirstName);
+
+		Optional.ofNullable(norm.lastName())
+				.filter(newLast -> !newLast.equals(Optional.ofNullable(user.getLastName()).orElse(null)))
+				.ifPresent(user::setLastName);
+
+		log.debug("updateProfileFields: updated profile fields for userId={}", norm.id());
 	}
 
 	@Transactional(value = TxType.REQUIRES_NEW)
@@ -151,166 +181,21 @@ public class AppUserService {
 		return new DeleteResult(foundIds, notFound);
 	}
 
-	
-	private List<AppUser> normalizeAdminsToPersist(Collection<AppUser> drafts) {
-		return Optional.ofNullable(drafts)
-				.orElseGet(List::of)
-				.stream()
-				.filter(Objects::nonNull)
-				.map(this::normalizeAdmiToPersist)
-				.toList();
-	}
-	
-	private AppUser normalizeAdmiToPersist(AppUser u) {
-		u.setId(null);
-		Optional.ofNullable(u.getEmail()).map(String::trim).ifPresent(u::setEmail);
-		Optional.ofNullable(u.getFirstName()).map(String::trim).ifPresent(u::setFirstName);
-		Optional.ofNullable(u.getLastName()).map(String::trim).ifPresent(u::setLastName);
-
-		return u;
-	}
-	
-	private List<AppUser> prepareAdminsForPersist(List<AppUser> prepared) {
-		return prepared.stream().map(this::prepareAdminForPersist).toList();
-	}
-
-	private AppUser prepareAdminForPersist(AppUser user) {
-	    validator.validateRawPassword(user.getPassword());
-	    user.setPassword(passwordPolicy.encodeForChange(user.getPassword()));
-	    user.setRole(UserRole.ADMIN);
-	    user.setEnabled(true);
-	    return user;
-	}
-	
-	private void assertEmailsAndPasswordsNotNull(Collection<AppUser> users) {
-		users.forEach(u -> Optional.ofNullable(u)
-				.filter(user -> user.getEmail() != null && user.getPassword() != null)
-				.orElseThrow(() -> {
-					log.error("createAdmins: email/password is null for draft with id={}", u.getId());
-					return new IllegalArgumentException("email/password must not be null");
-				}));
-	}
-	
 	private void assertEmailsFreeInDb(Collection<String> emails) {
 		var normalized = emails.stream()
 				.filter(Objects::nonNull)
 				.map(String::trim)
 				.map(String::toLowerCase)
 				.collect(Collectors.toSet());
-
+		
 		if (normalized.isEmpty()) return;
-
+		
 		var conflicts = usersRepository.findExistingEmailsIgnoreCase(normalized);
 
 		if (!conflicts.isEmpty()) {
 			log.warn("createAdmins: emails already exist in DB: {}", conflicts);
 			throw new IllegalArgumentException("Emails already exist: " + conflicts);
 		}
-	}
-	
-	private void assertChangePasswordSelfArgsNotNull(Long userId, String currentRaw, String newRaw) {
-		Optional.ofNullable(userId).orElseThrow(() -> {
-			log.warn("changePasswordSelf: userId is null");
-			return new IllegalArgumentException("userId must not be null");
-		});
-
-		Optional.ofNullable(currentRaw).orElseThrow(() -> {
-			log.warn("changePasswordSelf: current password is null (userId={})", userId);
-			return new IllegalArgumentException("passwords must not be null");
-		});
-
-		Optional.ofNullable(newRaw).orElseThrow(() -> {
-			log.warn("changePasswordSelf: new password is null (userId={})", userId);
-			return new IllegalArgumentException("passwords must not be null");
-		});
-	}
-	
-	private void assertUpdateProfileFieldsArgsNotNull(Long userId, AppUser patch) {
-		Optional.ofNullable(userId).orElseThrow(() -> {
-			log.error("updateProfileFields: invalid args: userId is null, patchIsNull={}", patch == null);
-			return new IllegalArgumentException("userId/patch must not be null");
-		});
-
-		Optional.ofNullable(patch).orElseThrow(() -> {
-			log.error("updateProfileFields: invalid args: userId={}, patchIsNull=true", userId);
-			return new IllegalArgumentException("userId/patch must not be null");
-		});
-	}
-	
-	private void updateEmail(AppUser user, AppUser patch) {
-		Optional<String> newEmailOpt = Optional.ofNullable(patch)
-				.map(AppUser::getEmail)
-				.map(String::trim)
-				.filter(Predicate.not(String::isBlank));
-		if (newEmailOpt.isEmpty()) {
-			log.debug("updateProfileFields: patch.email is null/blank -> skip for userId={}", user.getId());
-			return;
-		}
-
-		String newEmail = newEmailOpt.get();
-		String newEmailNorm = newEmail.toLowerCase();
-
-		var sameAsCurrent = Optional.ofNullable(user.getEmail())
-				.map(String::trim)
-				.map(s -> s.toLowerCase())
-				.filter(Predicate.isEqual(newEmailNorm))
-				.isPresent();
-		if (sameAsCurrent) {
-			log.debug("updateProfileFields: same email={} -> no-op for userId={}", newEmail, user.getId());
-			return;
-		}
-
-		assertEmailUniqueForAnother(newEmail, user.getId());
-
-		user.setEmail(newEmail);
-	}
-	
-	private void updateFirstName(AppUser user, AppUser patch) {
-		Optional<String> newFirstOpt = Optional.ofNullable(patch)
-				.map(AppUser::getFirstName)
-				.map(String::trim)
-				.filter(s -> !s.isBlank());
-		if (newFirstOpt.isEmpty()) {
-			log.debug("updateProfileFields: patch.firstName is null/blank -> skip for userId={}", user.getId());
-			return;
-		}
-
-		String newFirst = newFirstOpt.get();
-
-		boolean sameAsCurrent = Optional.ofNullable(user.getFirstName())
-				.map(String::trim)
-				.filter(old -> old.equals(newFirst))
-				.isPresent();
-		if (sameAsCurrent) {
-			log.debug("updateProfileFields: same firstName='{}' -> no-op for userId={}", newFirst, user.getId());
-			return;
-		}
-
-		user.setFirstName(newFirst);
-	}
-	
-	private void updateLastName(AppUser user, AppUser patch) {
-		Optional<String> newLastOpt = Optional.ofNullable(patch)
-				.map(AppUser::getLastName)
-				.map(String::trim)
-				.filter(s -> !s.isBlank());
-		if (newLastOpt.isEmpty()) {
-			log.debug("updateProfileFields: patch.lastName is null/blank -> skip for userId={}", user.getId());
-			return;
-		}
-
-		String newLast = newLastOpt.get();
-
-		var sameAsCurrent = Optional.ofNullable(user.getLastName())
-				.map(String::trim)
-				.filter(old -> old.equals(newLast))
-				.isPresent();
-		if (sameAsCurrent) {
-			log.debug("updateProfileFields: same lastName='{}' -> no-op for userId={}", newLast, user.getId());
-			return;
-		}
-
-		user.setLastName(newLast);
 	}
 
 	private Integer setEnabledFlag(Collection<Long> ids, boolean enabled) {
@@ -342,13 +227,14 @@ public class AppUserService {
 			log.error("setEnabledFlag: some ids do not exist: {}", missing);
 			throw new EntityNotFoundException("Users not found: " + missing);
 		}
-		
+
 		return existing;
 	}
 
 	private void assertNotDisablingLastEnabledAdmin(Collection<Long> targetExistingIds) {
 		var enabledAdminsTotal = usersRepository.countByRoleAndEnabled(UserRole.ADMIN, true);
-		if (enabledAdminsTotal <= 0) return;
+		if (enabledAdminsTotal <= 0)
+			return;
 
 		var targetedEnabledAdmins = usersRepository.findEnabledIdsByRoleIn(targetExistingIds, UserRole.ADMIN).size();
 
@@ -360,8 +246,6 @@ public class AppUserService {
 	}
 
 	private void assertEmailUniqueForAnother(String email, Long selfId) {
-		if (email == null) return;
-
 		if (usersRepository.existsByEmailIgnoreCaseAndIdNot(email, selfId)) {
 			log.warn("assertEmailUniqueForAnother: email already taken: email='{}', requesterUserId={}", email, selfId);
 			throw new IllegalArgumentException("Email is already taken");
@@ -369,24 +253,6 @@ public class AppUserService {
 		log.debug("assertEmailUniqueForAnother: email '{}' is available for userId={}", email, selfId);
 	}
 
-	private void assertNoDuplicateEmailsInRequest(Collection<AppUser> users) {
-		var dup = users.stream()
-	            .map(AppUser::getEmail)
-	            .filter(Objects::nonNull)
-	            .map(s -> s.trim().toLowerCase())
-	            .collect(Collectors.groupingBy(s -> s, Collectors.counting()))
-	            .entrySet()
-	            .stream()
-	            .filter(e -> e.getValue() > 1)
-	            .map(Map.Entry::getKey)
-	            .collect(Collectors.toSet());
-
-	    if (!dup.isEmpty()) {
-	        log.error("createAdmins: duplicate emails in request: {}", dup);
-	        throw new IllegalArgumentException("Duplicate emails in request: " + dup);
-	    }
-	}
-	
 	private void assertAllAdmins(Collection<AppUser> users) {
 		var notAdmins = users.stream().filter(u -> u.getRole() != UserRole.ADMIN).map(AppUser::getId).toList();
 

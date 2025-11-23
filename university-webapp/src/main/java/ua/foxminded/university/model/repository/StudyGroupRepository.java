@@ -5,7 +5,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import ua.foxminded.university.model.domain.StudyGroup;
-import ua.foxminded.university.model.repository.dto.GroupStudentAgg;
+import ua.foxminded.university.model.repository.dto.IdCountAgg;
 
 import java.util.Collection;
 import java.util.List;
@@ -16,13 +16,13 @@ public interface StudyGroupRepository extends JpaRepository<StudyGroup, Long> {
 	List<Long> findExistingIds(@Param("ids") Collection<Long> ids);
 
 	@Query("""
-				select new ua.foxminded.university.model.repository.dto.GroupStudentAgg(g.id, count(s.id))
+				select new ua.foxminded.university.model.repository.dto.IdCountAgg(g.id, count(s.id))
 				from StudyGroup g
 				left join g.students s
 				where g.id in :ids
 				group by g.id
 			""")
-	List<GroupStudentAgg> countStudentsByGroupIds(@Param("ids") Collection<Long> ids);
+	List<IdCountAgg> countStudentsByGroupIds(@Param("ids") Collection<Long> ids);
 
 	@Query("""
 				select lower(g.name)

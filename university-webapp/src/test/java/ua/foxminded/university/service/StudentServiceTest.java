@@ -18,14 +18,16 @@ import jakarta.persistence.EntityNotFoundException;
 import jakarta.persistence.PersistenceContext;
 import jakarta.validation.ConstraintViolationException;
 import ua.foxminded.university.TestcontainersConfiguration;
-import ua.foxminded.university.model.domain.AppUser;
-import ua.foxminded.university.model.domain.Student;
 import ua.foxminded.university.model.domain.StudyGroup;
 import ua.foxminded.university.model.domain.enums.UserRole;
-import ua.foxminded.university.model.domain.validation.EntityValidatior;
-import ua.foxminded.university.model.domain.validation.config.ValidatorConfig;
 import ua.foxminded.university.security.PasswordPolicy;
 import ua.foxminded.university.security.config.PasswordEncoderConfig;
+import ua.foxminded.university.service.dto.request.StudentDto;
+import ua.foxminded.university.service.util.DtoMapper;
+import ua.foxminded.university.service.util.DuplicateGuard;
+import ua.foxminded.university.service.util.RequestDtoNormalizer;
+import ua.foxminded.university.service.util.validation.EntityValidatior;
+import ua.foxminded.university.service.util.validation.config.ValidatorConfig;
 import ua.foxminded.university.testutil.TestDataInitializer;
 
 @DataJpaTest
@@ -33,7 +35,8 @@ import ua.foxminded.university.testutil.TestDataInitializer;
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @Import({ TestcontainersConfiguration.class, StudentService.class, AppUserService.class, TestDataInitializer.class,
-		ValidatorConfig.class, EntityValidatior.class, PasswordPolicy.class, PasswordEncoderConfig.class })
+		ValidatorConfig.class, EntityValidatior.class, PasswordPolicy.class, PasswordEncoderConfig.class,
+		RequestDtoNormalizer.class, DtoMapper.class, DuplicateGuard.class })
 class StudentServiceTest {
 
 	static final String DEFAULT_GROUP_NAME = "CS-101";
@@ -45,6 +48,7 @@ class StudentServiceTest {
 	static final String DUP_UPDATE_EMAIL_A = "dup-update-a@example.com";
 	static final String DUP_UPDATE_EMAIL_B = "dup-update-b@example.com";
 	static final String MOOVE_NON_GRUP_EMAIL = "move-nogroup-1@example.com";
+	static final String NOT_AN_EMAIL = "not-an-email";
 
 	static final String VALID_PASSWORD = "Abcd1234!";
 	static final String VALID_FIRST_NAME = "John";
@@ -69,6 +73,10 @@ class StudentServiceTest {
 	private StudyGroup defaultGroup;
 	private StudyGroup updatedGroup;
 
+	private StudentDto dto(String email, String password, String first, String last, Long groupId, Integer year) {
+		return new StudentDto(email, password, first, last, groupId, year);
+	}
+
 	@BeforeAll
 	void setup() {
 		defaultGroup = initializer.persistAll(StudyGroup.builder().name(DEFAULT_GROUP_NAME).build()).get(0);
@@ -76,130 +84,100 @@ class StudentServiceTest {
 	}
 
 	@Test
-	@DisplayName("StudentService happy path: create -> update self (email/name) -> delete")
-	void create_updateSelf_delete_success() {
-		var user = AppUser.builder()
-				.email(VALID_EMAIL)
-				.password(VALID_PASSWORD)
-				.role(UserRole.STUDENT)
-				.firstName(VALID_FIRST_NAME)
-				.lastName(VALID_LAST_NAME)
-				.enabled(true)
-				.build();
+	@DisplayName("StudentService happy path: create(dto) -> move -> delete; роль выставляется как STUDENT")
+	void happyPath_fullCycle_success() {
+		var createDto = dto(VALID_EMAIL,
+				VALID_PASSWORD,
+				VALID_FIRST_NAME,
+				VALID_LAST_NAME,
+				defaultGroup.getId(),
+				VALID_ENROLLMENT_YEAR);
 
-		var toSave = Student.builder().user(user).group(defaultGroup).enrollmentYear(VALID_ENROLLMENT_YEAR).build();
-
-		var saved = assertDoesNotThrow(() -> studentService.createAll(List.of(toSave)).get(0),
-				"createAll(List.of(student)) should not throw");
+		var saved = assertDoesNotThrow(() -> studentService.createAll(List.of(createDto)).get(0),
+				"createAll(List.of(dto)) should not throw");
 
 		assertNotNull(saved.getId(), "Student ID should be assigned after persist");
 		assertNotNull(saved.getUser(), "Student must reference an AppUser");
 		assertEquals(saved.getUser().getId(), saved.getId(), "@MapsId requires Student.id to equal AppUser.id");
-		assertEquals(VALID_EMAIL,
-				saved.getUser().getEmail(),
-				"Email should be persisted as provided (normalized in entity if applicable)");
-		assertEquals(saved.getGroup().getId(),
-				defaultGroup.getId(),
-				"Student should be linked to the seeded default group");
+		assertEquals(VALID_EMAIL, saved.getUser().getEmail(), "Email should be persisted as provided/normalized");
+		assertEquals(defaultGroup.getId(), saved.getGroup().getId(), "Student should be linked to default group");
+		assertEquals(UserRole.STUDENT, saved.getUser().getRole(), "Service must set role=STUDENT");
 
 		var moved = assertDoesNotThrow(
 				() -> studentService.moveStudentsToGroup(List.of(saved.getId()), updatedGroup.getId()),
 				"moveStudentsToGroup should not throw for valid patch");
-
-		assertEquals(moved, ONE_STUDENT_MOOVED, "Processed Student shold be mooved");
+		assertEquals(ONE_STUDENT_MOOVED, moved, "Processed Student should be moved");
 
 		var result = assertDoesNotThrow(() -> studentService.deleteByIds(List.of(saved.getId())),
 				"deleteByIds should not throw for existing id");
 
-		assertEquals(Set.of(saved.getId()),
-				result.deletedIds(),
-				"Deleted IDs should contain exactly the student's id");
-		assertTrue(result.notFoundIds().isEmpty(), "notFound should be empty for existing id");
+		assertEquals(Set.of(saved.getId()), result.deletedIds(), "Deleted IDs should contain the student's id");
+		assertTrue(result.notFoundIds().isEmpty(), "notFound should be empty");
 
 		var afterDelete = studentService.findByIds(List.of(saved.getId()));
 		assertTrue(afterDelete.isEmpty(), "Student must not be found after deletion");
 	}
 
 	@Test
-	@DisplayName("createAll: two students in one call with the same email → DataIntegrityViolationException")
+	@DisplayName("createAll: two students in one call with the same email → IllegalArgumentException")
 	void createAll_twoStudentsSameEmail_oneBatch_fails() {
-		var u1 = AppUser.builder()
-				.email(DUPLICATED_EMAIL)
-				.password(VALID_PASSWORD)
-				.role(UserRole.STUDENT)
-				.firstName(VALID_FIRST_NAME)
-				.lastName(VALID_LAST_NAME)
-				.enabled(true)
-				.build();
+		var d1 = dto(DUPLICATED_EMAIL,
+				VALID_PASSWORD,
+				VALID_FIRST_NAME,
+				VALID_LAST_NAME,
+				defaultGroup.getId(),
+				VALID_ENROLLMENT_YEAR);
 
-		var u2 = AppUser.builder()
-				.email(DUPLICATED_EMAIL)
-				.password(VALID_PASSWORD)
-				.role(UserRole.STUDENT)
-				.firstName(VALID_FIRST_NAME)
-				.lastName(VALID_LAST_NAME)
-				.enabled(true)
-				.build();
-
-		var s1 = Student.builder().user(u1).group(defaultGroup).enrollmentYear(VALID_ENROLLMENT_YEAR).build();
-		var s2 = Student.builder().user(u2).group(defaultGroup).enrollmentYear(VALID_ENROLLMENT_YEAR).build();
+		var d2 = dto(DUPLICATED_EMAIL,
+				VALID_PASSWORD,
+				VALID_FIRST_NAME,
+				VALID_LAST_NAME,
+				defaultGroup.getId(),
+				VALID_ENROLLMENT_YEAR);
 
 		assertThrows(IllegalArgumentException.class,
-				() -> studentService.createAll(List.of(s1, s2)),
-				"Batch with duplicate user.email must fail on unique constraint");
+				() -> studentService.createAll(List.of(d1, d2)),
+				"Batch with duplicate user.email must fail with IllegalArgumentException");
 	}
 
 	@Test
-	@DisplayName("createAll: second call with duplicate email (existing in DB) → DataIntegrityViolationException")
+	@DisplayName("createAll: second call with duplicate email (existing in DB) → IllegalArgumentException")
 	void createAll_duplicateEmail_acrossTwoCalls_fails() {
-		var firstUser = AppUser.builder()
-				.email(DUPLICATED_EMAIL)
-				.password(VALID_PASSWORD)
-				.role(UserRole.STUDENT)
-				.firstName(VALID_FIRST_NAME)
-				.lastName(VALID_LAST_NAME)
-				.enabled(true)
-				.build();
+		var first = dto(DUPLICATED_EMAIL,
+				VALID_PASSWORD,
+				VALID_FIRST_NAME,
+				VALID_LAST_NAME,
+				defaultGroup.getId(),
+				VALID_ENROLLMENT_YEAR);
 
-		var first = Student.builder().user(firstUser).group(defaultGroup).enrollmentYear(VALID_ENROLLMENT_YEAR).build();
 		assertDoesNotThrow(() -> studentService.createAll(List.of(first)),
 				"First insert with unique email should pass");
 
-		var dupUser = AppUser.builder()
-				.email(DUPLICATED_EMAIL)
-				.password(VALID_PASSWORD)
-				.role(UserRole.STUDENT)
-				.firstName(VALID_FIRST_NAME)
-				.lastName(VALID_LAST_NAME)
-				.enabled(true)
-				.build();
-
-		var second = Student.builder().user(dupUser).group(defaultGroup).enrollmentYear(VALID_ENROLLMENT_YEAR).build();
+		var second = dto(DUPLICATED_EMAIL,
+				VALID_PASSWORD,
+				VALID_FIRST_NAME,
+				VALID_LAST_NAME,
+				defaultGroup.getId(),
+				VALID_ENROLLMENT_YEAR);
 
 		assertThrows(IllegalArgumentException.class,
 				() -> studentService.createAll(List.of(second)),
-				"Second insert with duplicate user.email must fail on unique constraint");
+				"Second insert with duplicate email must fail");
 	}
 
 	@Test
 	@DisplayName("createAll: non-existing StudyGroup (FK) → EntityNotFoundException")
 	void createAll_nonExistingGroup_fails() {
-		var user = AppUser.builder()
-				.email(VALID_EMAIL)
-				.password(VALID_PASSWORD)
-				.role(UserRole.STUDENT)
-				.firstName(VALID_FIRST_NAME)
-				.lastName(VALID_LAST_NAME)
-				.enabled(true)
-				.build();
-
-		var nonExistingGroup = StudyGroup.builder().id(NON_EXISTENT_ID).build();
-
-		var s = Student.builder().user(user).group(nonExistingGroup).enrollmentYear(VALID_ENROLLMENT_YEAR).build();
+		var d = dto(VALID_EMAIL,
+				VALID_PASSWORD,
+				VALID_FIRST_NAME,
+				VALID_LAST_NAME,
+				NON_EXISTENT_ID,
+				VALID_ENROLLMENT_YEAR);
 
 		assertThrows(EntityNotFoundException.class,
-				() -> studentService.createAll(List.of(s)),
-				"Insert with non-existing group_id must fail on FK constraint");
+				() -> studentService.createAll(List.of(d)),
+				"Insert with non-existing group_id must fail");
 	}
 
 	@Test
@@ -215,20 +193,14 @@ class StudentServiceTest {
 	@Test
 	@DisplayName("moveStudentsToGroup: target group does not exist -> EntityNotFoundException")
 	void moveStudentsToGroup_nonExistingGroup_fails() {
-		var s = Student.builder()
-				.user(AppUser.builder()
-						.email(MOOVE_NON_GRUP_EMAIL)
-						.password(VALID_PASSWORD)
-						.role(UserRole.STUDENT)
-						.firstName(VALID_FIRST_NAME)
-						.lastName(VALID_LAST_NAME)
-						.enabled(true)
-						.build())
-				.group(defaultGroup)
-				.enrollmentYear(VALID_ENROLLMENT_YEAR)
-				.build();
+		var d = dto(MOOVE_NON_GRUP_EMAIL,
+				VALID_PASSWORD,
+				VALID_FIRST_NAME,
+				VALID_LAST_NAME,
+				defaultGroup.getId(),
+				VALID_ENROLLMENT_YEAR);
 
-		var saved = studentService.createAll(List.of(s)).get(0);
+		var saved = studentService.createAll(List.of(d)).get(0);
 
 		assertThrows(EntityNotFoundException.class,
 				() -> studentService.moveStudentsToGroup(List.of(saved.getId()), NON_EXISTENT_ID),
@@ -254,79 +226,46 @@ class StudentServiceTest {
 	}
 
 	@Test
-	@DisplayName("createAll: user.role != STUDENT -> ConstraintViolationException")
-	void createAll_invalidRole_fails() {
-		var user = AppUser.builder()
-				.email("badrole@example.com")
-				.password(VALID_PASSWORD)
-				.role(UserRole.TEACHER)
-				.firstName(VALID_FIRST_NAME)
-				.lastName(VALID_LAST_NAME)
-				.enabled(true)
-				.build();
-
-		var s = Student.builder().user(user).group(defaultGroup).enrollmentYear(VALID_ENROLLMENT_YEAR).build();
+	@DisplayName("createAll: invalid DTO (bad email) -> ConstraintViolationException")
+	void createAll_badEmail_fails() {
+		var d = dto(NOT_AN_EMAIL,
+				VALID_PASSWORD,
+				VALID_FIRST_NAME,
+				VALID_LAST_NAME,
+				defaultGroup.getId(),
+				VALID_ENROLLMENT_YEAR);
 
 		assertThrows(ConstraintViolationException.class,
-				() -> studentService.createAll(List.of(s)),
-				"Student.user.role must be STUDENT");
+				() -> studentService.createAll(List.of(d)),
+				"bad email should trigger DTO validation");
 	}
 
 	@Test
-	@DisplayName("createAll: null user -> IllegalArgumentException")
-	void createAll_nullUser_fails() {
-		var s = Student.builder().user(null).group(defaultGroup).enrollmentYear(VALID_ENROLLMENT_YEAR).build();
+	@DisplayName("createAll: invalid DTO (null groupId) -> ConstraintViolationException")
+	void createAll_nullGroupId_fails() {
+		var d = dto("nullgrp@example.com",
+				VALID_PASSWORD,
+				VALID_FIRST_NAME,
+				VALID_LAST_NAME,
+				null,
+				VALID_ENROLLMENT_YEAR);
 
 		assertThrows(ConstraintViolationException.class,
-				() -> studentService.createAll(List.of(s)),
-				"student.user must not be null");
-	}
-
-	@Test
-	@DisplayName("createAll: null group or null group.id -> IllegalArgumentException")
-	void createAll_nullGroupOrId_fails() {
-		var u = AppUser.builder()
-				.email("nullgrp@example.com")
-				.password(VALID_PASSWORD)
-				.role(UserRole.STUDENT)
-				.firstName(VALID_FIRST_NAME)
-				.lastName(VALID_LAST_NAME)
-				.enabled(true)
-				.build();
-
-		var s1 = Student.builder().user(u).group(null).enrollmentYear(VALID_ENROLLMENT_YEAR).build();
-
-		var s2 = Student.builder()
-				.user(u.toBuilder().email("nullgrpid@example.com").build())
-				.group(StudyGroup.builder().id(null).build())
-				.enrollmentYear(VALID_ENROLLMENT_YEAR)
-				.build();
-
-		assertThrows(ConstraintViolationException.class,
-				() -> studentService.createAll(List.of(s1)),
-				"student.group must not be null");
-		assertThrows(ConstraintViolationException.class,
-				() -> studentService.createAll(List.of(s2)),
-				"student.group.id must not be null");
+				() -> studentService.createAll(List.of(d)),
+				"groupId is @NotNull in DTO");
 	}
 
 	@Test
 	@DisplayName("deleteByIds: mix existing/missing -> returns deleted & notFound as expected")
 	void deleteByIds_mixedIds_returnsSplit() {
-		var s = Student.builder()
-				.user(AppUser.builder()
-						.email("delmix@example.com")
-						.password(VALID_PASSWORD)
-						.role(UserRole.STUDENT)
-						.firstName(VALID_FIRST_NAME)
-						.lastName(VALID_LAST_NAME)
-						.enabled(true)
-						.build())
-				.group(defaultGroup)
-				.enrollmentYear(VALID_ENROLLMENT_YEAR)
-				.build();
+		var d = dto("delmix@example.com",
+				VALID_PASSWORD,
+				VALID_FIRST_NAME,
+				VALID_LAST_NAME,
+				defaultGroup.getId(),
+				VALID_ENROLLMENT_YEAR);
 
-		var saved = studentService.createAll(List.of(s)).get(0);
+		var saved = studentService.createAll(List.of(d)).get(0);
 
 		var result = studentService.deleteByIds(Arrays.asList(saved.getId(), NON_EXISTENT_ID, null));
 

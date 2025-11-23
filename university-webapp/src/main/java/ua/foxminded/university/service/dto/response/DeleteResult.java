@@ -1,4 +1,4 @@
-package ua.foxminded.university.service.dto;
+package ua.foxminded.university.service.dto.response;
 
 import java.util.Collection;
 

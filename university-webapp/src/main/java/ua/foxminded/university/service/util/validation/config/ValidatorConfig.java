@@ -1,4 +1,4 @@
-package ua.foxminded.university.model.domain.validation.config;
+package ua.foxminded.university.service.util.validation.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;

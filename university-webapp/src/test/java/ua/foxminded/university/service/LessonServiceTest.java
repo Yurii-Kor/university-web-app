@@ -21,20 +21,23 @@ import ua.foxminded.university.model.domain.*;
 import ua.foxminded.university.model.domain.enums.AcademicRank;
 import ua.foxminded.university.model.domain.enums.LessonType;
 import ua.foxminded.university.model.domain.enums.UserRole;
-import ua.foxminded.university.model.domain.validation.EntityValidatior;
-import ua.foxminded.university.model.domain.validation.config.ValidatorConfig;
-import ua.foxminded.university.service.dto.DeleteResult;
+import ua.foxminded.university.service.dto.request.LessonDto;
+import ua.foxminded.university.service.dto.response.DeleteResult;
 import ua.foxminded.university.service.exception.ScheduleConflictException;
+import ua.foxminded.university.service.util.DtoMapper;
+import ua.foxminded.university.service.util.RequestDtoNormalizer;
+import ua.foxminded.university.service.util.validation.EntityValidatior;
+import ua.foxminded.university.service.util.validation.config.ValidatorConfig;
 import ua.foxminded.university.testutil.TestDataInitializer;
 
 @DataJpaTest
 @ActiveProfiles("test")
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-@Import({ TestcontainersConfiguration.class, ScheduleEntryService.class, ValidatorConfig.class, EntityValidatior.class,
-		TestDataInitializer.class })
+@Import({ TestcontainersConfiguration.class, LessonService.class, ValidatorConfig.class, EntityValidatior.class,
+		TestDataInitializer.class, DtoMapper.class, RequestDtoNormalizer.class })
 
-class ScheduleEntryServiceTest {
+class LessonServiceTest {
 
 	private static final OffsetDateTime T10 = OffsetDateTime.of(2025, 1, 10, 10, 0, 0, 0, ZoneOffset.UTC);
 	private static final OffsetDateTime T11 = T10.plusHours(1);
@@ -60,14 +63,32 @@ class ScheduleEntryServiceTest {
 	private static final Integer ONE_SCHEDULE_ENTRY = 1;
 
 	@Autowired
-	private ScheduleEntryService scheduleService;
+	private LessonService scheduleService;
 	@Autowired
 	private TestDataInitializer initializer;
 
 	private Teacher teacherAlgDs, teacherNet;
 	private StudyGroup groupCS, groupSE, groupNoCourse;
 	private Course courseALG, courseDS, courseNET;
-	private ScheduleEntry base;
+	private Lesson base;
+
+	private LessonDto createDto(Long teacherId, Long courseId, Long groupId, OffsetDateTime start,
+			OffsetDateTime end, String room) {
+
+		return new LessonDto(null, teacherId, courseId, groupId, start, end, room, null, "  note  ");
+	}
+
+	private LessonDto createDto(Long teacherId, Long courseId, Long groupId, OffsetDateTime start,
+			OffsetDateTime end, String room, String description) {
+
+		return new LessonDto(null, teacherId, courseId, groupId, start, end, room, null, description);
+	}
+
+	private LessonDto patchDto(Long id, Long teacherId, Long courseId, Long groupId, OffsetDateTime start,
+			OffsetDateTime end, String room, LessonType type, String description) {
+
+		return new LessonDto(id, teacherId, courseId, groupId, start, end, room, type, description);
+	}
 
 	@BeforeAll
 	void setup() {
@@ -116,58 +137,40 @@ class ScheduleEntryServiceTest {
 				Course.builder().code(CODE_NET).name(NAME_NET).teacher(teacherNet).groups(Set.of(groupCS)).build())
 				.get(0);
 
-		base = scheduleService.create(draft(courseALG.getId(), groupCS.getId(), T10, T12, ROOM_A),
-				teacherAlgDs.getId());
-	}
-
-	private ScheduleEntry draft(Long courseId, Long groupId, OffsetDateTime start, OffsetDateTime end, String room) {
-		return ScheduleEntry.builder()
-				.course(Course.builder().id(courseId).build())
-				.group(StudyGroup.builder().id(groupId).build())
-				.startTime(start)
-				.endTime(end)
-				.room(room)
-				.lessonType(null)
-				.description("  note  ")
-				.build();
+		base = scheduleService
+				.create(createDto(teacherAlgDs.getId(), courseALG.getId(), groupCS.getId(), T10, T12, ROOM_A, "base"));
 	}
 
 	@Test
 	@DisplayName("happy path: create -> updateSelf (course, group, time, room, desc, type) -> deleteByIds")
 	void happyPath_fullCycle_success() {
 		var created = assertDoesNotThrow(() -> scheduleService
-				.create(draft(courseALG.getId(), groupCS.getId(), T13, T14, ROOM_A), teacherAlgDs.getId()));
+				.create(createDto(teacherAlgDs.getId(), courseALG.getId(), groupCS.getId(), T13, T14, ROOM_A)));
 
 		assertNotNull(created.getId());
 		assertEquals(ROOM_A, created.getRoom());
 		assertEquals(LessonType.OTHER, created.getLessonType());
 		assertEquals("note", created.getDescription());
 
-		var patch1 = ScheduleEntry.builder()
-				.id(created.getId())
-				.group(StudyGroup.builder().id(groupSE.getId()).build())
-				.build();
-		var afterGroup = assertDoesNotThrow(() -> scheduleService.updateSelf(patch1, teacherAlgDs.getId()));
+		var afterGroup = assertDoesNotThrow(() -> scheduleService.updateSelf(
+				patchDto(created.getId(), teacherAlgDs.getId(), null, groupSE.getId(), null, null, null, null, null)));
 		assertEquals(groupSE.getId(), afterGroup.getGroup().getId());
 
-		var patch2 = ScheduleEntry.builder()
-				.id(created.getId())
-				.course(Course.builder().id(courseDS.getId()).build())
-				.build();
-		var afterCourse = assertDoesNotThrow(() -> scheduleService.updateSelf(patch2, teacherAlgDs.getId()));
+		var afterCourse = assertDoesNotThrow(() -> scheduleService.updateSelf(
+				patchDto(created.getId(), teacherAlgDs.getId(), courseDS.getId(), null, null, null, null, null, null)));
 		assertEquals(courseDS.getId(), afterCourse.getCourse().getId());
 
-		var patch3 = ScheduleEntry.builder().id(created.getId()).startTime(T14).endTime(T15).build();
-		var afterTime = assertDoesNotThrow(() -> scheduleService.updateSelf(patch3, teacherAlgDs.getId()));
+		var afterTime = assertDoesNotThrow(() -> scheduleService
+				.updateSelf(patchDto(created.getId(), teacherAlgDs.getId(), null, null, T14, T15, null, null, null)));
 		assertEquals(T14, afterTime.getStartTime());
 		assertEquals(T15, afterTime.getEndTime());
 
-		var patch4 = ScheduleEntry.builder().id(created.getId()).room(" " + ROOM_B.toLowerCase() + " ").build();
-		var afterRoom = assertDoesNotThrow(() -> scheduleService.updateSelf(patch4, teacherAlgDs.getId()));
+		var afterRoom = assertDoesNotThrow(() -> scheduleService.updateSelf(patchDto(created
+				.getId(), teacherAlgDs.getId(), null, null, null, null, " " + ROOM_B.toLowerCase() + " ", null, null)));
 		assertEquals(ROOM_B, afterRoom.getRoom());
 
-		var patch5 = ScheduleEntry.builder().id(created.getId()).lessonType(LessonType.LAB).description("   ").build();
-		var afterTypeDesc = assertDoesNotThrow(() -> scheduleService.updateSelf(patch5, teacherAlgDs.getId()));
+		var afterTypeDesc = assertDoesNotThrow(() -> scheduleService.updateSelf(
+				patchDto(created.getId(), teacherAlgDs.getId(), null, null, null, null, null, LessonType.LAB, "   ")));
 		assertEquals(LessonType.LAB, afterTypeDesc.getLessonType());
 		assertNull(afterTypeDesc.getDescription());
 
@@ -178,121 +181,111 @@ class ScheduleEntryServiceTest {
 	}
 
 	@Test
-	@DisplayName("create: teacherId == null -> IllegalArgumentException")
+	@DisplayName("create: teacherId == null -> ConstraintViolationException")
 	void create_nullTeacherId_fails() {
-		assertThrows(IllegalArgumentException.class,
-				() -> scheduleService.create(draft(courseALG.getId(), groupCS.getId(), T10, T12, ROOM_A), null));
+		assertThrows(ConstraintViolationException.class,
+				() -> scheduleService.create(createDto(null, courseALG.getId(), groupCS.getId(), T10, T12, ROOM_A)));
 	}
 
 	@Test
 	@DisplayName("create: null course -> ConstraintViolationException (bean validation)")
 	void create_nullCourse_fails() {
-		var badCourse = ScheduleEntry.builder()
-				.group(StudyGroup.builder().id(groupCS.getId()).build())
-				.startTime(T10)
-				.endTime(T12)
-				.room(ROOM_A)
-				.build();
-
-		assertThrows(ConstraintViolationException.class, () -> scheduleService.create(badCourse, teacherAlgDs.getId()));
+		assertThrows(ConstraintViolationException.class,
+				() -> scheduleService.create(createDto(teacherAlgDs.getId(), null, groupCS.getId(), T10, T12, ROOM_A)));
 	}
 
 	@Test
 	@DisplayName("create: null group -> ConstraintViolationException (bean validation)")
 	void create_nullGroup_fails() {
-		var badGroup = ScheduleEntry.builder()
-				.course(Course.builder().id(courseALG.getId()).build())
-				.startTime(T10)
-				.endTime(T12)
-				.room(ROOM_A)
-				.build();
-
-		assertThrows(ConstraintViolationException.class, () -> scheduleService.create(badGroup, teacherAlgDs.getId()));
+		assertThrows(ConstraintViolationException.class,
+				() -> scheduleService
+						.create(createDto(teacherAlgDs.getId(), courseALG.getId(), null, T10, T12, ROOM_A)));
 	}
 
 	@Test
 	@DisplayName("create: the course does not belong to the teacher -> IllegalStateException")
 	void create_courseNotOwnedByTeacher_fails() {
 		assertThrows(IllegalStateException.class,
-				() -> scheduleService.create(draft(courseNET.getId(), groupCS.getId(), T10, T12, ROOM_A),
-						teacherAlgDs.getId()));
+				() -> scheduleService
+						.create(createDto(teacherAlgDs.getId(), courseNET.getId(), groupCS.getId(), T10, T12, ROOM_A)));
 	}
 
 	@Test
 	@DisplayName("create: the group is not assigned to the course -> IllegalStateException")
 	void create_groupNotAttachedToCourse_fails() {
 		assertThrows(IllegalStateException.class,
-				() -> scheduleService.create(draft(courseDS.getId(), groupCS.getId(), T10, T12, ROOM_A),
-						teacherAlgDs.getId()));
+				() -> scheduleService
+						.create(createDto(teacherAlgDs.getId(), courseDS.getId(), groupCS.getId(), T10, T12, ROOM_A)));
 	}
 
 	@Test
 	@DisplayName("create: room = teacher's office -> IllegalStateException")
 	void create_roomIsTeacherOffice_fails() {
 		assertThrows(IllegalStateException.class,
-				() -> scheduleService.create(draft(courseALG.getId(), groupCS.getId(), T10, T12, TEACHER_ALG_DS_OFFICE),
-						teacherAlgDs.getId()));
+				() -> scheduleService.create(createDto(teacherAlgDs
+						.getId(), courseALG.getId(), groupCS.getId(), T10, T12, TEACHER_ALG_DS_OFFICE)));
 	}
 
 	@Test
 	@DisplayName("create: missing course -> EntityNotFoundException")
 	void create_missingCourse_fails() {
 		assertThrows(EntityNotFoundException.class,
-				() -> scheduleService.create(draft(MISSING_ID, groupCS.getId(), T13, T14, ROOM_B),
-						teacherAlgDs.getId()));
+				() -> scheduleService
+						.create(createDto(teacherAlgDs.getId(), MISSING_ID, groupCS.getId(), T13, T14, ROOM_B)));
 	}
 
 	@Test
 	@DisplayName("create: missing group -> EntityNotFoundException")
 	void create_missingGroup_fails() {
 		assertThrows(EntityNotFoundException.class,
-				() -> scheduleService.create(draft(courseALG.getId(), MISSING_ID, T13, T14, ROOM_B),
-						teacherAlgDs.getId()));
+				() -> scheduleService
+						.create(createDto(teacherAlgDs.getId(), courseALG.getId(), MISSING_ID, T13, T14, ROOM_B)));
 	}
 
 	@Test
-	@DisplayName("create: time/resource conflict -> ScheduleConflictException")
+	@DisplayName("create: time/resource conflict (group) -> ScheduleConflictException")
 	void create_overlap_conflict_group_fails() {
 		assertThrows(ScheduleConflictException.class,
-				() -> scheduleService.create(draft(courseALG.getId(), groupCS.getId(), T11, T13, ROOM_B),
-						teacherAlgDs.getId()));
+				() -> scheduleService
+						.create(createDto(teacherAlgDs.getId(), courseALG.getId(), groupCS.getId(), T11, T13, ROOM_B)));
 	}
 
 	@Test
-	@DisplayName("create: time/resource conflict -> ScheduleConflictException")
+	@DisplayName("create: time/resource conflict (room) -> ScheduleConflictException")
 	void create_overlap_conflict_room_fails() {
 		assertThrows(ScheduleConflictException.class,
-				() -> scheduleService.create(draft(courseALG.getId(), groupSE.getId(), T11, T13, ROOM_A),
-						teacherAlgDs.getId()));
+				() -> scheduleService
+						.create(createDto(teacherAlgDs.getId(), courseALG.getId(), groupSE.getId(), T11, T13, ROOM_A)));
 	}
 
 	@Test
 	@DisplayName("create: teacher overlap only -> ScheduleConflictException")
 	void create_overlap_conflict_teacher_fails() {
 		assertThrows(ScheduleConflictException.class,
-				() -> scheduleService.create(draft(courseALG.getId(), groupSE.getId(), T11, T13, ROOM_B),
-						teacherAlgDs.getId()));
+				() -> scheduleService
+						.create(createDto(teacherAlgDs.getId(), courseALG.getId(), groupSE.getId(), T11, T13, ROOM_B)));
 	}
 
 	@Test
-	@DisplayName("create: end <= start -> IllegalStateException/ConstraintViolationException")
+	@DisplayName("create: end <= start -> IllegalStateException")
 	void create_badTimeRange_fails() {
-		assertThrows(ConstraintViolationException.class,
-				() -> scheduleService.create(draft(courseALG.getId(), groupCS.getId(), T12, T11, ROOM_A),
-						teacherAlgDs.getId()));
+		assertThrows(IllegalStateException.class,
+				() -> scheduleService
+						.create(createDto(teacherAlgDs.getId(), courseALG.getId(), groupCS.getId(), T12, T11, ROOM_A)));
 	}
 
 	@Test
 	@DisplayName("updateSelf: no-op patches are safe")
 	void updateSelf_noop_ok() {
-		var patch = ScheduleEntry.builder()
-				.id(base.getId())
-				.course(Course.builder().id(base.getCourse().getId()).build())
-				.group(StudyGroup.builder().id(base.getGroup().getId()).build())
-				.room(" " + base.getRoom().toLowerCase() + " ")
-				.build();
-
-		var after = assertDoesNotThrow(() -> scheduleService.updateSelf(patch, teacherAlgDs.getId()));
+		var after = assertDoesNotThrow(() -> scheduleService.updateSelf(patchDto(base.getId(),
+				teacherAlgDs.getId(),
+				base.getCourse().getId(),
+				base.getGroup().getId(),
+				null,
+				null,
+				" " + base.getRoom().toLowerCase() + " ",
+				null,
+				null)));
 		assertEquals(base.getCourse().getId(), after.getCourse().getId());
 		assertEquals(base.getGroup().getId(), after.getGroup().getId());
 		assertEquals(base.getRoom(), after.getRoom());
@@ -301,81 +294,86 @@ class ScheduleEntryServiceTest {
 	@Test
 	@DisplayName("updateSelf: switch to missing course -> IllegalStateException (checked as 'not owned')")
 	void updateSelf_missingCourseId_reportsNotOwned() {
-		var patch = ScheduleEntry.builder().id(base.getId()).course(Course.builder().id(MISSING_ID).build()).build();
-		assertThrows(IllegalStateException.class, () -> scheduleService.updateSelf(patch, teacherAlgDs.getId()));
+		assertThrows(IllegalStateException.class,
+				() -> scheduleService.updateSelf(
+						patchDto(base.getId(), teacherAlgDs.getId(), MISSING_ID, null, null, null, null, null, null)));
 	}
 
 	@Test
 	@DisplayName("updateSelf: not found -> EntityNotFoundException")
-	void updateSelf_invalidArgsOrNotFound() {
+	void updateSelf_notFound() {
 		assertThrows(EntityNotFoundException.class,
-				() -> scheduleService.updateSelf(
-						ScheduleEntry.builder().id(MISSING_ID).lessonType(LessonType.LAB).build(),
-						teacherAlgDs.getId()));
+				() -> scheduleService.updateSelf(patchDto(MISSING_ID,
+						teacherAlgDs.getId(),
+						null,
+						null,
+						null,
+						null,
+						null,
+						LessonType.LAB,
+						null)));
 	}
 
 	@Test
 	@DisplayName("updateSelf: change of course to someone else's -> IllegalStateException")
 	void updateSelf_switchToForeignCourse_fails() {
-		var patch = ScheduleEntry.builder()
-				.id(base.getId())
-				.course(Course.builder().id(courseNET.getId()).build())
-				.build();
-
-		assertThrows(IllegalStateException.class, () -> scheduleService.updateSelf(patch, teacherAlgDs.getId()));
+		assertThrows(IllegalStateException.class,
+				() -> scheduleService.updateSelf(patchDto(base
+						.getId(), teacherAlgDs.getId(), courseNET.getId(), null, null, null, null, null, null)));
 	}
 
 	@Test
 	@DisplayName("updateSelf: the group is not attached to the current course -> IllegalStateException")
 	void updateSelf_groupNotAttached_fails() {
-		var patch = ScheduleEntry.builder()
-				.id(base.getId())
-				.group(StudyGroup.builder().id(groupNoCourse.getId()).build())
-				.build();
-
-		assertThrows(IllegalStateException.class, () -> scheduleService.updateSelf(patch, teacherAlgDs.getId()));
+		assertThrows(IllegalStateException.class,
+				() -> scheduleService.updateSelf(patchDto(base
+						.getId(), teacherAlgDs.getId(), null, groupNoCourse.getId(), null, null, null, null, null)));
 	}
 
 	@Test
 	@DisplayName("updateSelf: end <= start -> IllegalStateException")
 	void updateSelf_badTimeRange_fails() {
-		var patch = ScheduleEntry.builder().id(base.getId()).startTime(T12).endTime(T11).build();
-
-		assertThrows(IllegalStateException.class, () -> scheduleService.updateSelf(patch, teacherAlgDs.getId()));
+		assertThrows(IllegalStateException.class,
+				() -> scheduleService.updateSelf(
+						patchDto(base.getId(), teacherAlgDs.getId(), null, null, T12, T11, null, null, null)));
 	}
 
 	@Test
 	@DisplayName("updateSelf: room = teacher's office -> IllegalStateException")
 	void updateSelf_roomIsTeacherOffice_fails() {
-		var patch = ScheduleEntry.builder().id(base.getId()).room(TEACHER_NET_OFFICE).build();
-		assertThrows(IllegalStateException.class, () -> scheduleService.updateSelf(patch, teacherAlgDs.getId()));
+		assertThrows(IllegalStateException.class,
+				() -> scheduleService.updateSelf(patchDto(base
+						.getId(), teacherAlgDs.getId(), null, null, null, null, TEACHER_NET_OFFICE, null, null)));
 	}
 
 	@Test
 	@DisplayName("updateSelf: invalid room -> ConstraintViolationException")
 	void updateSelf_badRoomPattern_fails() {
-		var patch = ScheduleEntry.builder().id(base.getId()).room(BAD_ROOM).build();
-		assertThrows(ConstraintViolationException.class, () -> scheduleService.updateSelf(patch, teacherAlgDs.getId()));
+		assertThrows(ConstraintViolationException.class,
+				() -> scheduleService.updateSelf(
+						patchDto(base.getId(), teacherAlgDs.getId(), null, null, null, null, BAD_ROOM, null, null)));
 	}
 
 	@Test
 	@DisplayName("updateSelf: null patch -> IllegalArgumentException")
 	void updateSelf_nullPatch_fails() {
-		assertThrows(IllegalArgumentException.class, () -> scheduleService.updateSelf(null, teacherAlgDs.getId()));
+		assertThrows(IllegalArgumentException.class, () -> scheduleService.updateSelf(null));
 	}
 
 	@Test
-	@DisplayName("updateSelf: null id in patch -> IllegalArgumentException")
+	@DisplayName("updateSelf: null id in patch -> ConstraintViolationException")
 	void updateSelf_nullId_fails() {
-		var patch = ScheduleEntry.builder().lessonType(LessonType.LECTURE).build();
-		assertThrows(IllegalArgumentException.class, () -> scheduleService.updateSelf(patch, teacherAlgDs.getId()));
+		assertThrows(ConstraintViolationException.class,
+				() -> scheduleService.updateSelf(
+						patchDto(null, teacherAlgDs.getId(), null, null, null, null, null, LessonType.LECTURE, null)));
 	}
 
 	@Test
-	@DisplayName("updateSelf: null teacherId -> IllegalArgumentException")
+	@DisplayName("updateSelf: null teacherId -> ConstraintViolationException")
 	void updateSelf_nullTeacherId_fails() {
-		var patch = ScheduleEntry.builder().id(base.getId()).lessonType(LessonType.LECTURE).build();
-		assertThrows(IllegalArgumentException.class, () -> scheduleService.updateSelf(patch, null));
+		assertThrows(ConstraintViolationException.class,
+				() -> scheduleService.updateSelf(
+						patchDto(base.getId(), null, null, null, null, null, null, LessonType.LECTURE, null)));
 	}
 
 	@Test

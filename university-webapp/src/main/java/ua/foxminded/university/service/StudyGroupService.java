@@ -1,12 +1,6 @@
 package ua.foxminded.university.service;
 
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import jakarta.persistence.EntityNotFoundException;
@@ -19,43 +13,57 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import ua.foxminded.university.model.domain.StudyGroup;
-import ua.foxminded.university.model.domain.validation.EntityValidatior;
 import ua.foxminded.university.model.repository.StudyGroupRepository;
-import ua.foxminded.university.model.repository.dto.GroupStudentAgg;
-import ua.foxminded.university.service.dto.DeleteResult;
+import ua.foxminded.university.model.repository.dto.IdCountAgg;
+import ua.foxminded.university.service.dto.request.StudyGroupDto;
+import ua.foxminded.university.service.dto.response.DeleteResult;
+import ua.foxminded.university.service.util.RequestDtoNormalizer;
+import ua.foxminded.university.service.util.validation.EntityValidatior;
+import ua.foxminded.university.service.util.validation.groups.OnCreate;
+import ua.foxminded.university.service.util.validation.groups.OnRename;
+import ua.foxminded.university.service.util.DtoMapper;
+import ua.foxminded.university.service.util.DuplicateGuard;
 
 @Service
 @RequiredArgsConstructor
 @Transactional
 public class StudyGroupService {
-	
-	private final Integer NOT_UPDATED  = 0;
 
 	private static final Logger log = LoggerFactory.getLogger(StudyGroupService.class);
 
 	private final StudyGroupRepository groupRepository;
 	private final EntityValidatior validator;
+	private final RequestDtoNormalizer normalizer;
+	private final DtoMapper dtoMapper;
+	private final DuplicateGuard duplicateGuard;
 
 	@Transactional(value = TxType.REQUIRES_NEW)
-	public List<StudyGroup> createAll(Collection<StudyGroup> groups) {
-		var toPersist = normalizeGroupsToPersist(groups);
+	public List<StudyGroup> createAll(Collection<StudyGroupDto> drafts) {
+		var normalized = normalizer.normalizeGroups(drafts);
+		validator.validateAll(normalized, OnCreate.class);
+
+		var toPersist = dtoMapper.mapGroupsToEntities(normalized);
 		if (toPersist.isEmpty()) {
-			log.warn("createAll: nothing to persist (null/empty input or all items null)");
+			log.warn("createAll: nothing to persist (null/empty input)");
 			return List.of();
 		}
 
-		var names = toPersist.stream().map(StudyGroup::getName).toList();
-		assertNoDuplicatesInRequest(names);
-		assertNamesFreeInDb(names);
+		var namesLower = toPersist.stream()
+				.map(StudyGroup::getName)
+				.map(String::trim)
+				.map(String::toLowerCase)
+				.toList();
 
-		validator.validateAll(toPersist);
+		duplicateGuard.assertNoDuplicates(namesLower, "normalized study group names");
+		assertNamesFreeInDbForCreate(namesLower);
+
 		return groupRepository.saveAll(toPersist);
 	}
 
 	@Transactional(value = TxType.SUPPORTS)
 	public List<StudyGroup> findByIds(Collection<Long> ids) {
 		var distinct = Optional.ofNullable(ids)
-				.orElseGet(Collections::emptySet)
+				.orElseGet(Collections::emptyList)
 				.stream()
 				.filter(Objects::nonNull)
 				.collect(Collectors.toSet());
@@ -68,30 +76,26 @@ public class StudyGroupService {
 	}
 
 	@Transactional(value = TxType.REQUIRES_NEW)
-	public int rename(Map<Long, String> newNameById) {
-		if (Optional.ofNullable(newNameById).map(Map::isEmpty).orElse(true)) {
-			log.warn("rename: empty/null map");
-			return NOT_UPDATED;
-		}
+	public StudyGroup rename(StudyGroupDto patch) {
+		var normalized = normalizer.normalizeGroup(patch)
+				.orElseThrow(() -> new IllegalArgumentException("patch must not be null"));
+		validator.validateAll(List.of(normalized), OnRename.class);
 
-		assertIdsNotNull(newNameById);
-		assertStudyGroupNamesNotNull(newNameById);
+		var managed = groupRepository.findById(normalized.id()).orElseThrow(() -> {
+			log.error("rename: StudyGroup not found: id={}", normalized.id());
+			return new EntityNotFoundException("StudyGroup not found: id=" + normalized.id());
+		});
 
-		var normalized = normalizeGroupNames(newNameById);
+		Optional.ofNullable(normalized.name())
+				.filter(n -> !n.isEmpty())
+				.filter(n -> !n.equalsIgnoreCase(managed.getName()))
+				.ifPresent(n -> {
+					assertNameFreeInDbForRename(n, managed.getId());
+					managed.setName(n);
+				});
 
-		assertNoDuplicatesInRequest(normalized.values());
-		assertNamesFreeInDb(normalized);
-
-		validator.validateGroupNames(List.copyOf(normalized.values()));
-
-		var ids = List.copyOf(normalized.keySet());
-		var existing = groupRepository.findAllById(ids);
-
-		assertMissingIds(ids, existing);
-
-		existing.forEach(g -> g.setName(normalized.get(g.getId())));
-		log.info("rename: updated {}", existing.size());
-		return existing.size();
+		log.debug("rename: updated name for groupId={}", managed.getId());
+		return managed;
 	}
 
 	@Transactional(value = TxType.REQUIRES_NEW)
@@ -123,100 +127,41 @@ public class StudyGroupService {
 
 	private void assertGroupsHaveNoStudents(Collection<Long> ids) {
 		var aggs = groupRepository.countStudentsByGroupIds(ids);
-		var countById = aggs.stream()
-				.collect(Collectors.toMap(GroupStudentAgg::groupId, GroupStudentAgg::studentCount));
 
-		var nonEmptyGroups = ids.stream().filter(id -> countById.getOrDefault(id, 0L) > 0L).toList();
+		var nonEmpty = Optional.ofNullable(aggs)
+				.orElseGet(List::of)
+				.stream()
+				.filter(Objects::nonNull)
+				.filter(a -> Optional.ofNullable(a.count()).orElse(0L) > 0L)
+				.sorted(Comparator.comparing(IdCountAgg::id))
+				.toList();
 
-		if (!nonEmptyGroups.isEmpty()) {
-			var pairs = nonEmptyGroups.stream()
-					.collect(Collectors.toMap(id -> id, id -> countById.getOrDefault(id, 0L)));
+		if (!nonEmpty.isEmpty()) {
+			var pairs = nonEmpty.stream()
+					.map(a -> a.id() + " -> " + a.count())
+					.collect(Collectors.joining(", ", "[", "]"));
+
 			log.error("deleteByIds: groups not empty: {}", pairs);
 			throw new IllegalStateException("Cannot delete non-empty groups: " + pairs);
 		}
 	}
 
-	private void assertIdsNotNull(Map<Long, String> newNameById) {
-		if (newNameById.keySet().stream().anyMatch(Objects::isNull)) {
-			log.warn("rename: map contains null key");
-			throw new IllegalArgumentException("groupId must not be null");
-		}
-	}
-
-	private void assertStudyGroupNamesNotNull(Map<Long, String> newNameById) {
-		if (newNameById.values().stream().anyMatch(Objects::isNull)) {
-			log.warn("rename: map contains null name");
-			throw new IllegalArgumentException("group name must not be null");
-		}
-	}
-
-	private void assertMissingIds(Collection<Long> allIds, Collection<StudyGroup> existingGroups) {
-		var found = existingGroups.stream().map(StudyGroup::getId).collect(Collectors.toSet());
-		var missing = allIds.stream().filter(id -> !found.contains(id)).toList();
-		if (!missing.isEmpty()) {
-			log.warn("missing group ids {}", missing);
-			throw new EntityNotFoundException("StudyGroups not found: " + missing);
-		}
-	}
-
-	private void assertNamesFreeInDb(Map<Long, String> newNameById) {
-		var names = newNameById.values().stream().map(String::toLowerCase).collect(Collectors.toSet());
-		var ids = List.copyOf(newNameById.keySet());
-
-		var conflicts = groupRepository.findConflictingNamesIgnoreCase(names, ids);
-		if (!conflicts.isEmpty()) {
-			log.warn("names already taken by other groups: {}", conflicts);
-			throw new IllegalArgumentException("Group names already exist: " + conflicts);
-		}
-	}
-
-	private void assertNamesFreeInDb(List<String> names) {
-		var namesLower = names.stream()
-				.filter(Objects::nonNull)
-				.map(s -> s.trim().toLowerCase())
-				.collect(Collectors.toSet());
-
-		var conflicts = groupRepository.findExistingNamesIgnoreCase(namesLower);
+	private void assertNamesFreeInDbForCreate(Collection<String> namesLower) {
+		var conflicts = groupRepository.findExistingNamesIgnoreCase(new HashSet<>(namesLower));
 		if (!conflicts.isEmpty()) {
 			log.warn("group names already exist in DB: {}", conflicts);
 			throw new IllegalArgumentException("Group names already exist: " + conflicts);
 		}
 	}
 
-	private void assertNoDuplicatesInRequest(Collection<String> namesNormalized) {
-		var dup = namesNormalized.stream()
-				.map(String::toLowerCase)
-				.collect(Collectors.groupingBy(n -> n, Collectors.counting()))
-				.entrySet()
-				.stream()
-				.filter(e -> e.getValue() > 1)
-				.map(Map.Entry::getKey)
-				.collect(Collectors.toSet());
+	private void assertNameFreeInDbForRename(String newName, Long selfId) {
+		var probe = Set.of(newName.trim().toLowerCase());
+		var self = List.of(selfId);
 
-		if (!dup.isEmpty()) {
-			log.warn("duplicate normalized group names in request: {}", dup);
-			throw new IllegalArgumentException("Duplicate normalized group names in request: " + dup);
+		var conflicts = groupRepository.findConflictingNamesIgnoreCase(probe, self);
+		if (!conflicts.isEmpty()) {
+			log.warn("target group name already taken by other groups: {}", conflicts);
+			throw new IllegalArgumentException("Group names already exist: " + conflicts);
 		}
-	}
-
-	private List<StudyGroup> normalizeGroupsToPersist(Collection<StudyGroup> groupsToPersist) {
-		return Optional.ofNullable(groupsToPersist).orElseGet(List::of).stream().filter(Objects::nonNull).map(g -> {
-			g.setId(null);
-			Optional.ofNullable(g.getName()).map(this::normalizeGroupName).ifPresent(g::setName);
-			return g;
-		}).toList();
-	}
-
-	private Map<Long, String> normalizeGroupNames(Map<Long, String> newNameById) {
-		return newNameById.entrySet()
-				.stream()
-				.collect(Collectors.toMap(Map.Entry::getKey, e -> normalizeGroupName(e.getValue())));
-	}
-
-	private String normalizeGroupName(String name) {
-		var normalized = name.trim().toUpperCase().replaceAll("\\s+", "");
-		normalized = normalized.replaceAll("^([A-Z]{2})(\\d{3})$", "$1-$2");
-
-		return normalized;
 	}
 }

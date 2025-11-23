@@ -1,18 +1,10 @@
 package ua.foxminded.university.service;
 
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import org.springframework.stereotype.Service;
 
 import jakarta.persistence.EntityNotFoundException;
@@ -22,20 +14,23 @@ import lombok.RequiredArgsConstructor;
 import ua.foxminded.university.model.domain.AppUser;
 import ua.foxminded.university.model.domain.Student;
 import ua.foxminded.university.model.domain.StudyGroup;
-import ua.foxminded.university.model.domain.validation.EntityValidatior;
-import ua.foxminded.university.model.domain.validation.OnCreate;
 import ua.foxminded.university.model.repository.AppUserRepository;
 import ua.foxminded.university.model.repository.StudentRepository;
 import ua.foxminded.university.model.repository.StudyGroupRepository;
 import ua.foxminded.university.security.PasswordPolicy;
-import ua.foxminded.university.service.dto.DeleteResult;
+import ua.foxminded.university.service.dto.request.StudentDto;
+import ua.foxminded.university.service.dto.response.DeleteResult;
+import ua.foxminded.university.service.util.RequestDtoNormalizer;
+import ua.foxminded.university.service.util.validation.EntityValidatior;
+import ua.foxminded.university.service.util.DtoMapper;
+import ua.foxminded.university.service.util.DuplicateGuard;
 
 @Service
 @RequiredArgsConstructor
 @Transactional
 public class StudentService {
-	
-	private final Integer NOT_UPDATED  = 0;
+
+	private static final int NOT_UPDATED = 0;
 
 	private static final Logger log = LoggerFactory.getLogger(StudentService.class);
 
@@ -46,21 +41,35 @@ public class StudentService {
 	private final EntityValidatior validator;
 	private final PasswordPolicy passwordPolicy;
 
+	private final RequestDtoNormalizer normalizer;
+	private final DtoMapper dtoMapper;
+	private final DuplicateGuard duplicateGuard;
+
 	@Transactional(value = TxType.REQUIRES_NEW)
-	public List<Student> createAll(Collection<Student> students) {
-		var toPersist = normalizeStudentsToPersist(students);
+	public List<Student> createAll(Collection<StudentDto> drafts) {
+		var normalized = normalizer.normalizeStudents(drafts);
+		validator.validateAll(normalized);
+
+		var toPersist = dtoMapper.toStudentEntities(normalized);
 		if (toPersist.isEmpty()) {
-			log.warn("createAll: nothing to persist (null/empty input or all items null)");
+			log.warn("createAll: nothing to persist (null/empty input)");
 			return List.of();
 		}
 
-		validator.validateAll(toPersist, OnCreate.class);
+		var emailsLower = toPersist.stream()
+				.map(Student::getUser)
+				.filter(Objects::nonNull)
+				.map(AppUser::getEmail)
+				.filter(Objects::nonNull)
+				.map(String::trim)
+				.map(String::toLowerCase)
+				.toList();
 
-		assertNoDuplicateEmailsInRequest(students);
-		assertStudentEmailsFreeInDb(students);
-		assertStudentGroupsExist(getGroupsIds(students));
+		duplicateGuard.assertNoDuplicates(emailsLower, "normalized student emails");
+		assertStudentEmailsFreeInDb(emailsLower);
+		assertStudentGroupsExist(toPersist);
+
 		toPersist.forEach(s -> s.setGroup(groupRepository.getReferenceById(s.getGroup().getId())));
-
 		toPersist.forEach(s -> passwordPolicy.encodeNewPassword(s.getUser()));
 
 		return studentRepository.saveAll(toPersist);
@@ -69,7 +78,7 @@ public class StudentService {
 	@Transactional(value = TxType.SUPPORTS)
 	public List<Student> findByIds(Collection<Long> ids) {
 		var distinct = Optional.ofNullable(ids)
-				.orElseGet(Collections::emptySet)
+				.orElseGet(Collections::emptyList)
 				.stream()
 				.filter(Objects::nonNull)
 				.collect(Collectors.toSet());
@@ -78,7 +87,7 @@ public class StudentService {
 			log.warn("findByIds: null/empty input or only nulls after filtering");
 			return List.of();
 		}
-		
+
 		return studentRepository.findAllById(distinct);
 	}
 
@@ -93,7 +102,7 @@ public class StudentService {
 
 		var ids = studentIds.stream().filter(Objects::nonNull).collect(Collectors.toSet());
 		if (ids.isEmpty()) {
-			log.warn("moveStudentsToGroup called with null/empty student Ids");
+			log.warn("moveStudentsToGroup: only nulls in provided ids");
 			return NOT_UPDATED;
 		}
 
@@ -113,7 +122,6 @@ public class StudentService {
 		var existing = studentRepository.findAllById(distinct);
 
 		var deletedIds = existing.stream().map(Student::getId).collect(Collectors.toSet());
-
 		var notFound = distinct.stream().filter(id -> !deletedIds.contains(id)).collect(Collectors.toSet());
 
 		studentRepository.deleteAll(existing);
@@ -121,64 +129,20 @@ public class StudentService {
 
 		return new DeleteResult(deletedIds, notFound);
 	}
-	
-	private List<Student> normalizeStudentsToPersist(Collection<Student> studentsToPersist) {
-		return Optional.ofNullable(studentsToPersist)
-				.orElseGet(List::of)
-				.stream()
-				.filter(Objects::nonNull)
-				.map(this::normalizeStudentToPersist)
-				.toList();
-	}
 
-	private Student normalizeStudentToPersist(Student s) {
-		s.setId(null);
-
-		Optional.ofNullable(s.getUser()).ifPresent(u -> {
-			u.setId(null);
-			Optional.ofNullable(u.getEmail()).map(String::trim).ifPresent(u::setEmail);
-			Optional.ofNullable(u.getFirstName()).map(String::trim).ifPresent(u::setFirstName);
-			Optional.ofNullable(u.getLastName()).map(String::trim).ifPresent(u::setLastName);
-		});
-
-		return s;
-	}
-
-	private void assertNoDuplicateEmailsInRequest(Collection<Student> students) {
-		var dup = students.stream()
-				.map(Student::getUser)
-				.filter(Objects::nonNull)
-				.map(AppUser::getEmail)
+	private void assertStudentEmailsFreeInDb(Collection<String> emailsLower) {
+		var normalized = emailsLower.stream()
 				.filter(Objects::nonNull)
 				.map(String::trim)
-				.map(s -> s.toLowerCase())
-				.collect(Collectors.groupingBy(s -> s, Collectors.counting()))
-				.entrySet()
-				.stream()
-				.filter(e -> e.getValue() > 1)
-				.map(Map.Entry::getKey)
+				.map(String::toLowerCase)
 				.collect(Collectors.toSet());
 
-		if (!dup.isEmpty()) {
-			log.error("createStudents: duplicate emails in request: {}", dup);
-			throw new IllegalArgumentException("Duplicate emails in request: " + dup);
-		}
-	}
-
-	private void assertStudentEmailsFreeInDb(Collection<Student> students) {
-		var normalized = students.stream()
-				.map(Student::getUser)
-				.filter(Objects::nonNull)
-				.map(AppUser::getEmail)
-				.filter(Objects::nonNull)
-				.map(String::trim)
-				.map(s -> s.toLowerCase())
-				.collect(Collectors.toSet());
+		if (normalized.isEmpty())
+			return;
 
 		var conflicts = usersRepository.findExistingEmailsIgnoreCase(normalized);
-
 		if (!conflicts.isEmpty()) {
-			log.warn("createStudents: emails already exist in DB: {}", conflicts);
+			log.warn("createAll: emails already exist in DB: {}", conflicts);
 			throw new IllegalArgumentException("Emails already exist: " + conflicts);
 		}
 	}
@@ -189,16 +153,25 @@ public class StudentService {
 			return new IllegalArgumentException("targetGroupId must not be null");
 		});
 
-		Optional.of(groupId).filter(groupRepository::existsById).orElseThrow(() -> {
+		if (!groupRepository.existsById(groupId)) {
 			log.error("moveStudentsToGroup: StudyGroup not found: id={}", groupId);
-			return new EntityNotFoundException("StudyGroup not found: id=" + groupId);
-		});
+			throw new EntityNotFoundException("StudyGroup not found: id=" + groupId);
+		}
 
 		return groupRepository.getReferenceById(groupId);
 	}
 
-	private void assertStudentGroupsExist(Collection<Long> groupIds) {
-		if (groupIds.isEmpty())	return;
+	private void assertStudentGroupsExist(Collection<Student> students) {
+		var groupIds = students.stream()
+				.map(Student::getGroup)
+				.filter(Objects::nonNull)
+				.map(StudyGroup::getId)
+				.filter(Objects::nonNull)
+				.collect(Collectors.toSet());
+
+		if (groupIds.isEmpty()) {
+			return;
+		}
 
 		var existing = new HashSet<>(groupRepository.findExistingIds(groupIds));
 		var missing = groupIds.stream().filter(id -> !existing.contains(id)).collect(Collectors.toSet());
@@ -210,7 +183,8 @@ public class StudentService {
 	}
 
 	private void assertStudentsExist(Collection<Long> studentIds) {
-		if (studentIds.isEmpty()) return;
+		if (studentIds.isEmpty())
+			return;
 
 		var existing = new HashSet<>(studentRepository.findExistingIds(studentIds));
 		var missing = studentIds.stream().filter(id -> !existing.contains(id)).collect(Collectors.toSet());
@@ -219,15 +193,5 @@ public class StudentService {
 			log.error("moveStudentsToGroup: some student ids not found: {}", missing);
 			throw new EntityNotFoundException("Students not found: " + missing);
 		}
-	}
-
-	private Set<Long> getGroupsIds(Collection<Student> students) {
-		return students.stream()
-				.filter(Objects::nonNull)
-				.map(Student::getGroup)
-				.filter(Objects::nonNull)
-				.map(StudyGroup::getId)
-				.filter(Objects::nonNull)
-				.collect(Collectors.toSet());
 	}
 }

@@ -1,6 +1,5 @@
 package ua.foxminded.university.security;
 
-import jakarta.validation.ConstraintViolationException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -10,9 +9,9 @@ import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 
 import ua.foxminded.university.model.domain.AppUser;
-import ua.foxminded.university.model.domain.validation.EntityValidatior;
-import ua.foxminded.university.model.domain.validation.config.ValidatorConfig;
 import ua.foxminded.university.security.config.PasswordEncoderConfig;
+import ua.foxminded.university.service.util.validation.EntityValidatior;
+import ua.foxminded.university.service.util.validation.config.ValidatorConfig;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -22,7 +21,6 @@ import static org.junit.jupiter.api.Assertions.*;
 class PasswordPolicyTest {
 
 	private static final String VALID_PWD = "Abcd1234!";
-	private static final String INVALID_PWD = "A1!a";
 
 	@Autowired
 	private PasswordPolicy policy;
@@ -46,29 +44,11 @@ class PasswordPolicyTest {
 	@Test
 	@DisplayName("encodeForChange: returns encoded string matching raw")
 	void encodeForChange_returnsEncoded() {
-		var encoded = policy.encodeForChange(VALID_PWD);
+		var encoded = policy.encodePassword(VALID_PWD);
 
 		assertNotNull(encoded, "Encoded must not be null");
 		assertTrue(encoded.startsWith("$2"), "BCrypt hash must start with $2");
 		assertTrue(encoder.matches(VALID_PWD, encoded), "Encoded must match the raw password");
-	}
-
-	@Test
-	@DisplayName("encodeNewPassword: invalid raw password -> ConstraintViolationException")
-	void encodeNewPassword_invalid_throws() {
-		var user = AppUser.builder().password(INVALID_PWD).build();
-
-		assertThrows(ConstraintViolationException.class,
-				() -> policy.encodeNewPassword(user),
-				"Invalid raw password must cause ConstraintViolationException");
-	}
-
-	@Test
-	@DisplayName("encodeForChange: invalid raw password -> ConstraintViolationException")
-	void encodeForChange_invalid_throws() {
-		assertThrows(ConstraintViolationException.class,
-				() -> policy.encodeForChange(INVALID_PWD),
-				"Invalid raw password must cause ConstraintViolationException");
 	}
 
 	@Test
@@ -114,7 +94,7 @@ class PasswordPolicyTest {
 	@DisplayName("encodeForChange: null raw -> IllegalArgumentException")
 	void encodeForChange_nullRaw_throws() {
 		assertThrows(IllegalArgumentException.class,
-				() -> policy.encodeForChange(null),
+				() -> policy.encodePassword(null),
 				"Null newRaw must raise IllegalArgumentException");
 	}
 

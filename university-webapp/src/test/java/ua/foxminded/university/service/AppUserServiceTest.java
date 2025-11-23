@@ -19,11 +19,15 @@ import org.springframework.test.context.ActiveProfiles;
 import ua.foxminded.university.TestcontainersConfiguration;
 import ua.foxminded.university.model.domain.AppUser;
 import ua.foxminded.university.model.domain.enums.UserRole;
-import ua.foxminded.university.model.domain.validation.EntityValidatior;
-import ua.foxminded.university.model.domain.validation.config.ValidatorConfig;
 import ua.foxminded.university.security.PasswordPolicy;
 import ua.foxminded.university.security.config.PasswordEncoderConfig;
-import ua.foxminded.university.service.dto.DeleteResult;
+import ua.foxminded.university.service.dto.request.AppUserDto;
+import ua.foxminded.university.service.dto.response.DeleteResult;
+import ua.foxminded.university.service.util.DtoMapper;
+import ua.foxminded.university.service.util.DuplicateGuard;
+import ua.foxminded.university.service.util.RequestDtoNormalizer;
+import ua.foxminded.university.service.util.validation.EntityValidatior;
+import ua.foxminded.university.service.util.validation.config.ValidatorConfig;
 import ua.foxminded.university.testutil.TestDataInitializer;
 
 @DataJpaTest
@@ -31,7 +35,8 @@ import ua.foxminded.university.testutil.TestDataInitializer;
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @Import({ TestcontainersConfiguration.class, AppUserService.class, ValidatorConfig.class, EntityValidatior.class,
-		PasswordPolicy.class, PasswordEncoderConfig.class, TestDataInitializer.class })
+		PasswordPolicy.class, PasswordEncoderConfig.class, TestDataInitializer.class, DtoMapper.class,
+		RequestDtoNormalizer.class, DuplicateGuard.class })
 class AppUserServiceTest {
 
 	private static final String DEFAULT_EMAIL = "admin@example.com";
@@ -61,20 +66,7 @@ class AppUserServiceTest {
 
 	private AppUser testAdmin, userStudent;
 
-	@BeforeAll
-	void setup() {
-		testAdmin = initializer.persistAll(draftAdmin(TEST_ADMIN_EMAIL)).getFirst();
-		userStudent = initializer.persistAll(AppUser.builder()
-				.email(TAKEN_EMAIL)
-				.password("Abcd1234!")
-				.role(UserRole.STUDENT)
-				.firstName("Bob")
-				.lastName("User")
-				.enabled(true)
-				.build()).get(0);
-	}
-
-	private AppUser draftAdmin(String email) {
+	private AppUser draftAdminEntity(String email) {
 		return AppUser.builder()
 				.email(email)
 				.password(PWD)
@@ -85,10 +77,36 @@ class AppUserServiceTest {
 				.build();
 	}
 
+	private AppUserDto newAdminDto(String email) {
+		return new AppUserDto(null, email, PWD, null, "Alice", "Admin");
+	}
+
+	private AppUserDto patchProfileDto(Long id, String email, String first, String last) {
+		return new AppUserDto(id, email, null, null, first, last);
+	}
+
+	private AppUserDto changePasswordDto(Long id, String current, String next) {
+		return new AppUserDto(id, null, next, current, null, null);
+	}
+
+	@BeforeAll
+	void setup() {
+		testAdmin = initializer.persistAll(draftAdminEntity(TEST_ADMIN_EMAIL)).getFirst();
+
+		userStudent = initializer.persistAll(AppUser.builder()
+				.email(TAKEN_EMAIL)
+				.password(PWD)
+				.role(UserRole.STUDENT)
+				.firstName("Bob")
+				.lastName("User")
+				.enabled(true)
+				.build()).getFirst();
+	}
+
 	@Test
 	@DisplayName("happy path: createAdmins -> updateProfileFields -> changePasswordSelf -> deleteAdminsByIds (with notFound) -> last-admin guard")
 	void happyPath_fullCycle_success() {
-		var createdAll = assertDoesNotThrow(() -> appUserService.createAdmins(List.of(draftAdmin(DEFAULT_EMAIL))));
+		var createdAll = assertDoesNotThrow(() -> appUserService.createAdmins(List.of(newAdminDto(DEFAULT_EMAIL))));
 		assertEquals(ONE_USER, createdAll.size());
 		var created = createdAll.getFirst();
 
@@ -98,30 +116,29 @@ class AppUserServiceTest {
 		assertTrue(created.isEnabled());
 		assertDoesNotThrow(() -> passwordPolicy.assertCurrentMatches(PWD, created.getPassword()));
 
-		var patch = AppUser.builder()
-				.email(UPDATED_EMAIL)
-				.firstName(UPDATED_FIRST_NAME)
-				.lastName(UPDATED_LAST_NAME)
-				.build();
-
-		assertDoesNotThrow(() -> appUserService.updateProfileFields(created.getId(), patch));
+		// update profile via DTO
+		assertDoesNotThrow(() -> appUserService.updateProfileFields(
+				patchProfileDto(created.getId(), UPDATED_EMAIL, UPDATED_FIRST_NAME, UPDATED_LAST_NAME)));
 		initializer.clear();
 		var reloaded = appUserService.findByIds(List.of(created.getId())).getFirst();
 		assertEquals(UPDATED_EMAIL, reloaded.getEmail());
 		assertEquals(UPDATED_FIRST_NAME, reloaded.getFirstName());
 		assertEquals(UPDATED_LAST_NAME, reloaded.getLastName());
 
-		assertDoesNotThrow(() -> appUserService.changePasswordSelf(created.getId(), PWD, PWD_NEW));
+		// change password via DTO
+		assertDoesNotThrow(() -> appUserService.changePasswordSelf(changePasswordDto(created.getId(), PWD, PWD_NEW)));
 		initializer.clear();
 		var updatedPwd = appUserService.findByIds(List.of(created.getId())).getFirst();
-		assertNotEquals(passwordPolicy.encodeForChange(PWD), updatedPwd.getPassword());
+		assertNotEquals(passwordPolicy.encodePassword(PWD), updatedPwd.getPassword());
 		assertDoesNotThrow(() -> passwordPolicy.assertCurrentMatches(PWD_NEW, updatedPwd.getPassword()));
 
+		// delete + notFound
 		DeleteResult del = assertDoesNotThrow(
 				() -> appUserService.deleteAdminsByIds(List.of(created.getId(), MISSING_ID)));
 		assertEquals(Set.of(created.getId()), del.deletedIds());
 		assertEquals(Set.of(MISSING_ID), del.notFoundIds());
 
+		// last enabled admin guard
 		assertThrows(IllegalStateException.class, () -> appUserService.deleteAdminsByIds(List.of(testAdmin.getId())));
 	}
 
@@ -133,39 +150,39 @@ class AppUserServiceTest {
 	}
 
 	@Test
-	@DisplayName("createAdmins: null email -> IllegalArgumentException")
+	@DisplayName("createAdmins: null email -> ConstraintViolationException")
 	void createAdmins_nullEmail_fails() {
-		var bad = draftAdmin(null);
-		assertThrows(IllegalArgumentException.class, () -> appUserService.createAdmins(List.of(bad)));
+		var bad = new AppUserDto(null, null, PWD, null, "Alice", "Admin");
+		assertThrows(ConstraintViolationException.class, () -> appUserService.createAdmins(List.of(bad)));
 	}
 
 	@Test
-	@DisplayName("createAdmins: null password -> IllegalArgumentException")
+	@DisplayName("createAdmins: null password -> ConstraintViolationException")
 	void createAdmins_nullPassword_fails() {
-		var bad = draftAdmin(DEFAULT_EMAIL).toBuilder().password(null).build();
-		assertThrows(IllegalArgumentException.class, () -> appUserService.createAdmins(List.of(bad)));
+		var bad = new AppUserDto(null, DEFAULT_EMAIL, null, null, "Alice", "Admin");
+		assertThrows(ConstraintViolationException.class, () -> appUserService.createAdmins(List.of(bad)));
 	}
 
 	@Test
 	@DisplayName("createAdmins: duplicate emails in one batch (case-insensitive) -> IllegalArgumentException")
 	void createAdmins_duplicateEmailsInOneBatch_fails() {
-		var dupLower = draftAdmin(DEFAULT_EMAIL);
-		var dupUpper = draftAdmin(DEFAULT_EMAIL);
+		var dupLower = newAdminDto(DEFAULT_EMAIL);
+		var dupUpper = newAdminDto(DEFAULT_EMAIL.toUpperCase());
 		assertThrows(IllegalArgumentException.class, () -> appUserService.createAdmins(List.of(dupLower, dupUpper)));
 	}
 
 	@Test
 	@DisplayName("createAdmins: duplicate email of created user -> IllegalArgumentException")
 	void createAdmins_duplicateAcrossCalls_fails() {
-		assertThrows(IllegalArgumentException.class,
-				() -> appUserService.createAdmins(List.of(draftAdmin(testAdmin.getEmail()))));
+		var dup = newAdminDto(testAdmin.getEmail());
+		assertThrows(IllegalArgumentException.class, () -> appUserService.createAdmins(List.of(dup)));
 	}
 
 	@Test
 	@DisplayName("updateProfileFields: no-op — same email (trim/case-insensitive) and null names")
 	void updateProfileFields_noop_sameEmail_ok() {
-		var patch = AppUser.builder().email("  " + testAdmin.getEmail().toUpperCase() + "  ").build();
-		assertDoesNotThrow(() -> appUserService.updateProfileFields(testAdmin.getId(), patch));
+		var patch = patchProfileDto(testAdmin.getId(), "  " + testAdmin.getEmail().toUpperCase() + "  ", null, null);
+		assertDoesNotThrow(() -> appUserService.updateProfileFields(patch));
 
 		initializer.clear();
 		var found = appUserService.findByIds(List.of(testAdmin.getId())).getFirst();
@@ -176,27 +193,23 @@ class AppUserServiceTest {
 	}
 
 	@Test
-	@DisplayName("updateProfileFields: null args -> IllegalArgumentException")
+	@DisplayName("updateProfileFields: dto is null -> IllegalArgumentException")
 	void updateProfileFields_nullArgs_fails() {
-		assertThrows(IllegalArgumentException.class,
-				() -> appUserService.updateProfileFields(null, AppUser.builder().build()));
-
-		assertThrows(IllegalArgumentException.class, () -> appUserService.updateProfileFields(testAdmin.getId(), null));
+		assertThrows(IllegalArgumentException.class, () -> appUserService.updateProfileFields(null));
 	}
 
 	@Test
 	@DisplayName("updateProfileFields: user not found -> EntityNotFoundException")
 	void updateProfileFields_notFound_fails() {
-		assertThrows(EntityNotFoundException.class,
-				() -> appUserService.updateProfileFields(MISSING_ID, AppUser.builder().email(UPDATED_EMAIL).build()));
+		var patchMissing = patchProfileDto(MISSING_ID, UPDATED_EMAIL, null, null);
+		assertThrows(EntityNotFoundException.class, () -> appUserService.updateProfileFields(patchMissing));
 	}
 
 	@Test
 	@DisplayName("updateProfileFields: set email that belongs to another user -> IllegalArgumentException")
 	void updateProfileFields_emailTaken_fails() {
-		var patchWithTakenEmail = AppUser.builder().email(TAKEN_EMAIL).build();
-		assertThrows(IllegalArgumentException.class,
-				() -> appUserService.updateProfileFields(testAdmin.getId(), patchWithTakenEmail));
+		var patchWithTakenEmail = patchProfileDto(testAdmin.getId(), TAKEN_EMAIL, null, null);
+		assertThrows(IllegalArgumentException.class, () -> appUserService.updateProfileFields(patchWithTakenEmail));
 	}
 
 	@Test
@@ -248,33 +261,40 @@ class AppUserServiceTest {
 	}
 
 	@Test
-	@DisplayName("changePasswordSelf: null args -> IllegalArgumentException")
-	void changePasswordSelf_nullArgs_fails() {
-		assertThrows(IllegalArgumentException.class, () -> appUserService.changePasswordSelf(null, PWD, PWD_NEW));
-		assertThrows(IllegalArgumentException.class,
-				() -> appUserService.changePasswordSelf(testAdmin.getId(), null, PWD_NEW));
-		assertThrows(IllegalArgumentException.class,
-				() -> appUserService.changePasswordSelf(testAdmin.getId(), PWD, null));
+	@DisplayName("changePasswordSelf: missing required fields -> ConstraintViolationException")
+	void changePasswordSelf_missingFields_fails() {
+		// id=null
+		assertThrows(ConstraintViolationException.class,
+				() -> appUserService.changePasswordSelf(new AppUserDto(null, null, PWD_NEW, PWD, null, null)));
+
+		// currentPassword=null
+		assertThrows(ConstraintViolationException.class,
+				() -> appUserService.changePasswordSelf(changePasswordDto(testAdmin.getId(), null, PWD_NEW)));
+
+		// newPassword=null
+		assertThrows(ConstraintViolationException.class,
+				() -> appUserService.changePasswordSelf(changePasswordDto(testAdmin.getId(), PWD, null)));
 	}
 
 	@Test
 	@DisplayName("changePasswordSelf: user not found -> EntityNotFoundException")
 	void changePasswordSelf_notFound_fails() {
-		assertThrows(EntityNotFoundException.class, () -> appUserService.changePasswordSelf(MISSING_ID, PWD, PWD_NEW));
+		assertThrows(EntityNotFoundException.class,
+				() -> appUserService.changePasswordSelf(changePasswordDto(MISSING_ID, PWD, PWD_NEW)));
 	}
 
 	@Test
 	@DisplayName("changePasswordSelf: wrong current password -> IllegalArgumentException")
 	void changePasswordSelf_wrongCurrent_fails() {
 		assertThrows(IllegalArgumentException.class,
-				() -> appUserService.changePasswordSelf(testAdmin.getId(), PWD_NEW, PWD_NEW));
+				() -> appUserService.changePasswordSelf(changePasswordDto(testAdmin.getId(), PWD_NEW, PWD_NEW)));
 	}
 
 	@Test
-	@DisplayName("changePasswordSelf: new pass doesn't match to filter -> ConstraintViolationException")
+	@DisplayName("changePasswordSelf: new password violates pattern -> ConstraintViolationException")
 	void changePasswordSelf_badNewPassword_fails() {
 		assertThrows(ConstraintViolationException.class,
-				() -> appUserService.changePasswordSelf(testAdmin.getId(), PWD, PWD_BAD));
+				() -> appUserService.changePasswordSelf(changePasswordDto(testAdmin.getId(), PWD, PWD_BAD)));
 	}
 
 	@Test

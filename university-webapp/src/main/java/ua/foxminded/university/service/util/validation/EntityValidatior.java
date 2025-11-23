@@ -1,0 +1,50 @@
+package ua.foxminded.university.service.util.validation;
+
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.ConstraintViolationException;
+import jakarta.validation.Validator;
+import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Component;
+
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+@RequiredArgsConstructor
+@Component
+public class EntityValidatior {
+
+	private static final Logger log = LoggerFactory.getLogger(EntityValidatior.class);
+
+	private final Validator validator;
+
+	public <T> void validate(T target, Class<?>... groups) {
+		var singletonOrEmpty = Optional.ofNullable(target).map(List::of).orElseGet(Collections::emptyList);
+
+		validateAll(singletonOrEmpty, groups);
+	}
+
+	public <T> void validateAll(Collection<T> targets, Class<?>... groups) {
+		Optional.ofNullable(targets).filter(list -> !list.isEmpty()).ifPresent(list -> {
+			log.debug("validateAll: start, items={}", list.size());
+
+			Set<ConstraintViolation<?>> violations = list.stream()
+					.filter(Objects::nonNull)
+					.flatMap(t -> validator.validate(t, groups).stream())
+					.collect(Collectors.toSet());
+
+			if (!violations.isEmpty()) {
+				log.warn("validateAll: violations found: {}", violations.size());
+				throw new ConstraintViolationException(violations);
+			}
+
+			log.debug("validateAll: OK (no violations)");
+		});
+	}
+}

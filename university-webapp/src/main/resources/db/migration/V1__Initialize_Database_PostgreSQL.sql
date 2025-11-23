@@ -32,41 +32,6 @@ create table if not exists teacher (
   office        varchar(64) not null
 );
 
-create or replace function ensure_role_expected() returns trigger as $$
-declare
-  expected_role text := TG_ARGV[0];
-begin
-  if not exists (
-    select 1 from app_user u
-    where u.id = NEW.id and u.role = expected_role
-  ) then
-    raise exception 'app_user % must have role %', NEW.id, expected_role;
-  end if;
-  return NEW;
-end;
-$$ language plpgsql;
-
-create trigger trg_student_role
-before insert on student
-for each row execute function ensure_role_expected('STUDENT');
-
-create trigger trg_teacher_role
-before insert on teacher
-for each row execute function ensure_role_expected('TEACHER');
-
-create or replace function deny_role_change() returns trigger as $$
-begin
-  if NEW.role is distinct from OLD.role then
-    raise exception 'app_user.role is immutable (id=%)', OLD.id;
-  end if;
-  return NEW;
-end;
-$$ language plpgsql;
-
-create trigger trg_app_user_role_immutable
-before update of role on app_user
-for each row execute function deny_role_change();
-
 create table if not exists courses (
   id          bigserial primary key,
   code        varchar(32)  not null unique,
@@ -85,7 +50,7 @@ create table if not exists group_courses (
 );
 create index if not exists idx_group_courses_course on group_courses(course_id);
 
-create table if not exists schedule_entries (
+create table if not exists lessons (
   id                 bigserial    primary key,
   group_id           bigint       not null,
   course_id          bigint       not null,
@@ -93,32 +58,29 @@ create table if not exists schedule_entries (
   end_time           timestamptz  not null,
   room               varchar(64)  not null,
   lesson_type        varchar(32)  not null,
-  lesson_description text,
+  description text,
 
-  constraint fk_sched_group   foreign key (group_id)  references groups(id),
-  constraint fk_sched_course  foreign key (course_id) references courses(id),
+  constraint fk_lesson_group   foreign key (group_id)  references groups(id),
+  constraint fk_lesson_course  foreign key (course_id) references courses(id),
 
-  constraint fk_sched_pair foreign key (group_id, course_id)
+  constraint fk_lesson_pair foreign key (group_id, course_id)
     references group_courses(group_id, course_id),
 
   constraint ck_time_order        check (end_time > start_time),
   constraint ck_lesson_type       check (lesson_type in ('LECTURE','PRACTICE','LAB','SEMINAR','EXAM', 'OTHER'))
 );
 
-create index if not exists idx_schedule_group_start
-  on schedule_entries (group_id, start_time);
+create index if not exists idx_lesson_group_start
+  on lessons (group_id, start_time);
 
-create index if not exists idx_schedule_group_end
-  on schedule_entries (group_id, end_time);
+create index if not exists idx_lesson_group_end
+  on lessons (group_id, end_time);
 
-create index if not exists idx_schedule_course_start
-  on schedule_entries (course_id, start_time);
+create index if not exists idx_lesson_course_start
+  on lessons (course_id, start_time);
 
-create index if not exists idx_courses_teacher
-  on courses (teacher_id);
+create index if not exists idx_lesson_room_ci_start
+  on lessons ((upper(room)), start_time);
 
-create index if not exists idx_schedule_room_ci_start
-  on schedule_entries ((upper(room)), start_time);
-
-create index if not exists idx_schedule_start_time
-  on schedule_entries (start_time);
+create index if not exists idx_lesson_start_time
+  on lessons (start_time);
