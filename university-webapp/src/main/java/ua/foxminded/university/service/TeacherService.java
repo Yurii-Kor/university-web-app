@@ -15,13 +15,12 @@ import ua.foxminded.university.model.domain.AppUser;
 import ua.foxminded.university.model.domain.Teacher;
 import ua.foxminded.university.model.repository.AppUserRepository;
 import ua.foxminded.university.model.repository.TeacherRepository;
+import ua.foxminded.university.model.repository.dto.IdCountAgg;
 import ua.foxminded.university.security.PasswordPolicy;
-import ua.foxminded.university.service.dto.request.TeacherDto;
+import ua.foxminded.university.service.dto.request.teacher.TeacherCreateDto;
+import ua.foxminded.university.service.dto.request.teacher.TeacherSelfUpdateDto;
 import ua.foxminded.university.service.dto.response.DeleteResult;
-import ua.foxminded.university.service.util.RequestDtoNormalizer;
 import ua.foxminded.university.service.util.validation.EntityValidatior;
-import ua.foxminded.university.service.util.validation.groups.OnCreate;
-import ua.foxminded.university.service.util.validation.groups.OnUpdateSelf;
 import ua.foxminded.university.service.util.DtoMapper;
 import ua.foxminded.university.service.util.DuplicateGuard;
 
@@ -38,27 +37,24 @@ public class TeacherService {
 	private final EntityValidatior validator;
 	private final PasswordPolicy passwordPolicy;
 
-	private final RequestDtoNormalizer normalizer;
 	private final DtoMapper dtoMapper;
 	private final DuplicateGuard duplicateGuard;
 
 	@Transactional(value = TxType.REQUIRES_NEW)
-	public List<Teacher> createAll(Collection<TeacherDto> drafts) {
-		var normalized = normalizer.normalizeTeachers(drafts);
-		validator.validateAll(normalized, OnCreate.class);
-
-		var toPersist = dtoMapper.toTeacherEntities(normalized);
-		if (toPersist.isEmpty()) {
+	public List<Teacher> createAll(Collection<TeacherCreateDto> drafts) {
+		drafts = Optional.ofNullable(drafts).orElseGet(List::of).stream().filter(Objects::nonNull).toList();
+		if (drafts.isEmpty()) {
 			log.warn("createAll: nothing to persist (null/empty input)");
 			return List.of();
 		}
 
+		validator.validateAll(drafts);
+
+		var toPersist = dtoMapper.toTeacherEntities(drafts);
+
 		var emailsLower = toPersist.stream()
 				.map(Teacher::getUser)
-				.filter(Objects::nonNull)
 				.map(AppUser::getEmail)
-				.filter(Objects::nonNull)
-				.map(String::trim)
 				.map(String::toLowerCase)
 				.toList();
 
@@ -87,20 +83,20 @@ public class TeacherService {
 	}
 
 	@Transactional(value = TxType.REQUIRES_NEW)
-	public Teacher updateSelf(TeacherDto patch) {
-		var normalized = normalizer.normalizeTeacher(patch)
-				.orElseThrow(() -> new IllegalArgumentException("patch must not be null"));
+	public Teacher updateSelf(TeacherSelfUpdateDto patch) {
+		patch = Optional.ofNullable(patch).orElseThrow(() -> new IllegalArgumentException("patch must not be null"));
 
-		validator.validateAll(List.of(normalized), OnUpdateSelf.class);
-
-		var managed = teacherRepository.findById(normalized.id()).orElseThrow(() -> {
-			log.error("updateSelf: Teacher not found: id={}", normalized.id());
-			return new EntityNotFoundException("Teacher not found: id=" + normalized.id());
+		validator.validate(patch);
+		
+		var id = patch.id();
+		var managed = teacherRepository.findById(id).orElseThrow(() -> {
+			log.error("updateSelf: Teacher not found: id={}", id);
+			return new EntityNotFoundException("Teacher not found: id=" + id);
 		});
 
-		Optional.ofNullable(normalized.academicRank()).ifPresent(managed::setAcademicRank);
+		Optional.ofNullable(patch.academicRank()).ifPresent(managed::setAcademicRank);
 
-		Optional.ofNullable(normalized.office()).ifPresent(managed::setOffice);
+		Optional.ofNullable(patch.office()).ifPresent(managed::setOffice);
 
 		log.debug("updateSelf: updated rank/office for teacherId={}", managed.getId());
 		return managed;
@@ -141,7 +137,7 @@ public class TeacherService {
 				.stream()
 				.filter(Objects::nonNull)
 				.filter(a -> Optional.ofNullable(a.count()).orElse(0L) > 0L)
-				.sorted(Comparator.comparing(ua.foxminded.university.model.repository.dto.IdCountAgg::id))
+				.sorted(Comparator.comparing(IdCountAgg::id))
 				.toList();
 
 		if (!nonEmpty.isEmpty()) {

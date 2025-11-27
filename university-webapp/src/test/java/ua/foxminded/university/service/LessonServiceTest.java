@@ -21,11 +21,11 @@ import ua.foxminded.university.model.domain.*;
 import ua.foxminded.university.model.domain.enums.AcademicRank;
 import ua.foxminded.university.model.domain.enums.LessonType;
 import ua.foxminded.university.model.domain.enums.UserRole;
-import ua.foxminded.university.service.dto.request.LessonDto;
+import ua.foxminded.university.service.dto.request.lesson.LessonCreateDto;
+import ua.foxminded.university.service.dto.request.lesson.LessonSelfUpdateDto;
 import ua.foxminded.university.service.dto.response.DeleteResult;
 import ua.foxminded.university.service.exception.ScheduleConflictException;
 import ua.foxminded.university.service.util.DtoMapper;
-import ua.foxminded.university.service.util.RequestDtoNormalizer;
 import ua.foxminded.university.service.util.validation.EntityValidatior;
 import ua.foxminded.university.service.util.validation.config.ValidatorConfig;
 import ua.foxminded.university.testutil.TestDataInitializer;
@@ -35,7 +35,7 @@ import ua.foxminded.university.testutil.TestDataInitializer;
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @Import({ TestcontainersConfiguration.class, LessonService.class, ValidatorConfig.class, EntityValidatior.class,
-		TestDataInitializer.class, DtoMapper.class, RequestDtoNormalizer.class })
+		TestDataInitializer.class, DtoMapper.class })
 
 class LessonServiceTest {
 
@@ -72,22 +72,22 @@ class LessonServiceTest {
 	private Course courseALG, courseDS, courseNET;
 	private Lesson base;
 
-	private LessonDto createDto(Long teacherId, Long courseId, Long groupId, OffsetDateTime start,
+	private LessonCreateDto createDto(Long teacherId, Long courseId, Long groupId, OffsetDateTime start,
 			OffsetDateTime end, String room) {
 
-		return new LessonDto(null, teacherId, courseId, groupId, start, end, room, null, "  note  ");
+		return new LessonCreateDto(teacherId, courseId, groupId, start, end, room, null, "note");
 	}
 
-	private LessonDto createDto(Long teacherId, Long courseId, Long groupId, OffsetDateTime start,
+	private LessonCreateDto createDto(Long teacherId, Long courseId, Long groupId, OffsetDateTime start,
 			OffsetDateTime end, String room, String description) {
 
-		return new LessonDto(null, teacherId, courseId, groupId, start, end, room, null, description);
+		return new LessonCreateDto(teacherId, courseId, groupId, start, end, room, null, description);
 	}
 
-	private LessonDto patchDto(Long id, Long teacherId, Long courseId, Long groupId, OffsetDateTime start,
+	private LessonSelfUpdateDto patchDto(Long id, Long teacherId, Long courseId, Long groupId, OffsetDateTime start,
 			OffsetDateTime end, String room, LessonType type, String description) {
 
-		return new LessonDto(id, teacherId, courseId, groupId, start, end, room, type, description);
+		return new LessonSelfUpdateDto(id, teacherId, courseId, groupId, start, end, room, type, description);
 	}
 
 	@BeforeAll
@@ -152,23 +152,28 @@ class LessonServiceTest {
 		assertEquals(LessonType.OTHER, created.getLessonType());
 		assertEquals("note", created.getDescription());
 
+		// change group
 		var afterGroup = assertDoesNotThrow(() -> scheduleService.updateSelf(
 				patchDto(created.getId(), teacherAlgDs.getId(), null, groupSE.getId(), null, null, null, null, null)));
 		assertEquals(groupSE.getId(), afterGroup.getGroup().getId());
 
+		// change course
 		var afterCourse = assertDoesNotThrow(() -> scheduleService.updateSelf(
 				patchDto(created.getId(), teacherAlgDs.getId(), courseDS.getId(), null, null, null, null, null, null)));
 		assertEquals(courseDS.getId(), afterCourse.getCourse().getId());
 
+		// change time
 		var afterTime = assertDoesNotThrow(() -> scheduleService
 				.updateSelf(patchDto(created.getId(), teacherAlgDs.getId(), null, null, T14, T15, null, null, null)));
 		assertEquals(T14, afterTime.getStartTime());
 		assertEquals(T15, afterTime.getEndTime());
 
-		var afterRoom = assertDoesNotThrow(() -> scheduleService.updateSelf(patchDto(created
-				.getId(), teacherAlgDs.getId(), null, null, null, null, " " + ROOM_B.toLowerCase() + " ", null, null)));
+		// change room
+		var afterRoom = assertDoesNotThrow(() -> scheduleService.updateSelf(
+				patchDto(created.getId(), teacherAlgDs.getId(), null, null, null, null, ROOM_B, null, null)));
 		assertEquals(ROOM_B, afterRoom.getRoom());
 
+		// change type + blank desc -> null
 		var afterTypeDesc = assertDoesNotThrow(() -> scheduleService.updateSelf(
 				patchDto(created.getId(), teacherAlgDs.getId(), null, null, null, null, null, LessonType.LAB, "   ")));
 		assertEquals(LessonType.LAB, afterTypeDesc.getLessonType());
@@ -283,9 +288,10 @@ class LessonServiceTest {
 				base.getGroup().getId(),
 				null,
 				null,
-				" " + base.getRoom().toLowerCase() + " ",
+				base.getRoom(),
 				null,
 				null)));
+
 		assertEquals(base.getCourse().getId(), after.getCourse().getId());
 		assertEquals(base.getGroup().getId(), after.getGroup().getId());
 		assertEquals(base.getRoom(), after.getRoom());

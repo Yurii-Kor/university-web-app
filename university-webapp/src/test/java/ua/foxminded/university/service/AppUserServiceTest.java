@@ -21,11 +21,12 @@ import ua.foxminded.university.model.domain.AppUser;
 import ua.foxminded.university.model.domain.enums.UserRole;
 import ua.foxminded.university.security.PasswordPolicy;
 import ua.foxminded.university.security.config.PasswordEncoderConfig;
-import ua.foxminded.university.service.dto.request.AppUserDto;
+import ua.foxminded.university.service.dto.request.appuser.AppUserCreateDto;
+import ua.foxminded.university.service.dto.request.appuser.AppUserPasswordChangeDto;
+import ua.foxminded.university.service.dto.request.appuser.AppUserSelfUpdateDto;
 import ua.foxminded.university.service.dto.response.DeleteResult;
 import ua.foxminded.university.service.util.DtoMapper;
 import ua.foxminded.university.service.util.DuplicateGuard;
-import ua.foxminded.university.service.util.RequestDtoNormalizer;
 import ua.foxminded.university.service.util.validation.EntityValidatior;
 import ua.foxminded.university.service.util.validation.config.ValidatorConfig;
 import ua.foxminded.university.testutil.TestDataInitializer;
@@ -36,7 +37,7 @@ import ua.foxminded.university.testutil.TestDataInitializer;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @Import({ TestcontainersConfiguration.class, AppUserService.class, ValidatorConfig.class, EntityValidatior.class,
 		PasswordPolicy.class, PasswordEncoderConfig.class, TestDataInitializer.class, DtoMapper.class,
-		RequestDtoNormalizer.class, DuplicateGuard.class })
+		DuplicateGuard.class })
 class AppUserServiceTest {
 
 	private static final String DEFAULT_EMAIL = "admin@example.com";
@@ -77,16 +78,16 @@ class AppUserServiceTest {
 				.build();
 	}
 
-	private AppUserDto newAdminDto(String email) {
-		return new AppUserDto(null, email, PWD, null, "Alice", "Admin");
+	private AppUserCreateDto newAdminDto(String email) {
+		return new AppUserCreateDto(email, PWD, "Alice", "Admin");
 	}
 
-	private AppUserDto patchProfileDto(Long id, String email, String first, String last) {
-		return new AppUserDto(id, email, null, null, first, last);
+	private AppUserSelfUpdateDto patchProfileDto(Long id, String email, String first, String last) {
+		return new AppUserSelfUpdateDto(id, email, first, last);
 	}
 
-	private AppUserDto changePasswordDto(Long id, String current, String next) {
-		return new AppUserDto(id, null, next, current, null, null);
+	private AppUserPasswordChangeDto changePasswordDto(Long id, String current, String next) {
+		return new AppUserPasswordChangeDto(id, current, next);
 	}
 
 	@BeforeAll
@@ -152,14 +153,14 @@ class AppUserServiceTest {
 	@Test
 	@DisplayName("createAdmins: null email -> ConstraintViolationException")
 	void createAdmins_nullEmail_fails() {
-		var bad = new AppUserDto(null, null, PWD, null, "Alice", "Admin");
+		var bad = new AppUserCreateDto(null, PWD, "Alice", "Admin");
 		assertThrows(ConstraintViolationException.class, () -> appUserService.createAdmins(List.of(bad)));
 	}
 
 	@Test
 	@DisplayName("createAdmins: null password -> ConstraintViolationException")
 	void createAdmins_nullPassword_fails() {
-		var bad = new AppUserDto(null, DEFAULT_EMAIL, null, null, "Alice", "Admin");
+		var bad = new AppUserCreateDto(DEFAULT_EMAIL, null, "Alice", "Admin");
 		assertThrows(ConstraintViolationException.class, () -> appUserService.createAdmins(List.of(bad)));
 	}
 
@@ -181,7 +182,7 @@ class AppUserServiceTest {
 	@Test
 	@DisplayName("updateProfileFields: no-op — same email (trim/case-insensitive) and null names")
 	void updateProfileFields_noop_sameEmail_ok() {
-		var patch = patchProfileDto(testAdmin.getId(), "  " + testAdmin.getEmail().toUpperCase() + "  ", null, null);
+		var patch = patchProfileDto(testAdmin.getId(), testAdmin.getEmail(), null, null);
 		assertDoesNotThrow(() -> appUserService.updateProfileFields(patch));
 
 		initializer.clear();
@@ -265,7 +266,7 @@ class AppUserServiceTest {
 	void changePasswordSelf_missingFields_fails() {
 		// id=null
 		assertThrows(ConstraintViolationException.class,
-				() -> appUserService.changePasswordSelf(new AppUserDto(null, null, PWD_NEW, PWD, null, null)));
+				() -> appUserService.changePasswordSelf(new AppUserPasswordChangeDto(null, PWD, PWD_NEW)));
 
 		// currentPassword=null
 		assertThrows(ConstraintViolationException.class,

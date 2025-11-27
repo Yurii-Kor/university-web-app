@@ -7,6 +7,7 @@ import java.util.stream.Stream;
 
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validator;
+import ua.foxminded.university.service.dto.request.student.StudentCreateDto;
 import ua.foxminded.university.service.util.validation.config.ValidatorConfig;
 
 import org.junit.jupiter.api.DisplayName;
@@ -20,7 +21,7 @@ import org.springframework.test.context.junit.jupiter.SpringExtension;
 
 @ExtendWith(SpringExtension.class)
 @ContextConfiguration(classes = { ValidatorConfig.class })
-class StudentDtoValidatorTest {
+class StudentCreateDtoValidatorTest {
 
     private static final String CASE =
             "email={0}, pwd={1}, first={2}, last={3}, groupId={4}, year={5} -> valid={6}";
@@ -59,9 +60,9 @@ class StudentDtoValidatorTest {
 	void validate(String email, String password, String firstName, String lastName, Long groupId,
 			Integer enrollmentYear, boolean shouldPass) {
 
-		StudentDto dto = new StudentDto(email, password, firstName, lastName, groupId, enrollmentYear);
+		StudentCreateDto dto = new StudentCreateDto(email, password, firstName, lastName, groupId, enrollmentYear);
 
-		Set<ConstraintViolation<StudentDto>> violations = validator.validate(dto);
+		Set<ConstraintViolation<StudentCreateDto>> violations = validator.validate(dto);
 
 		if (shouldPass) {
 			assertTrue(violations.isEmpty(), "Expected no violations, but got: " + violations);

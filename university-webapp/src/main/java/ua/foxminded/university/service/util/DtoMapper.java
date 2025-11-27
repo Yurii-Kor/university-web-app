@@ -12,17 +12,17 @@ import ua.foxminded.university.model.domain.Student;
 import ua.foxminded.university.model.domain.StudyGroup;
 import ua.foxminded.university.model.domain.Teacher;
 import ua.foxminded.university.model.domain.enums.UserRole;
-import ua.foxminded.university.service.dto.request.AppUserDto;
-import ua.foxminded.university.service.dto.request.CourseDto;
-import ua.foxminded.university.service.dto.request.LessonDto;
-import ua.foxminded.university.service.dto.request.StudentDto;
-import ua.foxminded.university.service.dto.request.StudyGroupDto;
-import ua.foxminded.university.service.dto.request.TeacherDto;
+import ua.foxminded.university.service.dto.request.appuser.AppUserCreateDto;
+import ua.foxminded.university.service.dto.request.course.CourseCreateDto;
+import ua.foxminded.university.service.dto.request.lesson.LessonCreateDto;
+import ua.foxminded.university.service.dto.request.student.StudentCreateDto;
+import ua.foxminded.university.service.dto.request.studygroup.StudyGroupCreateDto;
+import ua.foxminded.university.service.dto.request.teacher.TeacherCreateDto;
 
 @Component
 public class DtoMapper {
 
-	public List<Course> toCourseEntities(Collection<CourseDto> drafts) {
+	public List<Course> toCourseEntities(Collection<CourseCreateDto> drafts) {
 		return Optional.ofNullable(drafts)
 				.orElseGet(List::of)
 				.stream()
@@ -32,7 +32,7 @@ public class DtoMapper {
 				.toList();
 	}
 
-	public Optional<Course> toCourseEntity(CourseDto dto) {
+	public Optional<Course> toCourseEntity(CourseCreateDto dto) {
 		return Optional.ofNullable(dto)
 				.map(d -> Course.builder()
 						.id(null)
@@ -43,7 +43,7 @@ public class DtoMapper {
 						.build());
 	}
 
-	public List<StudyGroup> mapGroupsToEntities(Collection<StudyGroupDto> drafts) {
+	public List<StudyGroup> mapGroupsToEntities(Collection<StudyGroupCreateDto> drafts) {
 		return Optional.ofNullable(drafts)
 				.orElseGet(List::of)
 				.stream()
@@ -53,11 +53,11 @@ public class DtoMapper {
 				.toList();
 	}
 
-	public Optional<StudyGroup> toGroupEntity(StudyGroupDto dto) {
-		return Optional.ofNullable(dto).map(d -> StudyGroup.builder().id(null).name(dto.name()).build());
+	public Optional<StudyGroup> toGroupEntity(StudyGroupCreateDto dto) {
+		return Optional.ofNullable(dto).map(d -> StudyGroup.builder().id(null).name(d.name()).build());
 	}
 
-	public List<Student> toStudentEntities(Collection<StudentDto> drafts) {
+	public List<Student> toStudentEntities(Collection<StudentCreateDto> drafts) {
 		return Optional.ofNullable(drafts)
 				.orElseGet(List::of)
 				.stream()
@@ -67,7 +67,7 @@ public class DtoMapper {
 				.toList();
 	}
 
-	public Optional<Student> toStudentEntity(StudentDto dto) {
+	public Optional<Student> toStudentEntity(StudentCreateDto dto) {
 		return Optional.ofNullable(dto)
 				.map(d -> Student.builder()
 						.id(null)
@@ -77,7 +77,7 @@ public class DtoMapper {
 						.build());
 	}
 
-	private AppUser toStudentUser(StudentDto d) {
+	private AppUser toStudentUser(StudentCreateDto d) {
 		return AppUser.builder()
 				.id(null)
 				.email(d.email())
@@ -89,7 +89,7 @@ public class DtoMapper {
 				.build();
 	}
 
-	public List<Teacher> toTeacherEntities(Collection<TeacherDto> drafts) {
+	public List<Teacher> toTeacherEntities(Collection<TeacherCreateDto> drafts) {
 		return Optional.ofNullable(drafts)
 				.orElseGet(List::of)
 				.stream()
@@ -99,7 +99,7 @@ public class DtoMapper {
 				.toList();
 	}
 
-	public Optional<Teacher> toTeacherEntity(TeacherDto dto) {
+	public Optional<Teacher> toTeacherEntity(TeacherCreateDto dto) {
 		return Optional.ofNullable(dto)
 				.map(d -> Teacher.builder()
 						.id(null)
@@ -109,7 +109,7 @@ public class DtoMapper {
 						.build());
 	}
 
-	private AppUser toTeacherUser(TeacherDto d) {
+	private AppUser toTeacherUser(TeacherCreateDto d) {
 		return AppUser.builder()
 				.id(null)
 				.email(d.email())
@@ -121,39 +121,39 @@ public class DtoMapper {
 				.build();
 	}
 
-	public List<AppUser> toAppUserEntities(Collection<AppUserDto> drafts) {
-		return Optional.ofNullable(drafts)
-				.orElseGet(List::of)
-				.stream()
-				.filter(Objects::nonNull)
-				.map(this::toAppUserEntity)
-				.flatMap(Optional::stream)
-				.toList();
-	}
+	public List<AppUser> toAppUserEntities(Collection<AppUserCreateDto> drafts) {
+        return Optional.ofNullable(drafts)
+                .orElseGet(List::of)
+                .stream()
+                .filter(Objects::nonNull)
+                .map(this::toAppUserEntity)
+                .flatMap(Optional::stream)
+                .toList();
+    }
 
-	public Optional<AppUser> toAppUserEntity(AppUserDto dto) {
-		return Optional.ofNullable(dto)
-				.map(d -> AppUser.builder()
-						.id(null)
-						.email(d.email())
-						.password(d.newPassword())
-						.firstName(d.firstName())
-						.lastName(d.lastName())
-						.enabled(true)
-						.build());
-	}
+    public Optional<AppUser> toAppUserEntity(AppUserCreateDto dto) {
+        return Optional.ofNullable(dto)
+                .map(d -> AppUser.builder()
+                        .id(null)
+                        .email(d.email())
+                        .password(d.newPassword())
+                        .firstName(d.firstName())
+                        .lastName(d.lastName())
+                        .enabled(true)
+                        .build());
+    }
 
-	public Optional<Lesson> toScheduleEntryEntity(LessonDto dto) {
-		return Optional.ofNullable(dto)
-				.map(d -> Lesson.builder()
-						.id(d.id())
-						.course(Course.builder().id(d.courseId()).build())
-						.group(StudyGroup.builder().id(d.groupId()).build())
-						.startTime(d.startTime())
-						.endTime(d.endTime())
-						.room(d.room())
-						.lessonType(d.lessonType())
-						.description(d.description())
-						.build());
-	}
+	public Optional<Lesson> toLessonEntity(LessonCreateDto dto) {
+        return Optional.ofNullable(dto)
+                .map(d -> Lesson.builder()
+                        .id(null)
+                        .course(Course.builder().id(d.courseId()).build())
+                        .group(StudyGroup.builder().id(d.groupId()).build())
+                        .startTime(d.startTime())
+                        .endTime(d.endTime())
+                        .room(d.room())
+                        .lessonType(d.lessonType())
+                        .description(d.description())
+                        .build());
+    }
 }

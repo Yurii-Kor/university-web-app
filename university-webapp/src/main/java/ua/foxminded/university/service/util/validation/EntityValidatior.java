@@ -24,19 +24,19 @@ public class EntityValidatior {
 
 	private final Validator validator;
 
-	public <T> void validate(T target, Class<?>... groups) {
+	public <T> void validate(T target) {
 		var singletonOrEmpty = Optional.ofNullable(target).map(List::of).orElseGet(Collections::emptyList);
 
-		validateAll(singletonOrEmpty, groups);
+		validateAll(singletonOrEmpty);
 	}
 
-	public <T> void validateAll(Collection<T> targets, Class<?>... groups) {
+	public <T> void validateAll(Collection<T> targets) {
 		Optional.ofNullable(targets).filter(list -> !list.isEmpty()).ifPresent(list -> {
 			log.debug("validateAll: start, items={}", list.size());
 
 			Set<ConstraintViolation<?>> violations = list.stream()
 					.filter(Objects::nonNull)
-					.flatMap(t -> validator.validate(t, groups).stream())
+					.flatMap(t -> validator.validate(t).stream())
 					.collect(Collectors.toSet());
 
 			if (!violations.isEmpty()) {

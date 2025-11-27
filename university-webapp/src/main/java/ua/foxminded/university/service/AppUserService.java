@@ -21,15 +21,13 @@ import ua.foxminded.university.model.domain.AppUser;
 import ua.foxminded.university.model.domain.enums.UserRole;
 import ua.foxminded.university.model.repository.AppUserRepository;
 import ua.foxminded.university.security.PasswordPolicy;
-import ua.foxminded.university.service.dto.request.AppUserDto;
+import ua.foxminded.university.service.dto.request.appuser.AppUserCreateDto;
+import ua.foxminded.university.service.dto.request.appuser.AppUserPasswordChangeDto;
+import ua.foxminded.university.service.dto.request.appuser.AppUserSelfUpdateDto;
 import ua.foxminded.university.service.dto.response.DeleteResult;
 import ua.foxminded.university.service.util.DtoMapper;
 import ua.foxminded.university.service.util.DuplicateGuard;
-import ua.foxminded.university.service.util.RequestDtoNormalizer;
 import ua.foxminded.university.service.util.validation.EntityValidatior;
-import ua.foxminded.university.service.util.validation.groups.OnChangePassword;
-import ua.foxminded.university.service.util.validation.groups.OnCreate;
-import ua.foxminded.university.service.util.validation.groups.OnUpdateSelf;
 
 @Service
 @RequiredArgsConstructor
@@ -44,30 +42,24 @@ public class AppUserService {
 	private final PasswordPolicy passwordPolicy;
 	private final EntityValidatior validator;
 
-	private final RequestDtoNormalizer normalizer;
 	private final DtoMapper mapper;
 	private final DuplicateGuard duplicateGuard;
 
 	@Transactional(value = TxType.REQUIRES_NEW)
-	public List<AppUser> createAdmins(Collection<AppUserDto> drafts) {
-		var norm = normalizer.normalizeUsers(drafts);
-		if (norm.isEmpty()) {
+	public List<AppUser> createAdmins(Collection<AppUserCreateDto> drafts) {
+		drafts = Optional.ofNullable(drafts).orElseGet(List::of).stream().filter(Objects::nonNull).toList();
+		if (drafts.isEmpty()) {
 			log.warn("createAdmins: nothing to persist (null/empty input)");
 			return List.of();
 		}
 
-		validator.validateAll(norm, OnCreate.class);
+		validator.validateAll(drafts);
 
-		var emails = norm.stream()
-				.map(AppUserDto::email)
-				.filter(Objects::nonNull)
-				.map(String::trim)
-				.map(String::toLowerCase)
-				.toList();
+		var emails = drafts.stream().map(AppUserCreateDto::email).map(String::toLowerCase).toList();
 		duplicateGuard.assertNoDuplicates(emails, "emails");
 		assertEmailsFreeInDb(emails);
 
-		var admins = mapper.toAppUserEntities(norm);
+		var admins = mapper.toAppUserEntities(drafts);
 
 		admins.forEach(a -> {
 			a.setPassword(passwordPolicy.encodePassword(a.getPassword()));
@@ -94,36 +86,37 @@ public class AppUserService {
 	}
 
 	@Transactional(value = TxType.REQUIRES_NEW)
-	public void changePasswordSelf(AppUserDto dto) {
-		var norm = normalizer.normalizeUser(dto)
-				.orElseThrow(() -> new IllegalArgumentException("DTO must not be null"));
-		validator.validate(norm, OnChangePassword.class);
+	public void changePasswordSelf(AppUserPasswordChangeDto dto) {
+		dto = Optional.ofNullable(dto).orElseThrow(() -> new IllegalArgumentException("DTO must not be null"));
+		validator.validate(dto);
 
-		var user = usersRepository.findById(norm.id()).orElseThrow(() -> {
-			log.warn("changePasswordSelf: user not found (userId={})", norm.id());
-			return new EntityNotFoundException("User not found: id=" + norm.id());
+		var id = dto.id();
+		var user = usersRepository.findById(id).orElseThrow(() -> {
+			log.warn("changePasswordSelf: user not found (userId={})", id);
+			return new EntityNotFoundException("User not found: id=" + id);
 		});
 
-		passwordPolicy.assertCurrentMatches(norm.currentPassword(), user.getPassword());
-		passwordPolicy.assertNewDifferentFromCurrent(norm.currentPassword(), norm.newPassword());
+		passwordPolicy.assertCurrentMatches(dto.currentPassword(), user.getPassword());
+		passwordPolicy.assertNewDifferentFromCurrent(dto.currentPassword(), dto.newPassword());
 		
-		user.setPassword(passwordPolicy.encodePassword(norm.newPassword()));
-		log.info("changePasswordSelf: password changed (userId={})", norm.id());
+		user.setPassword(passwordPolicy.encodePassword(dto.newPassword()));
+		log.info("changePasswordSelf: password changed (userId={})", dto.id());
 	}
 
 	@Transactional(TxType.REQUIRES_NEW)
-	public void updateProfileFields(AppUserDto patchDto) {
-		var norm = normalizer.normalizeUser(patchDto)
-				.orElseThrow(() -> new IllegalArgumentException("DTO must not be null"));
+	public void updateProfileFields(AppUserSelfUpdateDto dto) {
+		dto = Optional.ofNullable(dto)
+                .orElseThrow(() -> new IllegalArgumentException("DTO must not be null"));
 
-		validator.validate(norm, OnUpdateSelf.class);
+		validator.validate(dto);
 
-		var user = usersRepository.findById(norm.id()).orElseThrow(() -> {
-			log.error("updateProfileFields: AppUser not found: id={}", norm.id());
-			return new EntityNotFoundException("AppUser not found: id=" + norm.id());
+		var id = dto.id();
+		var user = usersRepository.findById(id).orElseThrow(() -> {
+			log.error("updateProfileFields: AppUser not found: id={}", id);
+			return new EntityNotFoundException("AppUser not found: id=" + id);
 		});
 
-		Optional.ofNullable(norm.email()).ifPresent(newEmail -> {
+		Optional.ofNullable(dto.email()).ifPresent(newEmail -> {
 			var same = Optional.ofNullable(user.getEmail()).filter(newEmail::equals).isPresent();
 			if (!same) {
 				assertEmailUniqueForAnother(newEmail, user.getId());
@@ -131,15 +124,15 @@ public class AppUserService {
 			}
 		});
 
-		Optional.ofNullable(norm.firstName())
+		Optional.ofNullable(dto.firstName())
 				.filter(newFirst -> !newFirst.equals(Optional.ofNullable(user.getFirstName()).orElse(null)))
 				.ifPresent(user::setFirstName);
 
-		Optional.ofNullable(norm.lastName())
+		Optional.ofNullable(dto.lastName())
 				.filter(newLast -> !newLast.equals(Optional.ofNullable(user.getLastName()).orElse(null)))
 				.ifPresent(user::setLastName);
 
-		log.debug("updateProfileFields: updated profile fields for userId={}", norm.id());
+		log.debug("updateProfileFields: updated profile fields for userId={}", id);
 	}
 
 	@Transactional(value = TxType.REQUIRES_NEW)

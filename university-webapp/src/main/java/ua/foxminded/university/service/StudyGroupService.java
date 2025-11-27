@@ -15,12 +15,10 @@ import org.springframework.stereotype.Service;
 import ua.foxminded.university.model.domain.StudyGroup;
 import ua.foxminded.university.model.repository.StudyGroupRepository;
 import ua.foxminded.university.model.repository.dto.IdCountAgg;
-import ua.foxminded.university.service.dto.request.StudyGroupDto;
+import ua.foxminded.university.service.dto.request.studygroup.StudyGroupCreateDto;
+import ua.foxminded.university.service.dto.request.studygroup.StudyGroupRenameDto;
 import ua.foxminded.university.service.dto.response.DeleteResult;
-import ua.foxminded.university.service.util.RequestDtoNormalizer;
 import ua.foxminded.university.service.util.validation.EntityValidatior;
-import ua.foxminded.university.service.util.validation.groups.OnCreate;
-import ua.foxminded.university.service.util.validation.groups.OnRename;
 import ua.foxminded.university.service.util.DtoMapper;
 import ua.foxminded.university.service.util.DuplicateGuard;
 
@@ -33,28 +31,25 @@ public class StudyGroupService {
 
 	private final StudyGroupRepository groupRepository;
 	private final EntityValidatior validator;
-	private final RequestDtoNormalizer normalizer;
 	private final DtoMapper dtoMapper;
 	private final DuplicateGuard duplicateGuard;
 
 	@Transactional(value = TxType.REQUIRES_NEW)
-	public List<StudyGroup> createAll(Collection<StudyGroupDto> drafts) {
-		var normalized = normalizer.normalizeGroups(drafts);
-		validator.validateAll(normalized, OnCreate.class);
+	public List<StudyGroup> createAll(Collection<StudyGroupCreateDto> drafts) {
+		drafts = Optional.ofNullable(drafts).orElseGet(List::of).stream().filter(Objects::nonNull).toList();
 
-		var toPersist = dtoMapper.mapGroupsToEntities(normalized);
-		if (toPersist.isEmpty()) {
+		if (drafts.isEmpty()) {
 			log.warn("createAll: nothing to persist (null/empty input)");
 			return List.of();
 		}
 
-		var namesLower = toPersist.stream()
-				.map(StudyGroup::getName)
-				.map(String::trim)
-				.map(String::toLowerCase)
-				.toList();
+		validator.validateAll(drafts);
 
-		duplicateGuard.assertNoDuplicates(namesLower, "normalized study group names");
+		var toPersist = dtoMapper.mapGroupsToEntities(drafts);
+
+		var namesLower = toPersist.stream().map(StudyGroup::getName).map(String::toLowerCase).toList();
+
+		duplicateGuard.assertNoDuplicates(namesLower, "study group names");
 		assertNamesFreeInDbForCreate(namesLower);
 
 		return groupRepository.saveAll(toPersist);
@@ -76,17 +71,19 @@ public class StudyGroupService {
 	}
 
 	@Transactional(value = TxType.REQUIRES_NEW)
-	public StudyGroup rename(StudyGroupDto patch) {
-		var normalized = normalizer.normalizeGroup(patch)
+	public StudyGroup rename(StudyGroupRenameDto patch) {
+		patch = Optional.ofNullable(patch)
 				.orElseThrow(() -> new IllegalArgumentException("patch must not be null"));
-		validator.validateAll(List.of(normalized), OnRename.class);
 
-		var managed = groupRepository.findById(normalized.id()).orElseThrow(() -> {
-			log.error("rename: StudyGroup not found: id={}", normalized.id());
-			return new EntityNotFoundException("StudyGroup not found: id=" + normalized.id());
+		validator.validate(patch);
+
+		var id = patch.id();
+		var managed = groupRepository.findById(id).orElseThrow(() -> {
+			log.error("rename: StudyGroup not found: id={}", id);
+			return new EntityNotFoundException("StudyGroup not found: id=" + id);
 		});
 
-		Optional.ofNullable(normalized.name())
+		Optional.ofNullable(patch.name())
 				.filter(n -> !n.isEmpty())
 				.filter(n -> !n.equalsIgnoreCase(managed.getName()))
 				.ifPresent(n -> {

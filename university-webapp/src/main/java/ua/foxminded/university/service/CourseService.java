@@ -12,13 +12,11 @@ import ua.foxminded.university.model.domain.StudyGroup;
 import ua.foxminded.university.model.repository.CourseRepository;
 import ua.foxminded.university.model.repository.StudyGroupRepository;
 import ua.foxminded.university.model.repository.TeacherRepository;
-import ua.foxminded.university.service.dto.request.CourseDto;
+import ua.foxminded.university.service.dto.request.course.CourseCreateDto;
+import ua.foxminded.university.service.dto.request.course.CourseSelfUpdateDto;
+import ua.foxminded.university.service.dto.request.course.CourseUpdateCodesDto;
 import ua.foxminded.university.service.dto.response.DeleteResult;
-import ua.foxminded.university.service.util.RequestDtoNormalizer;
 import ua.foxminded.university.service.util.validation.EntityValidatior;
-import ua.foxminded.university.service.util.validation.groups.OnCreate;
-import ua.foxminded.university.service.util.validation.groups.OnUpdateCodes;
-import ua.foxminded.university.service.util.validation.groups.OnUpdateSelf;
 import ua.foxminded.university.service.util.DtoMapper;
 import ua.foxminded.university.service.util.DuplicateGuard;
 
@@ -39,16 +37,20 @@ public class CourseService {
 	private final TeacherRepository teacherRepository;
 	private final StudyGroupRepository groupRepository;
 	private final EntityValidatior validator;
-	private final RequestDtoNormalizer normalizer;
 	private final DtoMapper dtoMapper;
 	private final DuplicateGuard duplicateGuard;
 
 	@Transactional(value = TxType.REQUIRES_NEW)
-	public List<Course> createAll(Collection<CourseDto> drafts) {
-		var normalizedDrafts = normalizer.normalizeAll(drafts);
-		validator.validateAll(normalizedDrafts, OnCreate.class);
+	public List<Course> createAll(Collection<CourseCreateDto> drafts) {
+		drafts = Optional.ofNullable(drafts).orElseGet(List::of).stream().filter(Objects::nonNull).toList();
+		if (drafts.isEmpty()) {
+			log.warn("createAll: nothing to persist (null/empty input)");
+			return List.of();
+		}
 
-		var toPersist = dtoMapper.toCourseEntities(normalizedDrafts);
+		validator.validateAll(drafts);
+
+		var toPersist = dtoMapper.toCourseEntities(drafts);
 		if (toPersist.isEmpty()) {
 			log.warn("createAll: nothing to persist (null/empty input)");
 			return List.of();
@@ -86,17 +88,18 @@ public class CourseService {
 	}
 
 	@Transactional(value = TxType.REQUIRES_NEW)
-	public Course updateSelf(CourseDto patch) {
-		var normalizedPatch = normalizer.normalize(patch)
-				.orElseThrow(() -> new IllegalArgumentException("patch must not be null"));
-		validator.validateAll(List.of(normalizedPatch), OnUpdateSelf.class);
+	public Course updateSelf(CourseSelfUpdateDto patch) {
+		patch = Optional.ofNullable(patch).orElseThrow(() -> new IllegalArgumentException("patch must not be null"));
 
-		var managed = courseRepository.findById(normalizedPatch.id()).orElseThrow(() -> {
-			log.error("updateSelf: Course not found: id={}", normalizedPatch.id());
-			return new EntityNotFoundException("Course not found: id=" + normalizedPatch.id());
+		validator.validate(patch);
+
+		var id = patch.id();
+		var managed = courseRepository.findById(id).orElseThrow(() -> {
+			log.error("updateSelf: Course not found: id={}", id);
+			return new EntityNotFoundException("Course not found: id=" + id);
 		});
 
-		Optional.ofNullable(normalizedPatch.name())
+		Optional.ofNullable(patch.name())
 				.filter(newName -> !newName.isEmpty())
 				.filter(newName -> !newName.equalsIgnoreCase(managed.getName()))
 				.ifPresent(newName -> {
@@ -104,15 +107,15 @@ public class CourseService {
 					managed.setName(newName);
 				});
 
-		Optional.ofNullable(normalizedPatch.description())
-				.ifPresent(desc -> managed.setDescription(desc.isEmpty() ? null : desc));
+		Optional.ofNullable(patch.description())
+				.ifPresent(desc -> managed.setDescription(desc.trim().isEmpty() ? null : desc));
 
 		log.debug("updateSelf: updated name/description for courseId={}", managed.getId());
 		return managed;
 	}
 
 	@Transactional(value = TxType.REQUIRES_NEW)
-	public int updateCodes(Collection<CourseDto> patches) {
+	public int updateCodes(Collection<CourseUpdateCodesDto> patches) {
 		return Optional.ofNullable(patches)
 				.filter(Predicate.not(Collection::isEmpty))
 				.map(this::doUpdateCodes)
@@ -122,23 +125,19 @@ public class CourseService {
 				});
 	}
 
-	private int doUpdateCodes(Collection<CourseDto> patches) {
-		var normalized = normalizer.normalizeAll(patches);
-		
-		validator.validateAll(normalized, OnUpdateCodes.class);
+	private int doUpdateCodes(Collection<CourseUpdateCodesDto> patches) {
+		validator.validateAll(patches);
 
-		duplicateGuard.assertNoDuplicates(normalized.stream().map(CourseDto::id).toList(), "course ids");
-		duplicateGuard.assertNoDuplicates(normalized.stream()
-				.map(CourseDto::code)
-				.filter(Objects::nonNull)
-				.map(s -> s.trim().toLowerCase())
-				.toList(), "normalized course codes");
+		duplicateGuard.assertNoDuplicates(patches.stream().map(CourseUpdateCodesDto::id).toList(), "course ids");
+		duplicateGuard.assertNoDuplicates(
+				patches.stream().map(CourseUpdateCodesDto::code).map(s -> s.trim().toLowerCase()).toList(),
+				"normalized course codes");
 
-		assertCourseIdsExistFromPatches(normalized);
-		assertCodesFreeInDbForUpdate(normalized);
+		assertCourseIdsExistFromPatches(patches);
+		assertCodesFreeInDbForUpdate(patches);
 
-		var ids = normalized.stream().map(CourseDto::id).toList();
-		var codeById = normalized.stream().collect(Collectors.toMap(CourseDto::id, CourseDto::code));
+		var ids = patches.stream().map(CourseUpdateCodesDto::id).toList();
+		var codeById = patches.stream().collect(Collectors.toMap(CourseUpdateCodesDto::id, CourseUpdateCodesDto::code));
 
 		var existing = courseRepository.findAllById(ids);
 		existing.forEach(c -> c.setCode(codeById.get(c.getId())));
@@ -283,22 +282,23 @@ public class CourseService {
 
 	private void assertCodesFreeInDbForCreate(Collection<String> codesLower) {
 		var conflicts = courseRepository.findExistingCodesIgnoreCase(new HashSet<>(codesLower));
-	    if (!conflicts.isEmpty()) {
-	        log.warn("course codes already exist in DB: {}", conflicts);
-	        throw new IllegalArgumentException("Course codes already exist: " + conflicts);
-	    }
+		if (!conflicts.isEmpty()) {
+			log.warn("course codes already exist in DB: {}", conflicts);
+			throw new IllegalArgumentException("Course codes already exist: " + conflicts);
+		}
 	}
 
-	private void assertCodesFreeInDbForUpdate(Collection<CourseDto> patches) {
+	private void assertCodesFreeInDbForUpdate(Collection<CourseUpdateCodesDto> patches) {
 		var codesLower = patches.stream()
-				.map(CourseDto::code)
+				.map(CourseUpdateCodesDto::code)
 				.filter(Objects::nonNull)
 				.map(s -> s.trim().toLowerCase())
 				.collect(Collectors.toSet());
-		if (codesLower.isEmpty())
+		if (codesLower.isEmpty()) {
 			return;
+		}
 
-		var ids = patches.stream().map(CourseDto::id).toList();
+		var ids = patches.stream().map(CourseUpdateCodesDto::id).toList();
 
 		var conflicts = courseRepository.findConflictingCodesIgnoreCase(codesLower, ids);
 		if (!conflicts.isEmpty()) {
@@ -307,8 +307,8 @@ public class CourseService {
 		}
 	}
 
-	private void assertCourseIdsExistFromPatches(Collection<CourseDto> patches) {
-		var ids = patches.stream().map(CourseDto::id).collect(Collectors.toSet());
+	private void assertCourseIdsExistFromPatches(Collection<CourseUpdateCodesDto> patches) {
+		var ids = patches.stream().map(CourseUpdateCodesDto::id).collect(Collectors.toSet());
 		if (ids.stream().anyMatch(Objects::isNull)) {
 			log.error("assertCourseIdsExist: list contains null id");
 			throw new IllegalArgumentException("courseId must not be null");

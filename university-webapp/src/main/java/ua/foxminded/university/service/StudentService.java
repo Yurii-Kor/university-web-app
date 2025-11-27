@@ -18,9 +18,8 @@ import ua.foxminded.university.model.repository.AppUserRepository;
 import ua.foxminded.university.model.repository.StudentRepository;
 import ua.foxminded.university.model.repository.StudyGroupRepository;
 import ua.foxminded.university.security.PasswordPolicy;
-import ua.foxminded.university.service.dto.request.StudentDto;
+import ua.foxminded.university.service.dto.request.student.StudentCreateDto;
 import ua.foxminded.university.service.dto.response.DeleteResult;
-import ua.foxminded.university.service.util.RequestDtoNormalizer;
 import ua.foxminded.university.service.util.validation.EntityValidatior;
 import ua.foxminded.university.service.util.DtoMapper;
 import ua.foxminded.university.service.util.DuplicateGuard;
@@ -41,16 +40,15 @@ public class StudentService {
 	private final EntityValidatior validator;
 	private final PasswordPolicy passwordPolicy;
 
-	private final RequestDtoNormalizer normalizer;
 	private final DtoMapper dtoMapper;
 	private final DuplicateGuard duplicateGuard;
 
 	@Transactional(value = TxType.REQUIRES_NEW)
-	public List<Student> createAll(Collection<StudentDto> drafts) {
-		var normalized = normalizer.normalizeStudents(drafts);
-		validator.validateAll(normalized);
+	public List<Student> createAll(Collection<StudentCreateDto> drafts) {
+		drafts = Optional.ofNullable(drafts).orElseGet(List::of).stream().filter(Objects::nonNull).toList();
+		validator.validateAll(drafts);
 
-		var toPersist = dtoMapper.toStudentEntities(normalized);
+		var toPersist = dtoMapper.toStudentEntities(drafts);
 		if (toPersist.isEmpty()) {
 			log.warn("createAll: nothing to persist (null/empty input)");
 			return List.of();

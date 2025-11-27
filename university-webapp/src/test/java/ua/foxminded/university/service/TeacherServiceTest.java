@@ -22,10 +22,10 @@ import ua.foxminded.university.model.domain.enums.AcademicRank;
 import ua.foxminded.university.model.domain.enums.UserRole;
 import ua.foxminded.university.security.PasswordPolicy;
 import ua.foxminded.university.security.config.PasswordEncoderConfig;
-import ua.foxminded.university.service.dto.request.TeacherDto;
+import ua.foxminded.university.service.dto.request.teacher.TeacherCreateDto;
+import ua.foxminded.university.service.dto.request.teacher.TeacherSelfUpdateDto;
 import ua.foxminded.university.service.util.DtoMapper;
 import ua.foxminded.university.service.util.DuplicateGuard;
-import ua.foxminded.university.service.util.RequestDtoNormalizer;
 import ua.foxminded.university.service.util.validation.EntityValidatior;
 import ua.foxminded.university.service.util.validation.config.ValidatorConfig;
 import ua.foxminded.university.testutil.TestDataInitializer;
@@ -35,8 +35,8 @@ import ua.foxminded.university.testutil.TestDataInitializer;
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @Import({ TestcontainersConfiguration.class, TeacherService.class, AppUserService.class, ValidatorConfig.class,
-		EntityValidatior.class, PasswordPolicy.class, PasswordEncoderConfig.class, RequestDtoNormalizer.class,
-		DtoMapper.class, DuplicateGuard.class, TestDataInitializer.class })
+		EntityValidatior.class, PasswordPolicy.class, PasswordEncoderConfig.class, DtoMapper.class,
+		DuplicateGuard.class, TestDataInitializer.class })
 class TeacherServiceTest {
 
 	// ---- constants
@@ -73,12 +73,12 @@ class TeacherServiceTest {
 	private Long teacherForUpdatesId;
 	private Long teacherWithCoursesId;
 
-	private TeacherDto newTeacher(String email, String office, AcademicRank rank) {
-		return new TeacherDto(null, email, VALID_PASSWORD, FIRST_NAME, LAST_NAME, rank, office);
+	private TeacherCreateDto newTeacher(String email, String office, AcademicRank rank) {
+		return new TeacherCreateDto(email, VALID_PASSWORD, FIRST_NAME, LAST_NAME, rank, office);
 	}
 
-	private TeacherDto patch(Long id, AcademicRank rank, String office) {
-		return new TeacherDto(id, null, null, null, null, rank, office);
+	private TeacherSelfUpdateDto patch(Long id, AcademicRank rank, String office) {
+		return new TeacherSelfUpdateDto(id, rank, office);
 	}
 
 	@BeforeAll
@@ -163,7 +163,7 @@ class TeacherServiceTest {
 	@Test
 	@DisplayName("createAll: null academicRank -> ConstraintViolationException")
 	void createAll_nullRank_fails() {
-		var bad = new TeacherDto(null, "null-rank@example.com", VALID_PASSWORD, FIRST_NAME, LAST_NAME, null, OFFICE_A);
+		var bad = new TeacherCreateDto("null-rank@example.com", VALID_PASSWORD, FIRST_NAME, LAST_NAME, null, OFFICE_A);
 		assertThrows(ConstraintViolationException.class, () -> teacherService.createAll(List.of(bad)));
 	}
 

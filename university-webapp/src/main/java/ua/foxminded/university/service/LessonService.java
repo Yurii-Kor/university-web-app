@@ -26,15 +26,13 @@ import ua.foxminded.university.model.repository.CourseRepository;
 import ua.foxminded.university.model.repository.LessonRepository;
 import ua.foxminded.university.model.repository.StudyGroupRepository;
 import ua.foxminded.university.model.repository.TeacherRepository;
-import ua.foxminded.university.service.dto.request.LessonDto;
+import ua.foxminded.university.service.dto.request.lesson.LessonCreateDto;
+import ua.foxminded.university.service.dto.request.lesson.LessonSelfUpdateDto;
 import ua.foxminded.university.service.dto.response.DeleteResult;
 import ua.foxminded.university.service.exception.ScheduleConflictException;
 import ua.foxminded.university.service.exception.dto.RequestedSlot;
 import ua.foxminded.university.service.util.DtoMapper;
-import ua.foxminded.university.service.util.RequestDtoNormalizer;
 import ua.foxminded.university.service.util.validation.EntityValidatior;
-import ua.foxminded.university.service.util.validation.groups.OnCreate;
-import ua.foxminded.university.service.util.validation.groups.OnUpdateSelf;
 
 @Service
 @RequiredArgsConstructor
@@ -49,64 +47,66 @@ public class LessonService {
 	private final TeacherRepository teacherRepository;
 
 	private final EntityValidatior validator;
-	private final RequestDtoNormalizer normalizer;
 	private final DtoMapper mapper;
 
 	@Transactional(value = TxType.REQUIRES_NEW)
-	public Lesson create(LessonDto draft) {
-		var norm = normalizer.normalizeScheduleEntry(draft)
-				.orElseThrow(() -> new IllegalArgumentException("scheduleEntry dto must not be null"));
+	public Lesson create(LessonCreateDto  draft) {
+		draft = Optional.ofNullable(draft)
+                .orElseThrow(() -> new IllegalArgumentException("lesson draft must not be null"));
 
-		validator.validate(norm, OnCreate.class);
+		validator.validate(draft);
 
-		var entry = mapper.toScheduleEntryEntity(norm)
+		var entry = mapper.toLessonEntity(draft)
 				.orElseThrow(() -> new IllegalArgumentException("Mapper produced null for ScheduleEntry"));
 
 		entry.setId(null);
-		entry.setLessonType(Optional.ofNullable(norm.lessonType()).orElse(LessonType.OTHER));
-		entry.setCourse(requireCourseRef(norm.courseId()));
-		entry.setGroup(requireGroupRef(norm.groupId()));
+		entry.setLessonType(Optional.ofNullable(draft.lessonType()).orElse(LessonType.OTHER));
+		entry.setCourse(requireCourseRef(draft.courseId()));
+		entry.setGroup(requireGroupRef(draft.groupId()));
 
-		assertCourseBelongsToTeacher(norm.courseId(), norm.teacherId());
+		assertCourseBelongsToTeacher(draft.courseId(), draft.teacherId());
 		assertEndAfterStart(entry);
 		assertGroupAttachedToCourse(entry);
 		assertRoomIsNotTeacherOffice(entry.getRoom());
-		assertNoOverlaps(entry, norm.teacherId());
+		assertNoOverlaps(entry, draft.teacherId());
 
 		return scheduleRepository.save(entry);
 	}
 
 	@Transactional(value = TxType.REQUIRES_NEW)
-	public Lesson updateSelf(LessonDto patch) {
-		var norm = normalizer.normalizeScheduleEntry(patch)
-				.orElseThrow(() -> new IllegalArgumentException("scheduleEntry dto must not be null"));
+	public Lesson updateSelf(LessonSelfUpdateDto patch) {
+		patch = Optional.ofNullable(patch)
+                .orElseThrow(() -> new IllegalArgumentException("lesson patch must not be null"));
 
-		validator.validate(norm, OnUpdateSelf.class);
+		validator.validate(patch);
 
-		var teacherId = Objects.requireNonNull(norm.teacherId(), "teacherId must not be null");
+		var teacherId = Objects.requireNonNull(patch.teacherId(), "teacherId must not be null");
 
-		var managed = scheduleRepository.findById(norm.id()).orElseThrow(() -> {
-			log.error("updateSelf: ScheduleEntry not found: id={}", norm.id());
-			return new EntityNotFoundException("ScheduleEntry not found: id=" + norm.id());
+		var id = patch.id();
+		var managed = scheduleRepository.findById(id).orElseThrow(() -> {
+			log.error("updateSelf: ScheduleEntry not found: id={}", id);
+			return new EntityNotFoundException("ScheduleEntry not found: id=" + id);
 		});
 
 		assertEntryBelongsToTeacher(managed, teacherId);
 
-		Optional.ofNullable(norm.courseId()).ifPresent(id -> updateCourse(managed, id, teacherId));
+		Optional.ofNullable(patch.courseId()).ifPresent(courseId -> updateCourse(managed, courseId, teacherId));
 
-		Optional.ofNullable(norm.groupId()).ifPresent(newGroup -> updateGroup(managed, newGroup));
+		Optional.ofNullable(patch.groupId()).ifPresent(newGroup -> updateGroup(managed, newGroup));
 
 		assertGroupAttachedToCourse(managed);
 
-		Optional.ofNullable(norm.room()).ifPresent(newRoom -> updateRoom(managed, newRoom));
+		Optional.ofNullable(patch.room()).ifPresent(newRoom -> updateRoom(managed, newRoom));
 
-		Optional.ofNullable(norm.startTime()).or(() -> Optional.ofNullable(norm.endTime())).ifPresent(__ -> {
-			updateEntryTime(managed, norm.startTime(), norm.endTime());
+		var startTime = patch.startTime();
+		var endTime = patch.endTime();
+		Optional.ofNullable(startTime).or(() -> Optional.ofNullable(endTime)).ifPresent(__ -> {
+			updateEntryTime(managed, startTime, endTime);
 		});
 
-		Optional.ofNullable(norm.lessonType()).ifPresent(newType -> managed.setLessonType(newType));
+		Optional.ofNullable(patch.lessonType()).ifPresent(newType -> managed.setLessonType(newType));
 
-		Optional.ofNullable(norm.description()).ifPresent(desc -> managed.setDescription(desc.isEmpty() ? null : desc));
+		Optional.ofNullable(patch.description()).ifPresent(desc -> managed.setDescription(desc.trim().isEmpty() ? null : desc));
 
 		assertNoOverlaps(managed, teacherId);
 

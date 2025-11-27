@@ -22,10 +22,9 @@ import ua.foxminded.university.model.domain.StudyGroup;
 import ua.foxminded.university.model.domain.enums.UserRole;
 import ua.foxminded.university.security.PasswordPolicy;
 import ua.foxminded.university.security.config.PasswordEncoderConfig;
-import ua.foxminded.university.service.dto.request.StudentDto;
+import ua.foxminded.university.service.dto.request.student.StudentCreateDto;
 import ua.foxminded.university.service.util.DtoMapper;
 import ua.foxminded.university.service.util.DuplicateGuard;
-import ua.foxminded.university.service.util.RequestDtoNormalizer;
 import ua.foxminded.university.service.util.validation.EntityValidatior;
 import ua.foxminded.university.service.util.validation.config.ValidatorConfig;
 import ua.foxminded.university.testutil.TestDataInitializer;
@@ -36,7 +35,7 @@ import ua.foxminded.university.testutil.TestDataInitializer;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @Import({ TestcontainersConfiguration.class, StudentService.class, AppUserService.class, TestDataInitializer.class,
 		ValidatorConfig.class, EntityValidatior.class, PasswordPolicy.class, PasswordEncoderConfig.class,
-		RequestDtoNormalizer.class, DtoMapper.class, DuplicateGuard.class })
+		DtoMapper.class, DuplicateGuard.class })
 class StudentServiceTest {
 
 	static final String DEFAULT_GROUP_NAME = "CS-101";
@@ -73,8 +72,8 @@ class StudentServiceTest {
 	private StudyGroup defaultGroup;
 	private StudyGroup updatedGroup;
 
-	private StudentDto dto(String email, String password, String first, String last, Long groupId, Integer year) {
-		return new StudentDto(email, password, first, last, groupId, year);
+	private StudentCreateDto dto(String email, String password, String first, String last, Long groupId, Integer year) {
+		return new StudentCreateDto(email, password, first, last, groupId, year);
 	}
 
 	@BeforeAll

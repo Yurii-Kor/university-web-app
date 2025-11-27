@@ -19,10 +19,10 @@ import ua.foxminded.university.model.domain.AppUser;
 import ua.foxminded.university.model.domain.Student;
 import ua.foxminded.university.model.domain.StudyGroup;
 import ua.foxminded.university.model.domain.enums.UserRole;
-import ua.foxminded.university.service.dto.request.StudyGroupDto;
+import ua.foxminded.university.service.dto.request.studygroup.StudyGroupCreateDto;
+import ua.foxminded.university.service.dto.request.studygroup.StudyGroupRenameDto;
 import ua.foxminded.university.service.util.DtoMapper;
 import ua.foxminded.university.service.util.DuplicateGuard;
-import ua.foxminded.university.service.util.RequestDtoNormalizer;
 import ua.foxminded.university.service.util.validation.EntityValidatior;
 import ua.foxminded.university.service.util.validation.config.ValidatorConfig;
 import ua.foxminded.university.testutil.TestDataInitializer;
@@ -32,7 +32,7 @@ import ua.foxminded.university.testutil.TestDataInitializer;
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @Import({ TestcontainersConfiguration.class, StudyGroupService.class, ValidatorConfig.class, EntityValidatior.class,
-		TestDataInitializer.class, RequestDtoNormalizer.class, DtoMapper.class, DuplicateGuard.class })
+		TestDataInitializer.class, DtoMapper.class, DuplicateGuard.class })
 class StudyGroupServiceTest {
 
 	static final String DEFAULT_GROUP_NAME = "CS-101";
@@ -80,7 +80,7 @@ class StudyGroupServiceTest {
 	@Test
 	@DisplayName("StudyGroupService happy path: create -> rename -> delete")
 	void happyPath_fullCycle_success() {
-		var toSave = new StudyGroupDto(null, NAME_A);
+		var toSave = new StudyGroupCreateDto(NAME_A);
 
 		var savedAll = assertDoesNotThrow(() -> groupService.createAll(Arrays.asList(null, toSave)),
 				"createAll(List.of(dto)) should not throw");
@@ -90,7 +90,7 @@ class StudyGroupServiceTest {
 		assertNotNull(saved.getId(), "Group id must be assigned");
 		assertEquals(NAME_A, saved.getName(), "Name must be persisted as provided");
 
-		var renamed = assertDoesNotThrow(() -> groupService.rename(new StudyGroupDto(saved.getId(), NAME_B)),
+		var renamed = assertDoesNotThrow(() -> groupService.rename(new StudyGroupRenameDto(saved.getId(), NAME_B)),
 				"rename should not throw");
 		assertEquals(saved.getId(), renamed.getId());
 		assertEquals(NAME_B, renamed.getName(), "Name must be updated as provided");
@@ -108,7 +108,7 @@ class StudyGroupServiceTest {
 	@DisplayName("createAll: invalid pattern (lowercase + spaces) -> ConstraintViolationException")
 	void createAll_invalidPattern_fails() {
 		assertThrows(ConstraintViolationException.class,
-				() -> groupService.createAll(List.of(new StudyGroupDto(null, BAD_SPACED_LOWER))),
+				() -> groupService.createAll(List.of(new StudyGroupCreateDto(BAD_SPACED_LOWER))),
 				"Bad group name must fail bean validation");
 	}
 
@@ -135,7 +135,7 @@ class StudyGroupServiceTest {
 	@Test
 	@DisplayName("createAll: valid name -> persisted as-is")
 	void createAll_valid_ok() {
-		var saved = groupService.createAll(List.of(new StudyGroupDto(null, TO_CREATE_VALID)));
+		var saved = groupService.createAll(List.of(new StudyGroupCreateDto(TO_CREATE_VALID)));
 		assertEquals(TO_CREATE_VALID, saved.getFirst().getName());
 	}
 
@@ -143,7 +143,7 @@ class StudyGroupServiceTest {
 	@DisplayName("createAll: invalid name -> ConstraintViolationException")
 	void createAll_invalidName_fails() {
 		assertThrows(ConstraintViolationException.class,
-				() -> groupService.createAll(List.of(new StudyGroupDto(null, BAD_NAME))),
+				() -> groupService.createAll(List.of(new StudyGroupCreateDto(BAD_NAME))),
 				"Bad group name must fail bean validation");
 	}
 
@@ -151,15 +151,15 @@ class StudyGroupServiceTest {
 	@DisplayName("createAll: duplicate name in DB -> IllegalArgumentException")
 	void createAll_duplicateName_fails() {
 		assertThrows(IllegalArgumentException.class,
-				() -> groupService.createAll(List.of(new StudyGroupDto(null, DEFAULT_GROUP_NAME))),
+				() -> groupService.createAll(List.of(new StudyGroupCreateDto(DEFAULT_GROUP_NAME))),
 				"duplicate group name should fail");
 	}
 
 	@Test
 	@DisplayName("createAll: duplicate names in one request -> IllegalArgumentException")
 	void createAll_duplicatesInRequest_fail() {
-		var a = new StudyGroupDto(null, NAME_B);
-		var b = new StudyGroupDto(null, NAME_B);
+		var a = new StudyGroupCreateDto(NAME_B);
+		var b = new StudyGroupCreateDto(NAME_B);
 		assertThrows(IllegalArgumentException.class, () -> groupService.createAll(List.of(a, b)));
 	}
 
@@ -187,35 +187,37 @@ class StudyGroupServiceTest {
 	@Test
 	@DisplayName("rename: null id -> ConstraintViolationException")
 	void rename_nullId_fails() {
-		assertThrows(ConstraintViolationException.class, () -> groupService.rename(new StudyGroupDto(null, NAME_B)));
+		assertThrows(ConstraintViolationException.class,
+				() -> groupService.rename(new StudyGroupRenameDto(null, NAME_B)));
 	}
 
 	@Test
 	@DisplayName("rename: bad pattern -> ConstraintViolationException")
 	void rename_badPattern_fails() {
 		assertThrows(ConstraintViolationException.class,
-				() -> groupService.rename(new StudyGroupDto(testGroup.getId(), BAD_NAME)),
+				() -> groupService.rename(new StudyGroupRenameDto(testGroup.getId(), BAD_NAME)),
 				"bad pattern must fail bean validation");
 	}
 
 	@Test
 	@DisplayName("rename: missing id with valid name -> EntityNotFoundException")
 	void rename_missingId_distinctName_fails() {
-		assertThrows(EntityNotFoundException.class, () -> groupService.rename(new StudyGroupDto(MISSING_ID, NAME_B)));
+		assertThrows(EntityNotFoundException.class,
+				() -> groupService.rename(new StudyGroupRenameDto(MISSING_ID, NAME_B)));
 	}
 
 	@Test
 	@DisplayName("rename: target name already exists in DB -> IllegalArgumentException")
 	void rename_conflictInDb_fails() {
 		assertThrows(IllegalArgumentException.class,
-				() -> groupService.rename(new StudyGroupDto(testGroup.getId(), groupWithStudent.getName())),
+				() -> groupService.rename(new StudyGroupRenameDto(testGroup.getId(), groupWithStudent.getName())),
 				"renaming to existing DB name must fail");
 	}
 
 	@Test
 	@DisplayName("rename: no-op — new name equals current one -> returns entity unchanged")
 	void rename_noop_sameName_success() {
-		var renamed = groupService.rename(new StudyGroupDto(testGroup.getId(), DEFAULT_GROUP_NAME));
+		var renamed = groupService.rename(new StudyGroupRenameDto(testGroup.getId(), DEFAULT_GROUP_NAME));
 		assertEquals(testGroup.getId(), renamed.getId());
 		assertEquals(DEFAULT_GROUP_NAME, renamed.getName());
 	}
@@ -223,7 +225,7 @@ class StudyGroupServiceTest {
 	@Test
 	@DisplayName("deleteByIds: mix existing/missing -> returns deleted & notFound as expected")
 	void deleteByIds_mixed_returnsSplit() {
-		var g = groupService.createAll(List.of(new StudyGroupDto(null, TO_DELETE))).get(0);
+		var g = groupService.createAll(List.of(new StudyGroupCreateDto(TO_DELETE))).get(0);
 
 		var res = groupService.deleteByIds(Arrays.asList(g.getId(), MISSING_ID, null));
 		assertEquals(Set.of(g.getId()), res.deletedIds(), "should delete existing id");
@@ -249,7 +251,7 @@ class StudyGroupServiceTest {
 	@Test
 	@DisplayName("deleteByIds: duplicated ids in input -> deletedIds unique")
 	void deleteByIds_duplicatedInput_ok() {
-		var g = groupService.createAll(List.of(new StudyGroupDto(null, TO_DELETE))).get(0);
+		var g = groupService.createAll(List.of(new StudyGroupCreateDto(TO_DELETE))).get(0);
 		var res = groupService.deleteByIds(Arrays.asList(g.getId(), g.getId()));
 		assertEquals(Set.of(g.getId()), res.deletedIds());
 		assertTrue(res.notFoundIds().isEmpty());

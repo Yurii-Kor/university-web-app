@@ -20,8 +20,9 @@ import ua.foxminded.university.model.domain.StudyGroup;
 import ua.foxminded.university.model.domain.Teacher;
 import ua.foxminded.university.model.domain.enums.AcademicRank;
 import ua.foxminded.university.model.domain.enums.UserRole;
-import ua.foxminded.university.service.dto.request.CourseDto;
-import ua.foxminded.university.service.util.RequestDtoNormalizer;
+import ua.foxminded.university.service.dto.request.course.CourseCreateDto;
+import ua.foxminded.university.service.dto.request.course.CourseSelfUpdateDto;
+import ua.foxminded.university.service.dto.request.course.CourseUpdateCodesDto;
 import ua.foxminded.university.service.util.validation.EntityValidatior;
 import ua.foxminded.university.service.util.validation.config.ValidatorConfig;
 import ua.foxminded.university.service.util.DtoMapper;
@@ -33,7 +34,7 @@ import ua.foxminded.university.testutil.TestDataInitializer;
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @Import({ TestcontainersConfiguration.class, CourseService.class, ValidatorConfig.class, EntityValidatior.class,
-		TestDataInitializer.class, RequestDtoNormalizer.class, DtoMapper.class, DuplicateGuard.class })
+		TestDataInitializer.class, DtoMapper.class, DuplicateGuard.class })
 class CourseServiceTest {
 
 	static final String CODE_ALG_UPPER = "CSE-ALG-101";
@@ -48,7 +49,6 @@ class CourseServiceTest {
 	static final String COURSE_SECURITY = "Security";
 	static final String COURSE_SECURITY_LOWER = "security";
 	static final String COURSE_DATABASES = "Databases";
-	static final String COURSE_DATABASES_LOWER = " databases ";
 	static final String COURSE_OS = "Operating Systems";
 	static final String COURSE_OS_LOWER = " operating systems ";
 
@@ -73,16 +73,16 @@ class CourseServiceTest {
 	private Teacher testTeacher;
 	private StudyGroup g1, g2;
 
-	private CourseDto newCreateDto(String code, String name, String desc, Long teacherId) {
-		return new CourseDto(null, code, name, desc, teacherId);
+	private CourseCreateDto newCreateDto(String code, String name, String desc, Long teacherId) {
+		return new CourseCreateDto(code, name, desc, teacherId);
 	}
 
-	private CourseDto newUpdateSelf(Long id, String name, String desc) {
-		return new CourseDto(id, null, name, desc, null);
+	private CourseSelfUpdateDto newUpdateSelf(Long id, String name, String desc) {
+		return new CourseSelfUpdateDto(id, name, desc);
 	}
 
-	private CourseDto newUpdateCode(Long id, String code) {
-		return new CourseDto(id, code, null, null, null);
+	private CourseUpdateCodesDto newUpdateCode(Long id, String code) {
+		return new CourseUpdateCodesDto(id, code);
 	}
 
 	@BeforeAll
@@ -211,7 +211,7 @@ class CourseServiceTest {
 	@Test
 	@DisplayName("createAll: duplicate names in request (case-insensitive) -> IllegalArgumentException")
 	void createAll_duplicateNamesInRequest_fails() {
-		var a = newCreateDto(CODE_SEC_UPPER, COURSE_DATABASES_LOWER, null, testTeacher.getId());
+		var a = newCreateDto(CODE_SEC_UPPER, COURSE_DATABASES, null, testTeacher.getId());
 		var b = newCreateDto(CODE_DB_UPPER, COURSE_DATABASES, null, testTeacher.getId());
 		assertThrows(IllegalArgumentException.class, () -> courseService.createAll(List.of(a, b)));
 	}
@@ -298,9 +298,9 @@ class CourseServiceTest {
 	}
 
 	@Test
-	@DisplayName("updateCodes: no-op code with sloppy input (trim/upper inside) -> returns 1 and unchanged")
+	@DisplayName("updateCodes: no-op code -> returns 1 and unchanged")
 	void updateCodes_noop_ok() {
-		var count = courseService.updateCodes(List.of(newUpdateCode(courseSecurity.getId(), " sec-303 ")));
+		var count = courseService.updateCodes(List.of(newUpdateCode(courseSecurity.getId(), CODE_SEC_UPPER)));
 		assertEquals(ONE_COURSE, count);
 		initializer.clear();
 		var reloaded = courseService.findByIds(List.of(courseSecurity.getId())).getFirst();
