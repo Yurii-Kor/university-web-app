@@ -24,7 +24,6 @@ import ua.foxminded.university.security.config.PasswordEncoderConfig;
 import ua.foxminded.university.service.dto.request.appuser.AppUserCreateDto;
 import ua.foxminded.university.service.dto.request.appuser.AppUserPasswordChangeDto;
 import ua.foxminded.university.service.dto.request.appuser.AppUserSelfUpdateDto;
-import ua.foxminded.university.service.dto.response.DeleteResult;
 import ua.foxminded.university.service.util.DtoMapper;
 import ua.foxminded.university.service.util.DuplicateGuard;
 import ua.foxminded.university.service.util.validation.EntityValidatior;
@@ -45,6 +44,9 @@ class AppUserServiceTest {
 
 	private static final String TEST_ADMIN_EMAIL = "admin.test@example.com";
 	private static final String TAKEN_EMAIL = "student.taken@example.com";
+
+	private static final String FIRST_NAME = "Alice";
+	private static final String LAST_NAME = "Cooper";
 
 	private static final String UPDATED_FIRST_NAME = "UpdatedFirstName";
 	private static final String UPDATED_LAST_NAME = "UpdatedLastName";
@@ -70,10 +72,10 @@ class AppUserServiceTest {
 	private AppUser draftAdminEntity(String email) {
 		return AppUser.builder()
 				.email(email)
-				.password(PWD)
+				.password(passwordPolicy.encodePassword(PWD))
 				.role(UserRole.ADMIN)
-				.firstName("Alice")
-				.lastName("Admin")
+				.firstName(FIRST_NAME)
+				.lastName(LAST_NAME)
 				.enabled(true)
 				.build();
 	}
@@ -105,9 +107,10 @@ class AppUserServiceTest {
 	}
 
 	@Test
-	@DisplayName("happy path: createAdmins -> updateProfileFields -> changePasswordSelf -> deleteAdminsByIds (with notFound) -> last-admin guard")
-	void happyPath_fullCycle_success() {
-		var createdAll = assertDoesNotThrow(() -> appUserService.createAdmins(List.of(newAdminDto(DEFAULT_EMAIL))));
+	@DisplayName("createAdmins: happy path — creates enabled ADMIN with encoded password")
+	void createAdmins_happyPath_success() {
+		var createdAll = appUserService.createAdmins(List.of(newAdminDto(DEFAULT_EMAIL)));
+
 		assertEquals(ONE_USER, createdAll.size());
 		var created = createdAll.getFirst();
 
@@ -115,31 +118,15 @@ class AppUserServiceTest {
 		assertEquals(DEFAULT_EMAIL, created.getEmail());
 		assertEquals(UserRole.ADMIN, created.getRole());
 		assertTrue(created.isEnabled());
-		assertDoesNotThrow(() -> passwordPolicy.assertCurrentMatches(PWD, created.getPassword()));
 
-		// update profile via DTO
-		assertDoesNotThrow(() -> appUserService.updateProfileFields(
-				patchProfileDto(created.getId(), UPDATED_EMAIL, UPDATED_FIRST_NAME, UPDATED_LAST_NAME)));
-		initializer.clear();
-		var reloaded = appUserService.findByIds(List.of(created.getId())).getFirst();
-		assertEquals(UPDATED_EMAIL, reloaded.getEmail());
-		assertEquals(UPDATED_FIRST_NAME, reloaded.getFirstName());
-		assertEquals(UPDATED_LAST_NAME, reloaded.getLastName());
+		passwordPolicy.assertCurrentMatches(PWD, created.getPassword());
 
-		// change password via DTO
-		assertDoesNotThrow(() -> appUserService.changePasswordSelf(changePasswordDto(created.getId(), PWD, PWD_NEW)));
-		initializer.clear();
-		var updatedPwd = appUserService.findByIds(List.of(created.getId())).getFirst();
-		assertNotEquals(passwordPolicy.encodePassword(PWD), updatedPwd.getPassword());
-		assertDoesNotThrow(() -> passwordPolicy.assertCurrentMatches(PWD_NEW, updatedPwd.getPassword()));
+		appUserService.deleteAdminsByIds(List.of(created.getId()));
+	}
 
-		// delete + notFound
-		DeleteResult del = assertDoesNotThrow(
-				() -> appUserService.deleteAdminsByIds(List.of(created.getId(), MISSING_ID)));
-		assertEquals(Set.of(created.getId()), del.deletedIds());
-		assertEquals(Set.of(MISSING_ID), del.notFoundIds());
-
-		// last enabled admin guard
+	@Test
+	@DisplayName("deleteAdminsByIds: guard — can't delete last admin")
+	void deleteAdminsByIds_lastAdmin_guard_fails() {
 		assertThrows(IllegalStateException.class, () -> appUserService.deleteAdminsByIds(List.of(testAdmin.getId())));
 	}
 
@@ -180,10 +167,26 @@ class AppUserServiceTest {
 	}
 
 	@Test
+	@DisplayName("updateProfileFields: happy path — email + first/last name updated")
+	void updateProfileFields_happyPath_success() {
+		appUserService.updateProfileFields(
+				patchProfileDto(testAdmin.getId(), UPDATED_EMAIL, UPDATED_FIRST_NAME, UPDATED_LAST_NAME));
+
+		initializer.clear();
+		var reloaded = appUserService.findByIds(List.of(testAdmin.getId())).getFirst();
+
+		assertEquals(UPDATED_EMAIL, reloaded.getEmail());
+		assertEquals(UPDATED_FIRST_NAME, reloaded.getFirstName());
+		assertEquals(UPDATED_LAST_NAME, reloaded.getLastName());
+
+		appUserService.updateProfileFields(patchProfileDto(testAdmin.getId(), TEST_ADMIN_EMAIL, FIRST_NAME, LAST_NAME));
+	}
+
+	@Test
 	@DisplayName("updateProfileFields: no-op — same email (trim/case-insensitive) and null names")
 	void updateProfileFields_noop_sameEmail_ok() {
 		var patch = patchProfileDto(testAdmin.getId(), testAdmin.getEmail(), null, null);
-		assertDoesNotThrow(() -> appUserService.updateProfileFields(patch));
+		appUserService.updateProfileFields(patch);
 
 		initializer.clear();
 		var found = appUserService.findByIds(List.of(testAdmin.getId())).getFirst();
@@ -222,7 +225,7 @@ class AppUserServiceTest {
 	@Test
 	@DisplayName("disableUsersByIds: can disable non-admin user")
 	void disableUsersByIds_student_ok() {
-		assertDoesNotThrow(() -> appUserService.disableUsersByIds(List.of(userStudent.getId())));
+		appUserService.disableUsersByIds(List.of(userStudent.getId()));
 
 		initializer.clear();
 		var reloaded = appUserService.findByIds(List.of(userStudent.getId())).getFirst();
@@ -230,9 +233,9 @@ class AppUserServiceTest {
 	}
 
 	@Test
-	@DisplayName("disableUsersByIds: can disable non-admin user")
+	@DisplayName("disableUsersByIds: can enable non-admin user")
 	void enableUsersByIds_student_ok() {
-		assertDoesNotThrow(() -> appUserService.enableUsersByIds(List.of(userStudent.getId())));
+		appUserService.enableUsersByIds(List.of(userStudent.getId()));
 
 		initializer.clear();
 		var reloaded = appUserService.findByIds(List.of(userStudent.getId())).getFirst();
@@ -259,6 +262,18 @@ class AppUserServiceTest {
 	@DisplayName("disableUsersByIds: contains missing id -> EntityNotFoundException")
 	void disableUsersByIds_containsMissingId_fails() {
 		assertThrows(EntityNotFoundException.class, () -> appUserService.disableUsersByIds(List.of(MISSING_ID)));
+	}
+
+	@Test
+	@DisplayName("changePasswordSelf: happy path — пароль changed and encoded")
+	void changePasswordSelf_happyPath_success() {
+		appUserService.changePasswordSelf(changePasswordDto(testAdmin.getId(), PWD, PWD_NEW));
+
+		initializer.clear();
+		var updated = appUserService.findByIds(List.of(testAdmin.getId())).getFirst();
+
+		assertNotEquals(passwordPolicy.encodePassword(PWD), updated.getPassword());
+		passwordPolicy.assertCurrentMatches(PWD_NEW, updated.getPassword());
 	}
 
 	@Test
@@ -307,6 +322,18 @@ class AppUserServiceTest {
 		var found = appUserService.findByIds(Arrays.asList(null, testAdmin.getId(), testAdmin.getId()));
 		assertEquals(ONE_USER, found.size());
 		assertEquals(testAdmin.getId(), found.getFirst().getId());
+	}
+
+	@Test
+	@DisplayName("deleteAdminsByIds: happy path — delete + notFound")
+	void deleteAdminsByIds_happyPath_success() {
+		var createdAll = appUserService.createAdmins(List.of(newAdminDto(DEFAULT_EMAIL)));
+		var created = createdAll.getFirst();
+
+		var del = appUserService.deleteAdminsByIds(List.of(created.getId(), MISSING_ID));
+
+		assertEquals(Set.of(created.getId()), del.deletedIds());
+		assertEquals(Set.of(MISSING_ID), del.notFoundIds());
 	}
 
 	@Test

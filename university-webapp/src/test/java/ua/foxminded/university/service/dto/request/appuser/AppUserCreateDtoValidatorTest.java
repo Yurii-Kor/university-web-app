@@ -3,6 +3,7 @@ package ua.foxminded.university.service.dto.request.appuser;
 import static org.junit.jupiter.api.Assertions.*;
 
 import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import jakarta.validation.ConstraintViolation;
@@ -22,9 +23,9 @@ import ua.foxminded.university.service.util.validation.config.ValidatorConfig;
 @ContextConfiguration(classes = { ValidatorConfig.class })
 class AppUserCreateDtoValidatorTest {
 
-    private static final String EMAIL_OK   = "user@example.com";
-    private static final String EMAIL_BAD  = "not-an-email";
-    private static final String EMAIL_256  = "a".repeat(251) + "@e.io";
+    private static final String EMAIL_OK  = "user@example.com";
+    private static final String EMAIL_BAD = "not-an-email";
+    private static final String EMAIL_256 = "a".repeat(251) + "@e.io";
 
     private static final String PWD_OK         = "Abcd1234!";
     private static final String PWD_SHORT      = "A1!a";
@@ -35,8 +36,8 @@ class AppUserCreateDtoValidatorTest {
     private static final String PWD_WITH_SPACE = "Abcd 1234!";
     private static final String PWD_101        = "A".repeat(50) + "a".repeat(50) + "!";
 
-    private static final String FIRST_OK  = "John";
-    private static final String LAST_OK   = "O'Connor";
+    private static final String FIRST_OK = "John";
+    private static final String LAST_OK  = "O'Connor";
 
     private static final String NAME_1      = "J";
     private static final String NAME_DIGIT  = "Ann3";
@@ -47,59 +48,88 @@ class AppUserCreateDtoValidatorTest {
     @Autowired
     private Validator validator;
 
-    @ParameterizedTest(name = "[{index}] email={0}, newPwd={1}, first={2}, last={3} -> valid={4}")
-    @MethodSource("cases")
-    @DisplayName("AppUserCreateDto: bean validation")
-    void validate(String email,
-                  String newPassword,
-                  String firstName,
-                  String lastName,
-                  boolean shouldPass) {
+    // ---------- VALID CASES ----------
 
-        AppUserCreateDto dto = new AppUserCreateDto(email, newPassword, firstName, lastName);
+    @ParameterizedTest(name = "[{index}] valid -> email={0}, pwd={1}, first={2}, last={3}")
+    @MethodSource("validCases")
+    @DisplayName("AppUserCreateDto: valid payloads produce no violations")
+    void validate_validCases_noViolations(String email,
+                                          String newPassword,
+                                          String firstName,
+                                          String lastName) {
+
+        var dto = new AppUserCreateDto(email, newPassword, firstName, lastName);
+
         Set<ConstraintViolation<AppUserCreateDto>> violations = validator.validate(dto);
 
-        if (shouldPass) {
-            assertTrue(violations.isEmpty(), "Expected no violations, but got: " + violations);
-        } else {
-            assertFalse(violations.isEmpty(), "Expected violations, but got none");
-        }
+        assertTrue(violations.isEmpty(), "Expected no violations, but got: " + violations);
     }
 
-    static Stream<Arguments> cases() {
+    static Stream<Arguments> validCases() {
         return Stream.of(
-                Arguments.of(EMAIL_OK, PWD_OK, FIRST_OK, LAST_OK, true),
+                Arguments.of(EMAIL_OK, PWD_OK, FIRST_OK, LAST_OK)
+        );
+    }
 
-                Arguments.of(null,        PWD_OK, FIRST_OK, LAST_OK, false), 
-                Arguments.of("",          PWD_OK, FIRST_OK, LAST_OK, false),
-                Arguments.of(EMAIL_BAD,   PWD_OK, FIRST_OK, LAST_OK, false),
-                Arguments.of(EMAIL_256,   PWD_OK, FIRST_OK, LAST_OK, false),
+    // ---------- INVALID CASES ----------
 
-                Arguments.of(EMAIL_OK, null,          FIRST_OK, LAST_OK, false),
-                Arguments.of(EMAIL_OK, "",            FIRST_OK, LAST_OK, false),
-                Arguments.of(EMAIL_OK, PWD_SHORT,     FIRST_OK, LAST_OK, false),
-                Arguments.of(EMAIL_OK, PWD_NO_UPPER,  FIRST_OK, LAST_OK, false),
-                Arguments.of(EMAIL_OK, PWD_NO_LOWER,  FIRST_OK, LAST_OK, false),
-                Arguments.of(EMAIL_OK, PWD_NO_DIGIT,  FIRST_OK, LAST_OK, false),
-                Arguments.of(EMAIL_OK, PWD_NO_SPEC,   FIRST_OK, LAST_OK, false),
-                Arguments.of(EMAIL_OK, PWD_WITH_SPACE,FIRST_OK, LAST_OK, false),
-                Arguments.of(EMAIL_OK, PWD_101,       FIRST_OK, LAST_OK, false),
+    @ParameterizedTest(name = "[{index}] invalid -> email={0}, pwd={1}, first={2}, last={3} (field={4})")
+    @MethodSource("invalidCases")
+    @DisplayName("AppUserCreateDto: invalid payloads produce violations on expected field")
+    void validate_invalidCases_violationsOnExpectedField(String email,
+                                                         String newPassword,
+                                                         String firstName,
+                                                         String lastName,
+                                                         String expectedField) {
 
-                Arguments.of(EMAIL_OK, PWD_OK, null,       LAST_OK, false),
-                Arguments.of(EMAIL_OK, PWD_OK, "",         LAST_OK, false),
-                Arguments.of(EMAIL_OK, PWD_OK, NAME_1,     LAST_OK, false),  
-                Arguments.of(EMAIL_OK, PWD_OK, NAME_DIGIT, LAST_OK, false),
-                Arguments.of(EMAIL_OK, PWD_OK, NAME_SYMBOL,LAST_OK, false),
-                Arguments.of(EMAIL_OK, PWD_OK, NAME_SPACE, LAST_OK, false),
-                Arguments.of(EMAIL_OK, PWD_OK, NAME_65,    LAST_OK, false),
+        var dto = new AppUserCreateDto(email, newPassword, firstName, lastName);
 
-                Arguments.of(EMAIL_OK, PWD_OK, FIRST_OK, null,        false),
-                Arguments.of(EMAIL_OK, PWD_OK, FIRST_OK, "",          false),
-                Arguments.of(EMAIL_OK, PWD_OK, FIRST_OK, NAME_1,      false),
-                Arguments.of(EMAIL_OK, PWD_OK, FIRST_OK, NAME_DIGIT,  false),
-                Arguments.of(EMAIL_OK, PWD_OK, FIRST_OK, NAME_SYMBOL, false),
-                Arguments.of(EMAIL_OK, PWD_OK, FIRST_OK, NAME_SPACE,  false),
-                Arguments.of(EMAIL_OK, PWD_OK, FIRST_OK, NAME_65,     false)
+        Set<ConstraintViolation<AppUserCreateDto>> violations = validator.validate(dto);
+
+        assertFalse(violations.isEmpty(), "Expected violations for field " + expectedField + ", but got none");
+
+        var fields = violations.stream()
+                .map(v -> v.getPropertyPath().toString())
+                .collect(Collectors.toSet());
+
+        assertEquals(1, fields.size(),
+                "Expected violations only for field '" + expectedField + "', but got fields: " + fields);
+        assertEquals(expectedField, fields.iterator().next(),
+                "Violations must be on field '" + expectedField + "'");
+    }
+
+    static Stream<Arguments> invalidCases() {
+        return Stream.of(
+                Arguments.of(null,        PWD_OK, FIRST_OK, LAST_OK, "email"),
+                Arguments.of("",          PWD_OK, FIRST_OK, LAST_OK, "email"),
+                Arguments.of(EMAIL_BAD,   PWD_OK, FIRST_OK, LAST_OK, "email"),
+                Arguments.of(EMAIL_256,   PWD_OK, FIRST_OK, LAST_OK, "email"),
+
+                Arguments.of(EMAIL_OK, null,           FIRST_OK, LAST_OK, "newPassword"),
+                Arguments.of(EMAIL_OK, "",             FIRST_OK, LAST_OK, "newPassword"),
+                Arguments.of(EMAIL_OK, PWD_SHORT,      FIRST_OK, LAST_OK, "newPassword"),
+                Arguments.of(EMAIL_OK, PWD_NO_UPPER,   FIRST_OK, LAST_OK, "newPassword"),
+                Arguments.of(EMAIL_OK, PWD_NO_LOWER,   FIRST_OK, LAST_OK, "newPassword"),
+                Arguments.of(EMAIL_OK, PWD_NO_DIGIT,   FIRST_OK, LAST_OK, "newPassword"),
+                Arguments.of(EMAIL_OK, PWD_NO_SPEC,    FIRST_OK, LAST_OK, "newPassword"),
+                Arguments.of(EMAIL_OK, PWD_WITH_SPACE, FIRST_OK, LAST_OK, "newPassword"),
+                Arguments.of(EMAIL_OK, PWD_101,        FIRST_OK, LAST_OK, "newPassword"),
+
+                Arguments.of(EMAIL_OK, PWD_OK, null,        LAST_OK, "firstName"),
+                Arguments.of(EMAIL_OK, PWD_OK, "",          LAST_OK, "firstName"),
+                Arguments.of(EMAIL_OK, PWD_OK, NAME_1,      LAST_OK, "firstName"),
+                Arguments.of(EMAIL_OK, PWD_OK, NAME_DIGIT,  LAST_OK, "firstName"),
+                Arguments.of(EMAIL_OK, PWD_OK, NAME_SYMBOL, LAST_OK, "firstName"),
+                Arguments.of(EMAIL_OK, PWD_OK, NAME_SPACE,  LAST_OK, "firstName"),
+                Arguments.of(EMAIL_OK, PWD_OK, NAME_65,     LAST_OK, "firstName"),
+
+                Arguments.of(EMAIL_OK, PWD_OK, FIRST_OK, null,        "lastName"),
+                Arguments.of(EMAIL_OK, PWD_OK, FIRST_OK, "",          "lastName"),
+                Arguments.of(EMAIL_OK, PWD_OK, FIRST_OK, NAME_1,      "lastName"),
+                Arguments.of(EMAIL_OK, PWD_OK, FIRST_OK, NAME_DIGIT,  "lastName"),
+                Arguments.of(EMAIL_OK, PWD_OK, FIRST_OK, NAME_SYMBOL, "lastName"),
+                Arguments.of(EMAIL_OK, PWD_OK, FIRST_OK, NAME_SPACE,  "lastName"),
+                Arguments.of(EMAIL_OK, PWD_OK, FIRST_OK, NAME_65,     "lastName")
         );
     }
 }

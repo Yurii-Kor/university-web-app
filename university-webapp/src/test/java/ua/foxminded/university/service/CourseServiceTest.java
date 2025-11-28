@@ -122,48 +122,18 @@ class CourseServiceTest {
 	}
 
 	@Test
-	@DisplayName("CourseService happy path: create -> addGroups -> updateSelf(name/desc) -> updateCodes -> delete")
-	void happyPath_fullCycle_success() {
-		// create
+	@DisplayName("createAll: happy path — creates course with teacher and normalized name")
+	void createAll_happyPath_success() {
 		var dto = newCreateDto(CODE_ALG_UPPER, COURSE_ALG, DESC_A, testTeacher.getId());
-		var saved = assertDoesNotThrow(() -> courseService.createAll(List.of(dto)).getFirst());
+
+		var saved = courseService.createAll(List.of(dto)).getFirst();
+
 		assertNotNull(saved.getId());
 		assertEquals(CODE_ALG_UPPER, saved.getCode());
 		assertEquals(COURSE_ALG.trim(), saved.getName());
 		assertEquals(testTeacher.getId(), saved.getTeacher().getId());
 
-		// add groups
-		int added = assertDoesNotThrow(
-				() -> courseService.addGroupsToCourse(saved.getId(), List.of(g1.getId(), g2.getId())));
-		assertEquals(TWO_GROUPS, added);
-		initializer.clear();
-
-		var reloadedAfterAdd = courseService.findByIds(List.of(saved.getId())).getFirst();
-		assertEquals(TWO_GROUPS, reloadedAfterAdd.getGroups().size());
-
-		// updateSelf
-		var patch = newUpdateSelf(reloadedAfterAdd.getId(), COURSE_DATABASES, DESC_BLANK);
-		var updated = assertDoesNotThrow(() -> courseService.updateSelf(patch));
-		initializer.clear();
-
-		var reloadedAfterUpdate = courseService.findByIds(List.of(updated.getId())).getFirst();
-		assertEquals(COURSE_DATABASES, reloadedAfterUpdate.getName());
-		assertNull(reloadedAfterUpdate.getDescription(), "Blank description must become null");
-
-		// updateCodes
-		var updatedCount = assertDoesNotThrow(
-				() -> courseService.updateCodes(List.of(newUpdateCode(reloadedAfterUpdate.getId(), CODE_DB_UPPER))));
-		assertEquals(ONE_COURSE, updatedCount);
-
-		initializer.clear();
-		var afterCode = courseService.findByIds(List.of(reloadedAfterUpdate.getId())).getFirst();
-		assertEquals(CODE_DB_UPPER, afterCode.getCode());
-
-		// delete
-		var result = assertDoesNotThrow(() -> courseService.deleteByIds(List.of(afterCode.getId())));
-		assertEquals(Set.of(afterCode.getId()), result.deletedIds());
-		assertTrue(result.notFoundIds().isEmpty());
-		assertTrue(courseService.findByIds(List.of(afterCode.getId())).isEmpty());
+		courseService.deleteByIds(List.of(saved.getId()));
 	}
 
 	@Test
@@ -254,6 +224,21 @@ class CourseServiceTest {
 	}
 
 	@Test
+	@DisplayName("updateSelf: happy path — updates name and normalizes blank description to null")
+	void updateSelf_happyPath_success() {
+		var patch = newUpdateSelf(courseSecurity.getId(), COURSE_DATABASES, DESC_BLANK);
+		courseService.updateSelf(patch);
+
+		initializer.clear();
+		var reloaded = courseService.findByIds(List.of(courseSecurity.getId())).getFirst();
+
+		assertEquals(COURSE_DATABASES, reloaded.getName());
+		assertNull(reloaded.getDescription(), "Blank description must become null");
+
+		courseService.updateSelf(newUpdateSelf(courseSecurity.getId(), COURSE_SECURITY, ""));
+	}
+
+	@Test
 	@DisplayName("updateSelf: null id in DTO -> ConstraintViolationException")
 	void updateSelf_nullId_fails() {
 		var patch = newUpdateSelf(null, COURSE_SECURITY, null);
@@ -280,6 +265,24 @@ class CourseServiceTest {
 	void updateSelf_changeNameToExisting_fails() {
 		var patch = newUpdateSelf(courseSecurity.getId(), courseOperationSys.getName(), null);
 		assertThrows(IllegalArgumentException.class, () -> courseService.updateSelf(patch));
+	}
+
+	@Test
+	@DisplayName("updateCodes: happy path — updates code for one course")
+	void updateCodes_happyPath_success() {
+		var created = courseService
+				.createAll(List.of(newCreateDto(TO_CREATE_CODE, TO_CREATE_NAME, null, testTeacher.getId())))
+				.getFirst();
+
+		var updatedCount = courseService.updateCodes(List.of(newUpdateCode(created.getId(), CODE_DB_UPPER)));
+
+		assertEquals(ONE_COURSE, updatedCount);
+
+		initializer.clear();
+		var reloaded = courseService.findByIds(List.of(created.getId())).getFirst();
+		assertEquals(CODE_DB_UPPER, reloaded.getCode());
+
+		courseService.deleteByIds(List.of(created.getId()));
 	}
 
 	@Test
@@ -351,8 +354,8 @@ class CourseServiceTest {
 	@Test
 	@DisplayName("addGroupsToCourse: happy path — adds unique groups, ignores nulls/duplicates")
 	void addGroupsToCourse_happyPath_addsUnique() {
-		assertDoesNotThrow(() -> courseService.addGroupsToCourse(courseSecurity.getId(),
-				Arrays.asList(g1.getId(), g1.getId(), null, g2.getId())));
+		courseService.addGroupsToCourse(courseSecurity.getId(),
+				Arrays.asList(g1.getId(), g1.getId(), null, g2.getId()));
 
 		initializer.clear();
 		var reloaded = courseService.findByIds(List.of(courseSecurity.getId())).getFirst();
@@ -391,8 +394,8 @@ class CourseServiceTest {
 	@Test
 	@DisplayName("removeGroupsFromCourse: happy path — removes only attached ids, ignores nulls/missing")
 	void removeGroupsFromCourse_happyPath_removesAttached() {
-		int removed = assertDoesNotThrow(() -> courseService.removeGroupsFromCourse(courseOperationSys.getId(),
-				Arrays.asList(g1.getId(), NON_EXISTENT_ID, null)));
+		int removed = courseService.removeGroupsFromCourse(courseOperationSys.getId(),
+				Arrays.asList(g1.getId(), NON_EXISTENT_ID, null));
 
 		assertEquals(ONE_GROUP, removed, "should remove exactly one attached group");
 	}

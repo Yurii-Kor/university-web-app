@@ -58,7 +58,7 @@ class StudentServiceTest {
 	static final Integer VALID_ENROLLMENT_YEAR = 2024;
 	static final Integer ONE_STUDENT_MOOVED = 1;
 
-	static final Long NON_EXISTENT_ID = 999L;
+	static final Long MISSING_ID = 999L;
 
 	@Autowired
 	private StudentService studentService;
@@ -83,8 +83,8 @@ class StudentServiceTest {
 	}
 
 	@Test
-	@DisplayName("StudentService happy path: create(dto) -> move -> delete; роль выставляется как STUDENT")
-	void happyPath_fullCycle_success() {
+	@DisplayName("createAll: happy path — creates Student with STUDENT role and linked AppUser")
+	void createAll_happyPath_success() {
 		var createDto = dto(VALID_EMAIL,
 				VALID_PASSWORD,
 				VALID_FIRST_NAME,
@@ -92,8 +92,7 @@ class StudentServiceTest {
 				defaultGroup.getId(),
 				VALID_ENROLLMENT_YEAR);
 
-		var saved = assertDoesNotThrow(() -> studentService.createAll(List.of(createDto)).get(0),
-				"createAll(List.of(dto)) should not throw");
+		var saved = studentService.createAll(List.of(createDto)).get(0);
 
 		assertNotNull(saved.getId(), "Student ID should be assigned after persist");
 		assertNotNull(saved.getUser(), "Student must reference an AppUser");
@@ -102,19 +101,25 @@ class StudentServiceTest {
 		assertEquals(defaultGroup.getId(), saved.getGroup().getId(), "Student should be linked to default group");
 		assertEquals(UserRole.STUDENT, saved.getUser().getRole(), "Service must set role=STUDENT");
 
-		var moved = assertDoesNotThrow(
-				() -> studentService.moveStudentsToGroup(List.of(saved.getId()), updatedGroup.getId()),
-				"moveStudentsToGroup should not throw for valid patch");
-		assertEquals(ONE_STUDENT_MOOVED, moved, "Processed Student should be moved");
+		studentService.deleteByIds(List.of(saved.getId()));
+	}
+	
+	@Test
+	@DisplayName("deleteByIds: happy path — delete existing student and report notFound")
+	void deleteByIds_happyPath_success() {
+		var createDto = dto(VALID_EMAIL,
+				VALID_PASSWORD,
+				VALID_FIRST_NAME,
+				VALID_LAST_NAME,
+				defaultGroup.getId(),
+				VALID_ENROLLMENT_YEAR);
 
-		var result = assertDoesNotThrow(() -> studentService.deleteByIds(List.of(saved.getId())),
-				"deleteByIds should not throw for existing id");
+		var saved = studentService.createAll(List.of(createDto)).get(0);
 
-		assertEquals(Set.of(saved.getId()), result.deletedIds(), "Deleted IDs should contain the student's id");
-		assertTrue(result.notFoundIds().isEmpty(), "notFound should be empty");
+		var res = studentService.deleteByIds(List.of(saved.getId(), MISSING_ID));
 
-		var afterDelete = studentService.findByIds(List.of(saved.getId()));
-		assertTrue(afterDelete.isEmpty(), "Student must not be found after deletion");
+		assertEquals(Set.of(saved.getId()), res.deletedIds());
+		assertEquals(Set.of(MISSING_ID), res.notFoundIds());
 	}
 
 	@Test
@@ -149,8 +154,7 @@ class StudentServiceTest {
 				defaultGroup.getId(),
 				VALID_ENROLLMENT_YEAR);
 
-		assertDoesNotThrow(() -> studentService.createAll(List.of(first)),
-				"First insert with unique email should pass");
+		studentService.createAll(List.of(first));
 
 		var second = dto(DUPLICATED_EMAIL,
 				VALID_PASSWORD,
@@ -171,18 +175,39 @@ class StudentServiceTest {
 				VALID_PASSWORD,
 				VALID_FIRST_NAME,
 				VALID_LAST_NAME,
-				NON_EXISTENT_ID,
+				MISSING_ID,
 				VALID_ENROLLMENT_YEAR);
 
 		assertThrows(EntityNotFoundException.class,
 				() -> studentService.createAll(List.of(d)),
 				"Insert with non-existing group_id must fail");
 	}
+	
+	@Test
+	@DisplayName("moveStudentsToGroup: happy path — moves existing student to target group")
+	void moveStudentsToGroup_happyPath_success() {
+		var createDto = dto(VALID_EMAIL,
+				VALID_PASSWORD,
+				VALID_FIRST_NAME,
+				VALID_LAST_NAME,
+				defaultGroup.getId(),
+				VALID_ENROLLMENT_YEAR);
+
+		var saved = studentService.createAll(List.of(createDto)).get(0);
+
+		int moved = studentService.moveStudentsToGroup(List.of(saved.getId()), updatedGroup.getId());
+		assertEquals(ONE_STUDENT_MOOVED, moved, "Exactly one student should be moved");
+
+		var reloaded = studentService.findByIds(List.of(saved.getId())).get(0);
+		assertEquals(updatedGroup.getId(), reloaded.getGroup().getId(), "Student must be linked to updated group");
+
+		studentService.deleteByIds(List.of(saved.getId()));
+	}
 
 	@Test
 	@DisplayName("moveStudentsToGroup: contains non-existing student ids -> EntityNotFoundException")
 	void moveStudentsToGroup_missingStudents_fails() {
-		var ids = List.of(NON_EXISTENT_ID);
+		var ids = List.of(MISSING_ID);
 
 		assertThrows(EntityNotFoundException.class,
 				() -> studentService.moveStudentsToGroup(ids, updatedGroup.getId()),
@@ -202,7 +227,7 @@ class StudentServiceTest {
 		var saved = studentService.createAll(List.of(d)).get(0);
 
 		assertThrows(EntityNotFoundException.class,
-				() -> studentService.moveStudentsToGroup(List.of(saved.getId()), NON_EXISTENT_ID),
+				() -> studentService.moveStudentsToGroup(List.of(saved.getId()), MISSING_ID),
 				"Should fail when target StudyGroup does not exist");
 	}
 
@@ -266,9 +291,9 @@ class StudentServiceTest {
 
 		var saved = studentService.createAll(List.of(d)).get(0);
 
-		var result = studentService.deleteByIds(Arrays.asList(saved.getId(), NON_EXISTENT_ID, null));
+		var result = studentService.deleteByIds(Arrays.asList(saved.getId(), MISSING_ID, null));
 
 		assertEquals(Set.of(saved.getId()), result.deletedIds(), "should delete existing id");
-		assertEquals(Set.of(NON_EXISTENT_ID), result.notFoundIds(), "should report missing id");
+		assertEquals(Set.of(MISSING_ID), result.notFoundIds(), "should report missing id");
 	}
 }

@@ -3,6 +3,7 @@ package ua.foxminded.university.service.dto.request.appuser;
 import static org.junit.jupiter.api.Assertions.*;
 
 import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import jakarta.validation.ConstraintViolation;
@@ -37,43 +38,72 @@ class AppUserPasswordChangeDtoValidatorTest {
     @Autowired
     private Validator validator;
 
-    @ParameterizedTest(name = "[{index}] id={0}, currPwd={1}, newPwd={2} -> valid={3}")
-    @MethodSource("cases")
-    @DisplayName("AppUserPasswordChangeDto: bean validation")
-    void validate(Long id,
-                  String currentPassword,
-                  String newPassword,
-                  boolean shouldPass) {
+    // ---------- VALID CASES ----------
 
-        AppUserPasswordChangeDto dto = new AppUserPasswordChangeDto(id, currentPassword, newPassword);
+    @ParameterizedTest(name = "[{index}] valid -> id={0}, currPwd={1}, newPwd={2}")
+    @MethodSource("validCases")
+    @DisplayName("AppUserPasswordChangeDto: valid payloads produce no violations")
+    void validate_validCases_noViolations(Long id,
+                                          String currentPassword,
+                                          String newPassword) {
+
+        var dto = new AppUserPasswordChangeDto(id, currentPassword, newPassword);
+
         Set<ConstraintViolation<AppUserPasswordChangeDto>> violations = validator.validate(dto);
 
-        if (shouldPass) {
-            assertTrue(violations.isEmpty(), "Expected no violations, but got: " + violations);
-        } else {
-            assertFalse(violations.isEmpty(), "Expected violations, but got none");
-        }
+        assertTrue(violations.isEmpty(), "Expected no violations, but got: " + violations);
     }
 
-    static Stream<Arguments> cases() {
+    static Stream<Arguments> validCases() {
         return Stream.of(
-                Arguments.of(ID_OK, CURR_OK, PWD_OK, true),
+                Arguments.of(ID_OK, CURR_OK, PWD_OK)
+        );
+    }
 
-                Arguments.of(null, CURR_OK, PWD_OK, false),
+    // ---------- INVALID CASES ----------
 
-                Arguments.of(ID_OK, null,     PWD_OK, false),
-                Arguments.of(ID_OK, "",       PWD_OK, false),
-                Arguments.of(ID_OK, "   ",    PWD_OK, false),
+    @ParameterizedTest(name = "[{index}] invalid -> id={0}, currPwd={1}, newPwd={2}, field={3}")
+    @MethodSource("invalidCases")
+    @DisplayName("AppUserPasswordChangeDto: invalid payloads produce violations on expected field")
+    void validate_invalidCases_violationsOnExpectedField(Long id,
+                                                         String currentPassword,
+                                                         String newPassword,
+                                                         String expectedField) {
 
-                Arguments.of(ID_OK, CURR_OK, null,          false),
-                Arguments.of(ID_OK, CURR_OK, "",            false),
-                Arguments.of(ID_OK, CURR_OK, PWD_SHORT,     false),
-                Arguments.of(ID_OK, CURR_OK, PWD_NO_UPPER,  false),
-                Arguments.of(ID_OK, CURR_OK, PWD_NO_LOWER,  false),
-                Arguments.of(ID_OK, CURR_OK, PWD_NO_DIGIT,  false),
-                Arguments.of(ID_OK, CURR_OK, PWD_NO_SPEC,   false),
-                Arguments.of(ID_OK, CURR_OK, PWD_WITH_SPACE,false),
-                Arguments.of(ID_OK, CURR_OK, PWD_101,       false)
+        var dto = new AppUserPasswordChangeDto(id, currentPassword, newPassword);
+
+        Set<ConstraintViolation<AppUserPasswordChangeDto>> violations = validator.validate(dto);
+
+        assertFalse(violations.isEmpty(),
+                "Expected violations for field " + expectedField + ", but got none");
+
+        var fields = violations.stream()
+                .map(v -> v.getPropertyPath().toString())
+                .collect(Collectors.toSet());
+
+        assertEquals(1, fields.size(),
+                "Expected violations only for field '" + expectedField + "', but got fields: " + fields);
+        assertEquals(expectedField, fields.iterator().next(),
+                "Violations must be on field '" + expectedField + "'");
+    }
+
+    static Stream<Arguments> invalidCases() {
+        return Stream.of(
+                Arguments.of(null, CURR_OK, PWD_OK, "id"),
+
+                Arguments.of(ID_OK, null,   PWD_OK, "currentPassword"),
+                Arguments.of(ID_OK, "",     PWD_OK, "currentPassword"),
+                Arguments.of(ID_OK, "   ",  PWD_OK, "currentPassword"),
+
+                Arguments.of(ID_OK, CURR_OK, null,           "newPassword"),
+                Arguments.of(ID_OK, CURR_OK, "",             "newPassword"),
+                Arguments.of(ID_OK, CURR_OK, PWD_SHORT,      "newPassword"),
+                Arguments.of(ID_OK, CURR_OK, PWD_NO_UPPER,   "newPassword"),
+                Arguments.of(ID_OK, CURR_OK, PWD_NO_LOWER,   "newPassword"),
+                Arguments.of(ID_OK, CURR_OK, PWD_NO_DIGIT,   "newPassword"),
+                Arguments.of(ID_OK, CURR_OK, PWD_NO_SPEC,    "newPassword"),
+                Arguments.of(ID_OK, CURR_OK, PWD_WITH_SPACE, "newPassword"),
+                Arguments.of(ID_OK, CURR_OK, PWD_101,        "newPassword")
         );
     }
 }

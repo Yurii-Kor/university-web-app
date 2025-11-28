@@ -3,6 +3,7 @@ package ua.foxminded.university.service.dto.request.appuser;
 import static org.junit.jupiter.api.Assertions.*;
 
 import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import jakarta.validation.ConstraintViolation;
@@ -39,47 +40,75 @@ class AppUserSelfUpdateDtoValidatorTest {
     @Autowired
     private Validator validator;
 
-    @ParameterizedTest(name = "[{index}] id={0}, email={1}, first={2}, last={3} -> valid={4}")
-    @MethodSource("cases")
-    @DisplayName("AppUserSelfUpdateDto: bean validation")
-    void validate(Long id,
-                  String email,
-                  String firstName,
-                  String lastName,
-                  boolean shouldPass) {
+    // ---------- VALID CASES ----------
 
-        AppUserSelfUpdateDto dto = new AppUserSelfUpdateDto(id, email, firstName, lastName);
+    @ParameterizedTest(name = "[{index}] valid -> id={0}, email={1}, first={2}, last={3}")
+    @MethodSource("validCases")
+    @DisplayName("AppUserSelfUpdateDto: valid payloads produce no violations")
+    void validate_validCases_noViolations(Long id,
+                                          String email,
+                                          String firstName,
+                                          String lastName) {
+
+        var dto = new AppUserSelfUpdateDto(id, email, firstName, lastName);
         Set<ConstraintViolation<AppUserSelfUpdateDto>> violations = validator.validate(dto);
 
-        if (shouldPass) {
-            assertTrue(violations.isEmpty(), "Expected no violations, but got: " + violations);
-        } else {
-            assertFalse(violations.isEmpty(), "Expected violations, but got none");
-        }
+        assertTrue(violations.isEmpty(), "Expected no violations, but got: " + violations);
     }
 
-    static Stream<Arguments> cases() {
+    static Stream<Arguments> validCases() {
         return Stream.of(
-                Arguments.of(ID_OK, null,      null,      null,      true),
-                Arguments.of(ID_OK, EMAIL_OK,  FIRST_OK,  LAST_OK,   true),
-                Arguments.of(ID_OK, "",        null,      null,      true),
+                Arguments.of(ID_OK, null,      null,      null),
+                Arguments.of(ID_OK, EMAIL_OK,  FIRST_OK,  LAST_OK),
+                Arguments.of(ID_OK, "",        null,      null)
+        );
+    }
 
-                Arguments.of(null, EMAIL_OK, FIRST_OK, LAST_OK, false),
+    // ---------- INVALID CASES ----------
 
-                Arguments.of(ID_OK, EMAIL_BAD,  FIRST_OK, LAST_OK, false),
-                Arguments.of(ID_OK, EMAIL_256,  FIRST_OK, LAST_OK, false),
+    @ParameterizedTest(name = "[{index}] invalid -> id={0}, email={1}, first={2}, last={3}, field={4}")
+    @MethodSource("invalidCases")
+    @DisplayName("AppUserSelfUpdateDto: invalid payloads produce violations on expected field")
+    void validate_invalidCases_violationsOnExpectedField(Long id,
+                                                         String email,
+                                                         String firstName,
+                                                         String lastName,
+                                                         String expectedField) {
 
-                Arguments.of(ID_OK, EMAIL_OK, NAME_1,      LAST_OK, false),
-                Arguments.of(ID_OK, EMAIL_OK, NAME_DIGIT,  LAST_OK, false),
-                Arguments.of(ID_OK, EMAIL_OK, NAME_SYMBOL, LAST_OK, false),
-                Arguments.of(ID_OK, EMAIL_OK, NAME_SPACE,  LAST_OK, false),
-                Arguments.of(ID_OK, EMAIL_OK, NAME_65,     LAST_OK, false),
+        var dto = new AppUserSelfUpdateDto(id, email, firstName, lastName);
+        Set<ConstraintViolation<AppUserSelfUpdateDto>> violations = validator.validate(dto);
 
-                Arguments.of(ID_OK, EMAIL_OK, FIRST_OK, NAME_1,      false),
-                Arguments.of(ID_OK, EMAIL_OK, FIRST_OK, NAME_DIGIT,  false),
-                Arguments.of(ID_OK, EMAIL_OK, FIRST_OK, NAME_SYMBOL, false),
-                Arguments.of(ID_OK, EMAIL_OK, FIRST_OK, NAME_SPACE,  false),
-                Arguments.of(ID_OK, EMAIL_OK, FIRST_OK, NAME_65,     false)
+        assertFalse(violations.isEmpty(),
+                "Expected violations for field " + expectedField + ", but got none");
+
+        var fields = violations.stream()
+                .map(v -> v.getPropertyPath().toString())
+                .collect(Collectors.toSet());
+
+        assertEquals(1, fields.size(),
+                "Expected violations only for field '" + expectedField + "', but got fields: " + fields);
+        assertEquals(expectedField, fields.iterator().next(),
+                "Violations must be on field '" + expectedField + "'");
+    }
+
+    static Stream<Arguments> invalidCases() {
+        return Stream.of(
+                Arguments.of(null, EMAIL_OK, FIRST_OK, LAST_OK, "id"),
+
+                Arguments.of(ID_OK, EMAIL_BAD,  FIRST_OK, LAST_OK, "email"),
+                Arguments.of(ID_OK, EMAIL_256,  FIRST_OK, LAST_OK, "email"),
+
+                Arguments.of(ID_OK, EMAIL_OK, NAME_1,      LAST_OK, "firstName"),
+                Arguments.of(ID_OK, EMAIL_OK, NAME_DIGIT,  LAST_OK, "firstName"),
+                Arguments.of(ID_OK, EMAIL_OK, NAME_SYMBOL, LAST_OK, "firstName"),
+                Arguments.of(ID_OK, EMAIL_OK, NAME_SPACE,  LAST_OK, "firstName"),
+                Arguments.of(ID_OK, EMAIL_OK, NAME_65,     LAST_OK, "firstName"),
+
+                Arguments.of(ID_OK, EMAIL_OK, FIRST_OK, NAME_1,      "lastName"),
+                Arguments.of(ID_OK, EMAIL_OK, FIRST_OK, NAME_DIGIT,  "lastName"),
+                Arguments.of(ID_OK, EMAIL_OK, FIRST_OK, NAME_SYMBOL, "lastName"),
+                Arguments.of(ID_OK, EMAIL_OK, FIRST_OK, NAME_SPACE,  "lastName"),
+                Arguments.of(ID_OK, EMAIL_OK, FIRST_OK, NAME_65,     "lastName")
         );
     }
 }

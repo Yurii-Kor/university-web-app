@@ -23,7 +23,6 @@ import ua.foxminded.university.model.domain.enums.LessonType;
 import ua.foxminded.university.model.domain.enums.UserRole;
 import ua.foxminded.university.service.dto.request.lesson.LessonCreateDto;
 import ua.foxminded.university.service.dto.request.lesson.LessonSelfUpdateDto;
-import ua.foxminded.university.service.dto.response.DeleteResult;
 import ua.foxminded.university.service.exception.ScheduleConflictException;
 import ua.foxminded.university.service.util.DtoMapper;
 import ua.foxminded.university.service.util.validation.EntityValidatior;
@@ -142,47 +141,22 @@ class LessonServiceTest {
 	}
 
 	@Test
-	@DisplayName("happy path: create -> updateSelf (course, group, time, room, desc, type) -> deleteByIds")
-	void happyPath_fullCycle_success() {
-		var created = assertDoesNotThrow(() -> scheduleService
-				.create(createDto(teacherAlgDs.getId(), courseALG.getId(), groupCS.getId(), T13, T14, ROOM_A)));
+	@DisplayName("create: happy path — creates lesson with default type and description")
+	void create_happyPath_success() {
+		var created = scheduleService
+				.create(createDto(teacherAlgDs.getId(), courseALG.getId(), groupCS.getId(), T13, T14, ROOM_A));
 
 		assertNotNull(created.getId());
+		assertEquals(teacherAlgDs.getId(), created.getCourse().getTeacher().getId());
+		assertEquals(courseALG.getId(), created.getCourse().getId());
+		assertEquals(groupCS.getId(), created.getGroup().getId());
 		assertEquals(ROOM_A, created.getRoom());
+		assertEquals(T13, created.getStartTime());
+		assertEquals(T14, created.getEndTime());
 		assertEquals(LessonType.OTHER, created.getLessonType());
 		assertEquals("note", created.getDescription());
 
-		// change group
-		var afterGroup = assertDoesNotThrow(() -> scheduleService.updateSelf(
-				patchDto(created.getId(), teacherAlgDs.getId(), null, groupSE.getId(), null, null, null, null, null)));
-		assertEquals(groupSE.getId(), afterGroup.getGroup().getId());
-
-		// change course
-		var afterCourse = assertDoesNotThrow(() -> scheduleService.updateSelf(
-				patchDto(created.getId(), teacherAlgDs.getId(), courseDS.getId(), null, null, null, null, null, null)));
-		assertEquals(courseDS.getId(), afterCourse.getCourse().getId());
-
-		// change time
-		var afterTime = assertDoesNotThrow(() -> scheduleService
-				.updateSelf(patchDto(created.getId(), teacherAlgDs.getId(), null, null, T14, T15, null, null, null)));
-		assertEquals(T14, afterTime.getStartTime());
-		assertEquals(T15, afterTime.getEndTime());
-
-		// change room
-		var afterRoom = assertDoesNotThrow(() -> scheduleService.updateSelf(
-				patchDto(created.getId(), teacherAlgDs.getId(), null, null, null, null, ROOM_B, null, null)));
-		assertEquals(ROOM_B, afterRoom.getRoom());
-
-		// change type + blank desc -> null
-		var afterTypeDesc = assertDoesNotThrow(() -> scheduleService.updateSelf(
-				patchDto(created.getId(), teacherAlgDs.getId(), null, null, null, null, null, LessonType.LAB, "   ")));
-		assertEquals(LessonType.LAB, afterTypeDesc.getLessonType());
-		assertNull(afterTypeDesc.getDescription());
-
-		DeleteResult res = assertDoesNotThrow(
-				() -> scheduleService.deleteByIds(List.of(created.getId(), MISSING_ID), teacherAlgDs.getId()));
-		assertEquals(Set.of(created.getId()), res.deletedIds());
-		assertEquals(Set.of(MISSING_ID), res.notFoundIds());
+		scheduleService.deleteByIds(List.of(created.getId()), teacherAlgDs.getId());
 	}
 
 	@Test
@@ -280,9 +254,82 @@ class LessonServiceTest {
 	}
 
 	@Test
+	@DisplayName("updateSelf: happy path — change group")
+	void updateSelf_changeGroup_happyPath_success() {
+		var created = scheduleService
+				.create(createDto(teacherAlgDs.getId(), courseALG.getId(), groupCS.getId(), T13, T14, ROOM_A));
+
+		var afterGroup = scheduleService.updateSelf(
+				patchDto(created.getId(), teacherAlgDs.getId(), null, groupSE.getId(), null, null, null, null, null));
+
+		assertEquals(groupSE.getId(), afterGroup.getGroup().getId());
+
+		scheduleService.deleteByIds(List.of(created.getId()), teacherAlgDs.getId());
+	}
+
+	@Test
+	@DisplayName("updateSelf: happy path — change course (with same teacher and compatible group)")
+	void updateSelf_changeCourse_happyPath_success() {
+		var created = scheduleService
+				.create(createDto(teacherAlgDs.getId(), courseALG.getId(), groupSE.getId(), T13, T14, ROOM_A));
+
+		var afterCourse = scheduleService.updateSelf(
+				patchDto(created.getId(), teacherAlgDs.getId(), courseDS.getId(), null, null, null, null, null, null));
+
+		assertEquals(courseDS.getId(), afterCourse.getCourse().getId());
+		assertEquals(groupSE.getId(), afterCourse.getGroup().getId());
+
+		scheduleService.deleteByIds(List.of(created.getId()), teacherAlgDs.getId());
+	}
+
+	@Test
+	@DisplayName("updateSelf: happy path — change time range")
+	void updateSelf_changeTime_happyPath_success() {
+		var created = scheduleService
+				.create(createDto(teacherAlgDs.getId(), courseALG.getId(), groupCS.getId(), T13, T14, ROOM_A));
+
+		var afterTime = scheduleService
+				.updateSelf(patchDto(created.getId(), teacherAlgDs.getId(), null, null, T14, T15, null, null, null));
+
+		assertEquals(T14, afterTime.getStartTime());
+		assertEquals(T15, afterTime.getEndTime());
+
+		scheduleService.deleteByIds(List.of(created.getId()), teacherAlgDs.getId());
+	}
+
+	@Test
+	@DisplayName("updateSelf: happy path — change room")
+	void updateSelf_changeRoom_happyPath_success() {
+		var created = scheduleService
+				.create(createDto(teacherAlgDs.getId(), courseALG.getId(), groupCS.getId(), T13, T14, ROOM_A));
+
+		var afterRoom = scheduleService.updateSelf(
+				patchDto(created.getId(), teacherAlgDs.getId(), null, null, null, null, ROOM_B, null, null));
+
+		assertEquals(ROOM_B, afterRoom.getRoom());
+
+		scheduleService.deleteByIds(List.of(created.getId()), teacherAlgDs.getId());
+	}
+
+	@Test
+	@DisplayName("updateSelf: happy path — change type and blank description -> null")
+	void updateSelf_changeTypeAndDescription_happyPath_success() {
+		var created = scheduleService
+				.create(createDto(teacherAlgDs.getId(), courseALG.getId(), groupCS.getId(), T13, T14, ROOM_A, "desc"));
+
+		var afterTypeDesc = scheduleService.updateSelf(
+				patchDto(created.getId(), teacherAlgDs.getId(), null, null, null, null, null, LessonType.LAB, "   "));
+
+		assertEquals(LessonType.LAB, afterTypeDesc.getLessonType());
+		assertNull(afterTypeDesc.getDescription());
+
+		scheduleService.deleteByIds(List.of(created.getId()), teacherAlgDs.getId());
+	}
+
+	@Test
 	@DisplayName("updateSelf: no-op patches are safe")
 	void updateSelf_noop_ok() {
-		var after = assertDoesNotThrow(() -> scheduleService.updateSelf(patchDto(base.getId(),
+		var after = scheduleService.updateSelf(patchDto(base.getId(),
 				teacherAlgDs.getId(),
 				base.getCourse().getId(),
 				base.getGroup().getId(),
@@ -290,7 +337,7 @@ class LessonServiceTest {
 				null,
 				base.getRoom(),
 				null,
-				null)));
+				null));
 
 		assertEquals(base.getCourse().getId(), after.getCourse().getId());
 		assertEquals(base.getGroup().getId(), after.getGroup().getId());
@@ -391,6 +438,18 @@ class LessonServiceTest {
 		var res = scheduleService.findByIds(Arrays.asList(null, base.getId(), base.getId()));
 		assertEquals(ONE_SCHEDULE_ENTRY, res.size());
 		assertEquals(base.getId(), res.getFirst().getId());
+	}
+
+	@Test
+	@DisplayName("deleteByIds: happy path — delete existing lesson and report notFound")
+	void deleteByIds_happyPath_success() {
+		var created = scheduleService
+				.create(createDto(teacherAlgDs.getId(), courseALG.getId(), groupCS.getId(), T13, T14, ROOM_A));
+
+		var res = scheduleService.deleteByIds(List.of(created.getId(), MISSING_ID), teacherAlgDs.getId());
+
+		assertEquals(Set.of(created.getId()), res.deletedIds());
+		assertEquals(Set.of(MISSING_ID), res.notFoundIds());
 	}
 
 	@Test

@@ -3,6 +3,7 @@ package ua.foxminded.university.service.dto.request.course;
 import static org.junit.jupiter.api.Assertions.*;
 
 import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import jakarta.validation.ConstraintViolation;
@@ -37,35 +38,64 @@ class CourseUpdateCodesDtoValidatorTest {
     @Autowired
     private Validator validator;
 
-    @ParameterizedTest(name = "[{index}] id={0}, code={1} -> valid={2}")
-    @MethodSource("cases")
-    @DisplayName("CourseUpdateCodesDto: bean validation")
-    void validate(Long id, String code, boolean shouldPass) {
-        CourseUpdateCodesDto dto = new CourseUpdateCodesDto(id, code);
+    // ---------- VALID ----------
+
+    @ParameterizedTest(name = "[{index}] valid -> id={0}, code={1}")
+    @MethodSource("validCases")
+    @DisplayName("CourseUpdateCodesDto: valid payloads produce no violations")
+    void validate_validCases_noViolations(Long id, String code) {
+        var dto = new CourseUpdateCodesDto(id, code);
+
         Set<ConstraintViolation<CourseUpdateCodesDto>> violations = validator.validate(dto);
 
-        if (shouldPass) {
-            assertTrue(violations.isEmpty(), "Expected no violations, but got: " + violations);
-        } else {
-            assertFalse(violations.isEmpty(), "Expected violations, but got none");
-        }
+        assertTrue(violations.isEmpty(), "Expected no violations, but got: " + violations);
     }
 
-    static Stream<Arguments> cases() {
+    static Stream<Arguments> validCases() {
         return Stream.of(
-            Arguments.of(VALID_ID, VALID_CODE_LONG,  true),
-            Arguments.of(VALID_ID, VALID_CODE_SHORT, true),
+                Arguments.of(VALID_ID, VALID_CODE_LONG),
+                Arguments.of(VALID_ID, VALID_CODE_SHORT)
+        );
+    }
 
-            Arguments.of(null,     VALID_CODE_LONG,  false),
+    // ---------- INVALID ----------
 
-            Arguments.of(VALID_ID, null,        false),
-            Arguments.of(VALID_ID, "",          false),
-            Arguments.of(VALID_ID, LOWER,       false),
-            Arguments.of(VALID_ID, BAD_CODE,    false),
-            Arguments.of(VALID_ID, BAD_PREFIX,  false),
-            Arguments.of(VALID_ID, BAD_MIDLONG, false),
-            Arguments.of(VALID_ID, BAD_NUM_2DIG,false),
-            Arguments.of(VALID_ID, BAD_NUM_4DIG,false)
+    @ParameterizedTest(name = "[{index}] invalid -> id={0}, code={1}, field={2}")
+    @MethodSource("invalidCases")
+    @DisplayName("CourseUpdateCodesDto: invalid payloads produce violations on expected field")
+    void validate_invalidCases_violationOnExpectedField(Long id,
+                                                        String code,
+                                                        String expectedField) {
+
+        var dto = new CourseUpdateCodesDto(id, code);
+
+        Set<ConstraintViolation<CourseUpdateCodesDto>> violations = validator.validate(dto);
+
+        assertFalse(violations.isEmpty(),
+                "Expected violations for field " + expectedField + ", but got none");
+
+        var fields = violations.stream()
+                .map(v -> v.getPropertyPath().toString())
+                .collect(Collectors.toSet());
+
+        assertEquals(1, fields.size(),
+                "Expected violations only for field '" + expectedField + "', but got fields: " + fields);
+        assertEquals(expectedField, fields.iterator().next(),
+                "Violations must be on field '" + expectedField + "'");
+    }
+
+    static Stream<Arguments> invalidCases() {
+        return Stream.of(
+                Arguments.of(null,     VALID_CODE_LONG,  "id"),
+
+                Arguments.of(VALID_ID, null,         "code"),
+                Arguments.of(VALID_ID, "",           "code"),
+                Arguments.of(VALID_ID, LOWER,        "code"),
+                Arguments.of(VALID_ID, BAD_CODE,     "code"),
+                Arguments.of(VALID_ID, BAD_PREFIX,   "code"),
+                Arguments.of(VALID_ID, BAD_MIDLONG,  "code"),
+                Arguments.of(VALID_ID, BAD_NUM_2DIG, "code"),
+                Arguments.of(VALID_ID, BAD_NUM_4DIG, "code")
         );
     }
 }

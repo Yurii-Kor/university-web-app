@@ -78,30 +78,19 @@ class StudyGroupServiceTest {
 	}
 
 	@Test
-	@DisplayName("StudyGroupService happy path: create -> rename -> delete")
-	void happyPath_fullCycle_success() {
-		var toSave = new StudyGroupCreateDto(NAME_A);
+	@DisplayName("createAll: happy path — ignores nulls and persists valid group")
+	void createAll_happyPath_success() {
+		var dto = new StudyGroupCreateDto(NAME_A);
 
-		var savedAll = assertDoesNotThrow(() -> groupService.createAll(Arrays.asList(null, toSave)),
-				"createAll(List.of(dto)) should not throw");
-		assertEquals(ONE_GROUP, savedAll.size(), "Null should be ignored");
+		var savedAll = groupService.createAll(Arrays.asList(null, dto));
 
+		assertEquals(ONE_GROUP, savedAll.size(), "null DTO must be ignored");
 		var saved = savedAll.getFirst();
+
 		assertNotNull(saved.getId(), "Group id must be assigned");
 		assertEquals(NAME_A, saved.getName(), "Name must be persisted as provided");
 
-		var renamed = assertDoesNotThrow(() -> groupService.rename(new StudyGroupRenameDto(saved.getId(), NAME_B)),
-				"rename should not throw");
-		assertEquals(saved.getId(), renamed.getId());
-		assertEquals(NAME_B, renamed.getName(), "Name must be updated as provided");
-
-		var result = assertDoesNotThrow(() -> groupService.deleteByIds(List.of(saved.getId())),
-				"deleteByIds should not throw");
-		assertEquals(Set.of(saved.getId()), result.deletedIds(), "Deleted must contain id");
-		assertTrue(result.notFoundIds().isEmpty(), "notFound must be empty");
-
-		var afterDelete = groupService.findByIds(List.of(saved.getId()));
-		assertTrue(afterDelete.isEmpty(), "Group must not be found after deletion");
+		groupService.deleteByIds(List.of(saved.getId()));
 	}
 
 	@Test
@@ -176,6 +165,19 @@ class StudyGroupServiceTest {
 		var res = groupService.findByIds(Arrays.asList(null, testGroup.getId(), null, testGroup.getId()));
 		assertEquals(ONE_GROUP, res.size(), "one result should be returned");
 		assertEquals(testGroup.getId(), res.getFirst().getId());
+	}
+	
+	@Test
+	@DisplayName("rename: happy path — updates group name")
+	void rename_happyPath_success() {
+		var created = groupService.createAll(List.of(new StudyGroupCreateDto(NAME_A))).getFirst();
+
+		var renamed = groupService.rename(new StudyGroupRenameDto(created.getId(), NAME_B));
+
+		assertEquals(created.getId(), renamed.getId());
+		assertEquals(NAME_B, renamed.getName(), "Name must be updated");
+
+		groupService.deleteByIds(List.of(renamed.getId()));
 	}
 
 	@Test

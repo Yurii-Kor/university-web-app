@@ -98,10 +98,9 @@ class TeacherServiceTest {
 	}
 
 	@Test
-	@DisplayName("happy path: create -> updateSelf(rank + office) -> delete; role must be TEACHER")
-	void happyPath_fullCycle_success() {
-		var saved = assertDoesNotThrow(
-				() -> teacherService.createAll(List.of(newTeacher(VALID_EMAIL, OFFICE_A, RANK_A))).get(0));
+	@DisplayName("createAll: happy path — creates TEACHER with role TEACHER")
+	void createAll_happyPath_success() {
+		var saved = teacherService.createAll(List.of(newTeacher(VALID_EMAIL, OFFICE_A, RANK_A))).get(0);
 
 		assertNotNull(saved.getId());
 		assertNotNull(saved.getUser());
@@ -110,17 +109,7 @@ class TeacherServiceTest {
 		assertEquals(RANK_A, saved.getAcademicRank());
 		assertEquals(UserRole.TEACHER, saved.getUser().getRole());
 
-		var updated = assertDoesNotThrow(() -> teacherService.updateSelf(patch(saved.getId(), RANK_B, OFFICE_B)),
-				"updateSelf should not throw");
-		assertEquals(RANK_B, updated.getAcademicRank());
-		assertEquals(OFFICE_B, updated.getOffice());
-
-		var result = assertDoesNotThrow(() -> teacherService.deleteByIds(List.of(saved.getId())));
-		assertEquals(Set.of(saved.getId()), result.deletedIds());
-		assertTrue(result.notFoundIds().isEmpty());
-
-		var afterDelete = teacherService.findByIds(List.of(saved.getId()));
-		assertTrue(afterDelete.isEmpty());
+		teacherService.deleteByIds(List.of(saved.getId()));
 	}
 
 	@Test
@@ -134,7 +123,7 @@ class TeacherServiceTest {
 	@Test
 	@DisplayName("createAll: duplicate email across two calls -> IllegalArgumentException")
 	void createAll_duplicateEmail_acrossTwoCalls_fails() {
-		assertDoesNotThrow(() -> teacherService.createAll(List.of(newTeacher(DUP_EMAIL, OFFICE_A, RANK_A))));
+		teacherService.createAll(List.of(newTeacher(DUP_EMAIL, OFFICE_A, RANK_A)));
 		assertThrows(IllegalArgumentException.class,
 				() -> teacherService.createAll(List.of(newTeacher(DUP_EMAIL, OFFICE_B, RANK_A))));
 	}
@@ -149,22 +138,36 @@ class TeacherServiceTest {
 	@Test
 	@DisplayName("createAll: null office -> ConstraintViolationException (DTO validation)")
 	void createAll_nullOffice_fails() {
-		var bad = newTeacher("null-office@example.com", null, RANK_A);
+		var bad = newTeacher(VALID_EMAIL, null, RANK_A);
 		assertThrows(ConstraintViolationException.class, () -> teacherService.createAll(List.of(bad)));
 	}
 
 	@Test
 	@DisplayName("createAll: bad office pattern -> ConstraintViolationException")
 	void createAll_badOfficePattern_fails() {
-		var bad = newTeacher("bad-office@example.com", BAD_OFFICE, RANK_A);
+		var bad = newTeacher(VALID_EMAIL, BAD_OFFICE, RANK_A);
 		assertThrows(ConstraintViolationException.class, () -> teacherService.createAll(List.of(bad)));
 	}
 
 	@Test
 	@DisplayName("createAll: null academicRank -> ConstraintViolationException")
 	void createAll_nullRank_fails() {
-		var bad = new TeacherCreateDto("null-rank@example.com", VALID_PASSWORD, FIRST_NAME, LAST_NAME, null, OFFICE_A);
+		var bad = new TeacherCreateDto(VALID_EMAIL, VALID_PASSWORD, FIRST_NAME, LAST_NAME, null, OFFICE_A);
 		assertThrows(ConstraintViolationException.class, () -> teacherService.createAll(List.of(bad)));
+	}
+	
+	@Test
+	@DisplayName("updateSelf: happy path — updates rank and office")
+	void updateSelf_happyPath_success() {
+		var saved = teacherService.createAll(List.of(newTeacher(VALID_EMAIL, OFFICE_A, RANK_A))).get(0);
+
+		var updated = teacherService.updateSelf(patch(saved.getId(), RANK_B, OFFICE_B));
+
+		assertEquals(saved.getId(), updated.getId());
+		assertEquals(RANK_B, updated.getAcademicRank());
+		assertEquals(OFFICE_B, updated.getOffice());
+
+		teacherService.deleteByIds(List.of(saved.getId()));
 	}
 
 	@Test
