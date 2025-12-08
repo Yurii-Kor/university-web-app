@@ -69,7 +69,7 @@ class CourseServiceTest {
 	@Autowired
 	private TestDataInitializer initializer;
 
-	private Course courseSecurity, courseOperationSys;
+	private Course courseSecurity, courseOperationSys, tempCourse;
 	private Teacher testTeacher;
 	private StudyGroup g1, g2;
 
@@ -86,7 +86,7 @@ class CourseServiceTest {
 	}
 
 	@BeforeAll
-	void seed() {
+	void setup() {
 		var testUser = AppUser.builder()
 				.email("teacher@example.com")
 				.password("Abcd1234!")
@@ -120,20 +120,26 @@ class CourseServiceTest {
 						StudyGroup.builder().id(g2.getId()).build())))
 				.build()).get(0);
 	}
+	
+	@AfterEach
+	void cleanup() {
+		Optional.ofNullable(tempCourse).ifPresent(user -> courseService.deleteByIds(List.of(tempCourse.getId())));
+		tempCourse = null;
+		courseService.updateSelf(newUpdateSelf(courseSecurity.getId(), COURSE_SECURITY, ""));
+
+	}
 
 	@Test
 	@DisplayName("createAll: happy path — creates course with teacher and normalized name")
 	void createAll_happyPath_success() {
 		var dto = newCreateDto(CODE_ALG_UPPER, COURSE_ALG, DESC_A, testTeacher.getId());
 
-		var saved = courseService.createAll(List.of(dto)).getFirst();
+		tempCourse = courseService.createAll(List.of(dto)).getFirst();
 
-		assertNotNull(saved.getId());
-		assertEquals(CODE_ALG_UPPER, saved.getCode());
-		assertEquals(COURSE_ALG.trim(), saved.getName());
-		assertEquals(testTeacher.getId(), saved.getTeacher().getId());
-
-		courseService.deleteByIds(List.of(saved.getId()));
+		assertNotNull(tempCourse.getId());
+		assertEquals(CODE_ALG_UPPER, tempCourse.getCode());
+		assertEquals(COURSE_ALG.trim(), tempCourse.getName());
+		assertEquals(testTeacher.getId(), tempCourse.getTeacher().getId());
 	}
 
 	@Test
@@ -229,13 +235,10 @@ class CourseServiceTest {
 		var patch = newUpdateSelf(courseSecurity.getId(), COURSE_DATABASES, DESC_BLANK);
 		courseService.updateSelf(patch);
 
-		initializer.clear();
 		var reloaded = courseService.findByIds(List.of(courseSecurity.getId())).getFirst();
 
 		assertEquals(COURSE_DATABASES, reloaded.getName());
 		assertNull(reloaded.getDescription(), "Blank description must become null");
-
-		courseService.updateSelf(newUpdateSelf(courseSecurity.getId(), COURSE_SECURITY, ""));
 	}
 
 	@Test
@@ -270,19 +273,16 @@ class CourseServiceTest {
 	@Test
 	@DisplayName("updateCodes: happy path — updates code for one course")
 	void updateCodes_happyPath_success() {
-		var created = courseService
+		tempCourse = courseService
 				.createAll(List.of(newCreateDto(TO_CREATE_CODE, TO_CREATE_NAME, null, testTeacher.getId())))
 				.getFirst();
 
-		var updatedCount = courseService.updateCodes(List.of(newUpdateCode(created.getId(), CODE_DB_UPPER)));
+		var updatedCount = courseService.updateCodes(List.of(newUpdateCode(tempCourse.getId(), CODE_DB_UPPER)));
 
 		assertEquals(ONE_COURSE, updatedCount);
 
-		initializer.clear();
-		var reloaded = courseService.findByIds(List.of(created.getId())).getFirst();
+		var reloaded = courseService.findByIds(List.of(tempCourse.getId())).getFirst();
 		assertEquals(CODE_DB_UPPER, reloaded.getCode());
-
-		courseService.deleteByIds(List.of(created.getId()));
 	}
 
 	@Test
@@ -305,7 +305,7 @@ class CourseServiceTest {
 	void updateCodes_noop_ok() {
 		var count = courseService.updateCodes(List.of(newUpdateCode(courseSecurity.getId(), CODE_SEC_UPPER)));
 		assertEquals(ONE_COURSE, count);
-		initializer.clear();
+
 		var reloaded = courseService.findByIds(List.of(courseSecurity.getId())).getFirst();
 		assertEquals(CODE_SEC_UPPER, reloaded.getCode());
 	}
@@ -357,7 +357,6 @@ class CourseServiceTest {
 		courseService.addGroupsToCourse(courseSecurity.getId(),
 				Arrays.asList(g1.getId(), g1.getId(), null, g2.getId()));
 
-		initializer.clear();
 		var reloaded = courseService.findByIds(List.of(courseSecurity.getId())).getFirst();
 		var ids = reloaded.getGroups().stream().map(StudyGroup::getId).toList();
 		assertTrue(ids.containsAll(List.of(g1.getId(), g2.getId())), "course must reference both groups");

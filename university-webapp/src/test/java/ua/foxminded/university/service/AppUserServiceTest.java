@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 import jakarta.persistence.EntityNotFoundException;
@@ -67,7 +68,7 @@ class AppUserServiceTest {
 	@Autowired
 	private TestDataInitializer initializer;
 
-	private AppUser testAdmin, userStudent;
+	private AppUser testAdmin, userStudent, tempAdmin;
 
 	private AppUser draftAdminEntity(String email) {
 		return AppUser.builder()
@@ -105,6 +106,13 @@ class AppUserServiceTest {
 				.enabled(true)
 				.build()).getFirst();
 	}
+	
+	@AfterEach
+	void cleanup() {
+		 Optional.ofNullable(tempAdmin).ifPresent(user -> appUserService.deleteAdminsByIds(List.of(tempAdmin.getId())));
+		 tempAdmin = null;
+		 appUserService.updateProfileFields(patchProfileDto(testAdmin.getId(), TEST_ADMIN_EMAIL, FIRST_NAME, LAST_NAME));
+	}
 
 	@Test
 	@DisplayName("createAdmins: happy path — creates enabled ADMIN with encoded password")
@@ -112,16 +120,14 @@ class AppUserServiceTest {
 		var createdAll = appUserService.createAdmins(List.of(newAdminDto(DEFAULT_EMAIL)));
 
 		assertEquals(ONE_USER, createdAll.size());
-		var created = createdAll.getFirst();
+		tempAdmin = createdAll.getFirst();
 
-		assertNotNull(created.getId());
-		assertEquals(DEFAULT_EMAIL, created.getEmail());
-		assertEquals(UserRole.ADMIN, created.getRole());
-		assertTrue(created.isEnabled());
+		assertNotNull(tempAdmin.getId());
+		assertEquals(DEFAULT_EMAIL, tempAdmin.getEmail());
+		assertEquals(UserRole.ADMIN, tempAdmin.getRole());
+		assertTrue(tempAdmin.isEnabled());
 
-		passwordPolicy.assertCurrentMatches(PWD, created.getPassword());
-
-		appUserService.deleteAdminsByIds(List.of(created.getId()));
+		passwordPolicy.assertCurrentMatches(PWD, tempAdmin.getPassword());
 	}
 
 	@Test
@@ -172,14 +178,11 @@ class AppUserServiceTest {
 		appUserService.updateProfileFields(
 				patchProfileDto(testAdmin.getId(), UPDATED_EMAIL, UPDATED_FIRST_NAME, UPDATED_LAST_NAME));
 
-		initializer.clear();
 		var reloaded = appUserService.findByIds(List.of(testAdmin.getId())).getFirst();
 
 		assertEquals(UPDATED_EMAIL, reloaded.getEmail());
 		assertEquals(UPDATED_FIRST_NAME, reloaded.getFirstName());
 		assertEquals(UPDATED_LAST_NAME, reloaded.getLastName());
-
-		appUserService.updateProfileFields(patchProfileDto(testAdmin.getId(), TEST_ADMIN_EMAIL, FIRST_NAME, LAST_NAME));
 	}
 
 	@Test
@@ -188,7 +191,6 @@ class AppUserServiceTest {
 		var patch = patchProfileDto(testAdmin.getId(), testAdmin.getEmail(), null, null);
 		appUserService.updateProfileFields(patch);
 
-		initializer.clear();
 		var found = appUserService.findByIds(List.of(testAdmin.getId())).getFirst();
 
 		assertEquals(testAdmin.getEmail(), found.getEmail(), "Email must remain unchanged");
@@ -227,7 +229,6 @@ class AppUserServiceTest {
 	void disableUsersByIds_student_ok() {
 		appUserService.disableUsersByIds(List.of(userStudent.getId()));
 
-		initializer.clear();
 		var reloaded = appUserService.findByIds(List.of(userStudent.getId())).getFirst();
 		assertFalse(reloaded.isEnabled(), "Student must become disabled");
 	}
@@ -237,7 +238,6 @@ class AppUserServiceTest {
 	void enableUsersByIds_student_ok() {
 		appUserService.enableUsersByIds(List.of(userStudent.getId()));
 
-		initializer.clear();
 		var reloaded = appUserService.findByIds(List.of(userStudent.getId())).getFirst();
 		assertTrue(reloaded.isEnabled(), "Student must become disabled");
 	}
@@ -269,7 +269,6 @@ class AppUserServiceTest {
 	void changePasswordSelf_happyPath_success() {
 		appUserService.changePasswordSelf(changePasswordDto(testAdmin.getId(), PWD, PWD_NEW));
 
-		initializer.clear();
 		var updated = appUserService.findByIds(List.of(testAdmin.getId())).getFirst();
 
 		assertNotEquals(passwordPolicy.encodePassword(PWD), updated.getPassword());

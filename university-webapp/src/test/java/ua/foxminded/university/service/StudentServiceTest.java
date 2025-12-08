@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 import org.junit.jupiter.api.*;
@@ -18,6 +19,7 @@ import jakarta.persistence.EntityNotFoundException;
 import jakarta.persistence.PersistenceContext;
 import jakarta.validation.ConstraintViolationException;
 import ua.foxminded.university.TestcontainersConfiguration;
+import ua.foxminded.university.model.domain.Student;
 import ua.foxminded.university.model.domain.StudyGroup;
 import ua.foxminded.university.model.domain.enums.UserRole;
 import ua.foxminded.university.security.PasswordPolicy;
@@ -72,6 +74,8 @@ class StudentServiceTest {
 	private StudyGroup defaultGroup;
 	private StudyGroup updatedGroup;
 
+	private Student temp;
+
 	private StudentCreateDto dto(String email, String password, String first, String last, Long groupId, Integer year) {
 		return new StudentCreateDto(email, password, first, last, groupId, year);
 	}
@@ -80,6 +84,12 @@ class StudentServiceTest {
 	void setup() {
 		defaultGroup = initializer.persistAll(StudyGroup.builder().name(DEFAULT_GROUP_NAME).build()).get(0);
 		updatedGroup = initializer.persistAll(StudyGroup.builder().name(UPDATED_GROUP_NAME).build()).get(0);
+	}
+
+	@AfterEach
+	void cleanup() {
+		Optional.ofNullable(temp).ifPresent(user -> studentService.deleteByIds(List.of(temp.getId())));
+		temp = null;
 	}
 
 	@Test
@@ -92,18 +102,16 @@ class StudentServiceTest {
 				defaultGroup.getId(),
 				VALID_ENROLLMENT_YEAR);
 
-		var saved = studentService.createAll(List.of(createDto)).get(0);
+		temp = studentService.createAll(List.of(createDto)).get(0);
 
-		assertNotNull(saved.getId(), "Student ID should be assigned after persist");
-		assertNotNull(saved.getUser(), "Student must reference an AppUser");
-		assertEquals(saved.getUser().getId(), saved.getId(), "@MapsId requires Student.id to equal AppUser.id");
-		assertEquals(VALID_EMAIL, saved.getUser().getEmail(), "Email should be persisted as provided/normalized");
-		assertEquals(defaultGroup.getId(), saved.getGroup().getId(), "Student should be linked to default group");
-		assertEquals(UserRole.STUDENT, saved.getUser().getRole(), "Service must set role=STUDENT");
-
-		studentService.deleteByIds(List.of(saved.getId()));
+		assertNotNull(temp.getId(), "Student ID should be assigned after persist");
+		assertNotNull(temp.getUser(), "Student must reference an AppUser");
+		assertEquals(temp.getUser().getId(), temp.getId(), "@MapsId requires Student.id to equal AppUser.id");
+		assertEquals(VALID_EMAIL, temp.getUser().getEmail(), "Email should be persisted as provided/normalized");
+		assertEquals(defaultGroup.getId(), temp.getGroup().getId(), "Student should be linked to default group");
+		assertEquals(UserRole.STUDENT, temp.getUser().getRole(), "Service must set role=STUDENT");
 	}
-	
+
 	@Test
 	@DisplayName("deleteByIds: happy path — delete existing student and report notFound")
 	void deleteByIds_happyPath_success() {
@@ -154,7 +162,7 @@ class StudentServiceTest {
 				defaultGroup.getId(),
 				VALID_ENROLLMENT_YEAR);
 
-		studentService.createAll(List.of(first));
+		temp = studentService.createAll(List.of(first)).get(0);
 
 		var second = dto(DUPLICATED_EMAIL,
 				VALID_PASSWORD,
@@ -171,18 +179,13 @@ class StudentServiceTest {
 	@Test
 	@DisplayName("createAll: non-existing StudyGroup (FK) → EntityNotFoundException")
 	void createAll_nonExistingGroup_fails() {
-		var d = dto(VALID_EMAIL,
-				VALID_PASSWORD,
-				VALID_FIRST_NAME,
-				VALID_LAST_NAME,
-				MISSING_ID,
-				VALID_ENROLLMENT_YEAR);
+		var d = dto(VALID_EMAIL, VALID_PASSWORD, VALID_FIRST_NAME, VALID_LAST_NAME, MISSING_ID, VALID_ENROLLMENT_YEAR);
 
 		assertThrows(EntityNotFoundException.class,
 				() -> studentService.createAll(List.of(d)),
 				"Insert with non-existing group_id must fail");
 	}
-	
+
 	@Test
 	@DisplayName("moveStudentsToGroup: happy path — moves existing student to target group")
 	void moveStudentsToGroup_happyPath_success() {
@@ -193,15 +196,13 @@ class StudentServiceTest {
 				defaultGroup.getId(),
 				VALID_ENROLLMENT_YEAR);
 
-		var saved = studentService.createAll(List.of(createDto)).get(0);
+		temp = studentService.createAll(List.of(createDto)).get(0);
 
-		int moved = studentService.moveStudentsToGroup(List.of(saved.getId()), updatedGroup.getId());
+		int moved = studentService.moveStudentsToGroup(List.of(temp.getId()), updatedGroup.getId());
 		assertEquals(ONE_STUDENT_MOOVED, moved, "Exactly one student should be moved");
 
-		var reloaded = studentService.findByIds(List.of(saved.getId())).get(0);
+		var reloaded = studentService.findByIds(List.of(temp.getId())).get(0);
 		assertEquals(updatedGroup.getId(), reloaded.getGroup().getId(), "Student must be linked to updated group");
-
-		studentService.deleteByIds(List.of(saved.getId()));
 	}
 
 	@Test
@@ -224,10 +225,10 @@ class StudentServiceTest {
 				defaultGroup.getId(),
 				VALID_ENROLLMENT_YEAR);
 
-		var saved = studentService.createAll(List.of(d)).get(0);
+		temp = studentService.createAll(List.of(d)).get(0);
 
 		assertThrows(EntityNotFoundException.class,
-				() -> studentService.moveStudentsToGroup(List.of(saved.getId()), MISSING_ID),
+				() -> studentService.moveStudentsToGroup(List.of(temp.getId()), MISSING_ID),
 				"Should fail when target StudyGroup does not exist");
 	}
 

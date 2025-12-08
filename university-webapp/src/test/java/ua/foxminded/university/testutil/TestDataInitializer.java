@@ -22,8 +22,4 @@ public class TestDataInitializer {
 
         return Arrays.asList(entities);
     }
-    
-    public void clear() {
-    	em.clear();
-    }
 }

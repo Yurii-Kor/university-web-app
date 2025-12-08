@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 import jakarta.validation.ConstraintViolationException;
@@ -70,6 +71,8 @@ class TeacherServiceTest {
 	@Autowired
 	private TestDataInitializer initializer;
 
+	private Teacher tempTeacher;
+
 	private Long teacherForUpdatesId;
 	private Long teacherWithCoursesId;
 
@@ -97,19 +100,25 @@ class TeacherServiceTest {
 				.build());
 	}
 
+	@AfterEach
+	void cleanup() {
+		Optional.ofNullable(tempTeacher).ifPresent(user -> teacherService.deleteByIds(List.of(tempTeacher.getId())));
+		tempTeacher = null;
+	}
+
 	@Test
 	@DisplayName("createAll: happy path — creates TEACHER with role TEACHER")
 	void createAll_happyPath_success() {
-		var saved = teacherService.createAll(List.of(newTeacher(VALID_EMAIL, OFFICE_A, RANK_A))).get(0);
+		tempTeacher = teacherService.createAll(List.of(newTeacher(VALID_EMAIL, OFFICE_A, RANK_A))).get(0);
 
-		assertNotNull(saved.getId());
-		assertNotNull(saved.getUser());
-		assertEquals(VALID_EMAIL, saved.getUser().getEmail());
-		assertEquals(OFFICE_A, saved.getOffice());
-		assertEquals(RANK_A, saved.getAcademicRank());
-		assertEquals(UserRole.TEACHER, saved.getUser().getRole());
+		assertNotNull(tempTeacher.getId());
+		assertNotNull(tempTeacher.getUser());
+		assertEquals(VALID_EMAIL, tempTeacher.getUser().getEmail());
+		assertEquals(OFFICE_A, tempTeacher.getOffice());
+		assertEquals(RANK_A, tempTeacher.getAcademicRank());
+		assertEquals(UserRole.TEACHER, tempTeacher.getUser().getRole());
 
-		teacherService.deleteByIds(List.of(saved.getId()));
+		teacherService.deleteByIds(List.of(tempTeacher.getId()));
 	}
 
 	@Test
@@ -123,7 +132,7 @@ class TeacherServiceTest {
 	@Test
 	@DisplayName("createAll: duplicate email across two calls -> IllegalArgumentException")
 	void createAll_duplicateEmail_acrossTwoCalls_fails() {
-		teacherService.createAll(List.of(newTeacher(DUP_EMAIL, OFFICE_A, RANK_A)));
+		tempTeacher = teacherService.createAll(List.of(newTeacher(DUP_EMAIL, OFFICE_A, RANK_A))).get(0);
 		assertThrows(IllegalArgumentException.class,
 				() -> teacherService.createAll(List.of(newTeacher(DUP_EMAIL, OFFICE_B, RANK_A))));
 	}
@@ -155,19 +164,17 @@ class TeacherServiceTest {
 		var bad = new TeacherCreateDto(VALID_EMAIL, VALID_PASSWORD, FIRST_NAME, LAST_NAME, null, OFFICE_A);
 		assertThrows(ConstraintViolationException.class, () -> teacherService.createAll(List.of(bad)));
 	}
-	
+
 	@Test
 	@DisplayName("updateSelf: happy path — updates rank and office")
 	void updateSelf_happyPath_success() {
-		var saved = teacherService.createAll(List.of(newTeacher(VALID_EMAIL, OFFICE_A, RANK_A))).get(0);
+		tempTeacher = teacherService.createAll(List.of(newTeacher(VALID_EMAIL, OFFICE_A, RANK_A))).get(0);
 
-		var updated = teacherService.updateSelf(patch(saved.getId(), RANK_B, OFFICE_B));
+		var updated = teacherService.updateSelf(patch(tempTeacher.getId(), RANK_B, OFFICE_B));
 
-		assertEquals(saved.getId(), updated.getId());
+		assertEquals(tempTeacher.getId(), updated.getId());
 		assertEquals(RANK_B, updated.getAcademicRank());
 		assertEquals(OFFICE_B, updated.getOffice());
-
-		teacherService.deleteByIds(List.of(saved.getId()));
 	}
 
 	@Test
@@ -187,9 +194,9 @@ class TeacherServiceTest {
 	@Test
 	@DisplayName("updateSelf: only office provided -> rank remains unchanged")
 	void updateSelf_onlyOffice_rankUnchanged() {
-		var saved = teacherService.createAll(List.of(newTeacher("upd-office-only@example.com", OFFICE_A, RANK_A)))
+		tempTeacher = teacherService.createAll(List.of(newTeacher("upd-office-only@example.com", OFFICE_A, RANK_A)))
 				.get(0);
-		var updated = teacherService.updateSelf(patch(saved.getId(), null, OFFICE_B));
+		var updated = teacherService.updateSelf(patch(tempTeacher.getId(), null, OFFICE_B));
 		assertEquals(OFFICE_B, updated.getOffice());
 		assertEquals(RANK_A, updated.getAcademicRank());
 	}

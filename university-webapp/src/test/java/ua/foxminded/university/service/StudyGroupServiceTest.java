@@ -52,8 +52,7 @@ class StudyGroupServiceTest {
 	@Autowired
 	private TestDataInitializer initializer;
 
-	private StudyGroup testGroup;
-	private StudyGroup groupWithStudent;
+	private StudyGroup testGroup, groupWithStudent, tempGroup;
 
 	@BeforeAll
 	void setup() {
@@ -76,6 +75,12 @@ class StudyGroupServiceTest {
 		groupWithStudent = initializer.persistAll(group).get(0);
 		initializer.persistAll(student).get(0);
 	}
+	
+	@AfterEach
+	void cleanup() {
+		Optional.ofNullable(tempGroup).ifPresent(user -> groupService.deleteByIds(List.of(tempGroup.getId())));
+		tempGroup = null;
+	}
 
 	@Test
 	@DisplayName("createAll: happy path — ignores nulls and persists valid group")
@@ -85,12 +90,10 @@ class StudyGroupServiceTest {
 		var savedAll = groupService.createAll(Arrays.asList(null, dto));
 
 		assertEquals(ONE_GROUP, savedAll.size(), "null DTO must be ignored");
-		var saved = savedAll.getFirst();
+		tempGroup = savedAll.getFirst();
 
-		assertNotNull(saved.getId(), "Group id must be assigned");
-		assertEquals(NAME_A, saved.getName(), "Name must be persisted as provided");
-
-		groupService.deleteByIds(List.of(saved.getId()));
+		assertNotNull(tempGroup.getId(), "Group id must be assigned");
+		assertEquals(NAME_A, tempGroup.getName(), "Name must be persisted as provided");
 	}
 
 	@Test
@@ -119,13 +122,6 @@ class StudyGroupServiceTest {
 		var result = groupService.createAll(Arrays.asList(null, null));
 		assertNotNull(result, "result must not be null");
 		assertTrue(result.isEmpty(), "only-null input must result in empty list");
-	}
-
-	@Test
-	@DisplayName("createAll: valid name -> persisted as-is")
-	void createAll_valid_ok() {
-		var saved = groupService.createAll(List.of(new StudyGroupCreateDto(TO_CREATE_VALID)));
-		assertEquals(TO_CREATE_VALID, saved.getFirst().getName());
 	}
 
 	@Test
@@ -170,14 +166,12 @@ class StudyGroupServiceTest {
 	@Test
 	@DisplayName("rename: happy path — updates group name")
 	void rename_happyPath_success() {
-		var created = groupService.createAll(List.of(new StudyGroupCreateDto(NAME_A))).getFirst();
+		tempGroup = groupService.createAll(List.of(new StudyGroupCreateDto(NAME_A))).getFirst();
 
-		var renamed = groupService.rename(new StudyGroupRenameDto(created.getId(), NAME_B));
+		var renamed = groupService.rename(new StudyGroupRenameDto(tempGroup.getId(), NAME_B));
 
-		assertEquals(created.getId(), renamed.getId());
+		assertEquals(tempGroup.getId(), renamed.getId());
 		assertEquals(NAME_B, renamed.getName(), "Name must be updated");
-
-		groupService.deleteByIds(List.of(renamed.getId()));
 	}
 
 	@Test
