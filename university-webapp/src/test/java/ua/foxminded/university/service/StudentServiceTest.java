@@ -89,7 +89,6 @@ class StudentServiceTest {
 	@AfterEach
 	void cleanup() {
 		Optional.ofNullable(temp).ifPresent(user -> studentService.deleteByIds(List.of(temp.getId())));
-		temp = null;
 	}
 
 	@Test
@@ -296,5 +295,34 @@ class StudentServiceTest {
 
 		assertEquals(Set.of(saved.getId()), result.deletedIds(), "should delete existing id");
 		assertEquals(Set.of(MISSING_ID), result.notFoundIds(), "should report missing id");
+	}
+
+	@Test
+	@DisplayName("getStudentProfileView: happy path — returns StudentProfileView with group name")
+	void getStudentProfileView_happyPath_success() {
+		var createDto = dto("profile.student@example.com",
+				VALID_PASSWORD,
+				VALID_FIRST_NAME,
+				VALID_LAST_NAME,
+				defaultGroup.getId(),
+				VALID_ENROLLMENT_YEAR);
+
+		temp = studentService.createAll(List.of(createDto)).get(0);
+
+		var view = studentService.getStudentProfileView(temp.getId());
+
+		assertNotNull(view);
+		assertEquals(temp.getUser().getEmail(), view.email());
+		assertEquals(temp.getUser().getFirstName(), view.firstName());
+		assertEquals(temp.getUser().getLastName(), view.lastName());
+		assertNotNull(view.createdAt(), "createdAt must be populated by DB");
+		assertEquals(temp.getEnrollmentYear(), view.enrollmentYear());
+		assertEquals(defaultGroup.getName(), view.groupName());
+	}
+
+	@Test
+	@DisplayName("getStudentProfileView: missing id -> EntityNotFoundException")
+	void getStudentProfileView_missingId_fails() {
+		assertThrows(EntityNotFoundException.class, () -> studentService.getStudentProfileView(MISSING_ID));
 	}
 }

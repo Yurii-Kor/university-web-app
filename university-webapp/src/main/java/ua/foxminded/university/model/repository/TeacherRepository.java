@@ -6,9 +6,11 @@ import org.springframework.data.repository.query.Param;
 
 import ua.foxminded.university.model.domain.Teacher;
 import ua.foxminded.university.model.repository.dto.IdCountAgg;
+import ua.foxminded.university.model.repository.dto.TeacherProfileView;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 
 public interface TeacherRepository extends JpaRepository<Teacher, Long> {
 
@@ -25,4 +27,19 @@ public interface TeacherRepository extends JpaRepository<Teacher, Long> {
 			    group by t.id
 			""")
 	List<IdCountAgg> countCoursesByTeacherIds(@Param("ids") Collection<Long> ids);
+	
+	@Query("""
+			select new ua.foxminded.university.model.repository.dto.TeacherProfileView(
+			    u.email,
+			    u.firstName,
+			    u.lastName,
+			    u.createdAt,
+			    t.academicRank,
+			    t.office
+			)
+			from Teacher t
+			join t.user u
+			where t.id = :id
+			""")
+	Optional<TeacherProfileView> findTeacherProfileViewById(@Param("id") Long id);
 }

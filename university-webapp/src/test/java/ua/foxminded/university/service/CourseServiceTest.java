@@ -104,13 +104,6 @@ class CourseServiceTest {
 		g1 = initializer.persistAll(StudyGroup.builder().name("CS-201").build()).getFirst();
 		g2 = initializer.persistAll(StudyGroup.builder().name("CS-202").build()).getFirst();
 
-		courseSecurity = initializer.persistAll(Course.builder()
-				.code(CODE_SEC_UPPER)
-				.name(COURSE_SECURITY)
-				.description("")
-				.teacher(Teacher.builder().id(testTeacher.getId()).build())
-				.build()).get(0);
-
 		courseOperationSys = initializer.persistAll(Course.builder()
 				.code(CODE_OS_UPPER)
 				.name(COURSE_OS)
@@ -120,13 +113,24 @@ class CourseServiceTest {
 						StudyGroup.builder().id(g2.getId()).build())))
 				.build()).get(0);
 	}
-	
+
+	@BeforeEach
+	void setupCourseSecurity() {
+		courseSecurity = courseService
+				.createAll(List.of(newCreateDto(CODE_SEC_UPPER, COURSE_SECURITY, "", testTeacher.getId())))
+				.getFirst();
+	}
+
 	@AfterEach
 	void cleanup() {
-		Optional.ofNullable(tempCourse).ifPresent(user -> courseService.deleteByIds(List.of(tempCourse.getId())));
-		tempCourse = null;
-		courseService.updateSelf(newUpdateSelf(courseSecurity.getId(), COURSE_SECURITY, ""));
+		var ids = new ArrayList<Long>();
 
+		Optional.ofNullable(tempCourse).map(Course::getId).ifPresent(ids::add);
+		Optional.ofNullable(courseSecurity).map(Course::getId).ifPresent(ids::add);
+
+		if (!ids.isEmpty()) {
+			courseService.deleteByIds(ids);
+		}
 	}
 
 	@Test

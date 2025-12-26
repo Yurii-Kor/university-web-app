@@ -7,9 +7,11 @@ import org.springframework.data.repository.query.Param;
 
 import ua.foxminded.university.model.domain.Student;
 import ua.foxminded.university.model.domain.StudyGroup;
+import ua.foxminded.university.model.repository.dto.StudentProfileView;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 
 public interface StudentRepository extends JpaRepository<Student, Long> {
 	
@@ -20,4 +22,20 @@ public interface StudentRepository extends JpaRepository<Student, Long> {
     @Query("update Student s set s.group = :newGroup where s.id in :ids")
     int updateGroupByIds(@Param("newGroup") StudyGroup newGroup,
                          @Param("ids") Collection<Long> ids);
+	
+	@Query("""
+			select new ua.foxminded.university.model.repository.dto.StudentProfileView(
+			    u.email,
+			    u.firstName,
+			    u.lastName,
+			    u.createdAt,
+			    s.enrollmentYear,
+			    g.name
+			)
+			from Student s
+			join s.user u
+			join s.group g
+			where s.id = :id
+			""")
+	Optional<StudentProfileView> findStudentProfileViewById(@Param("id") Long id);
 }

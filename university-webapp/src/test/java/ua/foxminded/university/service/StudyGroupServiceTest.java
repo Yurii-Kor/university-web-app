@@ -79,7 +79,6 @@ class StudyGroupServiceTest {
 	@AfterEach
 	void cleanup() {
 		Optional.ofNullable(tempGroup).ifPresent(user -> groupService.deleteByIds(List.of(tempGroup.getId())));
-		tempGroup = null;
 	}
 
 	@Test

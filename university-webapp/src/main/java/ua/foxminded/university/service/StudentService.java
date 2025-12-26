@@ -17,6 +17,7 @@ import ua.foxminded.university.model.domain.StudyGroup;
 import ua.foxminded.university.model.repository.AppUserRepository;
 import ua.foxminded.university.model.repository.StudentRepository;
 import ua.foxminded.university.model.repository.StudyGroupRepository;
+import ua.foxminded.university.model.repository.dto.StudentProfileView;
 import ua.foxminded.university.security.PasswordPolicy;
 import ua.foxminded.university.service.dto.request.student.StudentCreateDto;
 import ua.foxminded.university.service.dto.response.DeleteResult;
@@ -87,6 +88,12 @@ public class StudentService {
 		}
 
 		return studentRepository.findAllById(distinct);
+	}
+	
+	@Transactional(value = TxType.SUPPORTS)
+	public StudentProfileView getStudentProfileView(Long id) {
+		return studentRepository.findStudentProfileViewById(id)
+				.orElseThrow(() -> new EntityNotFoundException("Student not found: id=" + id));
 	}
 
 	@Transactional(value = TxType.REQUIRES_NEW)

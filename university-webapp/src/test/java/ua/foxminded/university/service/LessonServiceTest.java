@@ -143,7 +143,6 @@ class LessonServiceTest {
 	@AfterEach
 	void cleanup() {
 		Optional.ofNullable(temp).ifPresent(user -> lessonService.deleteByIds(List.of(temp.getId()), teacherAlgDs.getId()));
-		temp = null;
 	}
 
 	@Test

@@ -16,6 +16,7 @@ import ua.foxminded.university.model.domain.Teacher;
 import ua.foxminded.university.model.repository.AppUserRepository;
 import ua.foxminded.university.model.repository.TeacherRepository;
 import ua.foxminded.university.model.repository.dto.IdCountAgg;
+import ua.foxminded.university.model.repository.dto.TeacherProfileView;
 import ua.foxminded.university.security.PasswordPolicy;
 import ua.foxminded.university.service.dto.request.teacher.TeacherCreateDto;
 import ua.foxminded.university.service.dto.request.teacher.TeacherSelfUpdateDto;
@@ -80,6 +81,12 @@ public class TeacherService {
 		}
 
 		return teacherRepository.findAllById(distinct);
+	}
+	
+	@Transactional(value = TxType.SUPPORTS)
+	public TeacherProfileView getTeacherProfileView(Long id) {
+		return teacherRepository.findTeacherProfileViewById(id)
+				.orElseThrow(() -> new EntityNotFoundException("Teacher not found: id=" + id));
 	}
 
 	@Transactional(value = TxType.REQUIRES_NEW)

@@ -106,12 +106,10 @@ class AppUserServiceTest {
 				.enabled(true)
 				.build()).getFirst();
 	}
-	
+
 	@AfterEach
 	void cleanup() {
-		 Optional.ofNullable(tempAdmin).ifPresent(user -> appUserService.deleteAdminsByIds(List.of(tempAdmin.getId())));
-		 tempAdmin = null;
-		 appUserService.updateProfileFields(patchProfileDto(testAdmin.getId(), TEST_ADMIN_EMAIL, FIRST_NAME, LAST_NAME));
+		Optional.ofNullable(tempAdmin).ifPresent(user -> appUserService.deleteAdminsByIds(List.of(tempAdmin.getId())));
 	}
 
 	@Test
@@ -175,10 +173,11 @@ class AppUserServiceTest {
 	@Test
 	@DisplayName("updateProfileFields: happy path — email + first/last name updated")
 	void updateProfileFields_happyPath_success() {
+		tempAdmin = appUserService.createAdmins(List.of(newAdminDto(DEFAULT_EMAIL))).getFirst();
 		appUserService.updateProfileFields(
-				patchProfileDto(testAdmin.getId(), UPDATED_EMAIL, UPDATED_FIRST_NAME, UPDATED_LAST_NAME));
+				patchProfileDto(tempAdmin.getId(), UPDATED_EMAIL, UPDATED_FIRST_NAME, UPDATED_LAST_NAME));
 
-		var reloaded = appUserService.findByIds(List.of(testAdmin.getId())).getFirst();
+		var reloaded = appUserService.findByIds(List.of(tempAdmin.getId())).getFirst();
 
 		assertEquals(UPDATED_EMAIL, reloaded.getEmail());
 		assertEquals(UPDATED_FIRST_NAME, reloaded.getFirstName());
@@ -349,5 +348,23 @@ class AppUserServiceTest {
 	void deleteAdminsByIds_containsNonAdmin_fails() {
 		assertThrows(IllegalStateException.class,
 				() -> appUserService.deleteAdminsByIds(List.of(userStudent.getId(), testAdmin.getId())));
+	}
+
+	@Test
+	@DisplayName("getAdminProfileView: happy path — returns AdminProfileView for existing ADMIN")
+	void getAdminProfileView_happyPath_success() {
+		var view = appUserService.getAdminProfileView(testAdmin.getId());
+
+		assertNotNull(view);
+		assertEquals(testAdmin.getEmail(), view.email());
+		assertEquals(testAdmin.getFirstName(), view.firstName());
+		assertEquals(testAdmin.getLastName(), view.lastName());
+		assertNotNull(view.createdAt(), "createdAt must be populated by DB");
+	}
+
+	@Test
+	@DisplayName("getAdminProfileView: missing id -> EntityNotFoundException")
+	void getAdminProfileView_missingId_fails() {
+		assertThrows(EntityNotFoundException.class, () -> appUserService.getAdminProfileView(MISSING_ID));
 	}
 }

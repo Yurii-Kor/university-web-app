@@ -9,6 +9,7 @@ import org.springframework.data.repository.query.Param;
 
 import ua.foxminded.university.model.domain.AppUser;
 import ua.foxminded.university.model.domain.enums.UserRole;
+import ua.foxminded.university.model.repository.dto.AdminProfileView;
 
 public interface AppUserRepository extends JpaRepository<AppUser, Long> {
 	Optional<AppUser> findByEmailIgnoreCase(String email);
@@ -37,4 +38,17 @@ public interface AppUserRepository extends JpaRepository<AppUser, Long> {
 	@Modifying(clearAutomatically = true, flushAutomatically = true)
 	@Query("update AppUser u set u.enabled = :enabled where u.id in :ids")
 	int setEnabledForIds(@Param("ids") Collection<Long> ids, @Param("enabled") boolean enabled);
+	
+	@Query("""
+			select new ua.foxminded.university.model.repository.dto.AdminProfileView(
+			    u.email,
+			    u.firstName,
+			    u.lastName,
+			    u.createdAt
+			)
+			from AppUser u
+			where u.id = :id
+			  and u.role = ua.foxminded.university.model.domain.enums.UserRole.ADMIN
+			""")
+	Optional<AdminProfileView> findAdminProfileViewById(@Param("id") Long id);
 }

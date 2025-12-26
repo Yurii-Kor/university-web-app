@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
+import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.ConstraintViolationException;
 
 import org.junit.jupiter.api.*;
@@ -103,7 +104,6 @@ class TeacherServiceTest {
 	@AfterEach
 	void cleanup() {
 		Optional.ofNullable(tempTeacher).ifPresent(user -> teacherService.deleteByIds(List.of(tempTeacher.getId())));
-		tempTeacher = null;
 	}
 
 	@Test
@@ -218,5 +218,28 @@ class TeacherServiceTest {
 
 		assertEquals(Set.of(saved.getId()), result.deletedIds(), "should delete existing id");
 		assertEquals(Set.of(NON_EXISTENT_ID), result.notFoundIds(), "should report missing id");
+	}
+
+	@Test
+	@DisplayName("getTeacherProfileView: happy path — returns TeacherProfileView for existing teacher")
+	void getTeacherProfileView_happyPath_success() {
+		tempTeacher = teacherService.createAll(List.of(newTeacher("profile.teacher@example.com", OFFICE_A, RANK_A)))
+				.get(0);
+
+		var view = teacherService.getTeacherProfileView(tempTeacher.getId());
+
+		assertNotNull(view);
+		assertEquals(tempTeacher.getUser().getEmail(), view.email());
+		assertEquals(tempTeacher.getUser().getFirstName(), view.firstName());
+		assertEquals(tempTeacher.getUser().getLastName(), view.lastName());
+		assertNotNull(view.createdAt(), "createdAt must be populated by DB");
+		assertEquals(tempTeacher.getAcademicRank(), view.academicRank());
+		assertEquals(tempTeacher.getOffice(), view.office());
+	}
+
+	@Test
+	@DisplayName("getTeacherProfileView: missing id -> EntityNotFoundException")
+	void getTeacherProfileView_missingId_fails() {
+		assertThrows(EntityNotFoundException.class, () -> teacherService.getTeacherProfileView(NON_EXISTENT_ID));
 	}
 }
