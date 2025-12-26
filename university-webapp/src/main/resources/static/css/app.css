@@ -1,0 +1,277 @@
+@import
+	url('https://fonts.googleapis.com/css2?family=Abel&display=swap');
+
+:root {
+	--bg: #ffddaa; /* #FDA */
+	--header-bg: #ffffff;
+	--accent: #0055aa; /* #05A */
+	--text: #1f2937; /* тёмно-серый для "pen"/"niversity" */
+	--text-muted: #6b7280; /* чуть светлее для "Log In" */
+	--shadow: 0 8px 20px rgba(0, 0, 0, .12);
+	--header-height: 72px;
+	--logo-col-w: 72px; /* левая узкая колонка под лого */
+}
+
+* {
+	box-sizing: border-box;
+}
+
+html, body {
+	height: 100%;
+}
+
+body.login-page {
+	margin: 0;
+	background: var(--bg); /* фон под хедером */
+	color: var(--text);
+	font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial,
+		sans-serif;
+}
+
+/* Узкая белая полоса-хедер по всей ширине */
+.ou-header {
+	height: var(--header-height);
+	width: 100%;
+	background: var(--header-bg);
+	box-shadow: var(--shadow); /* тень вниз, чтобы "приподнять" хедер */
+	display: grid;
+	grid-template-columns: var(--logo-col-w) 1fr;
+	align-items: center;
+}
+
+/* Левая колонка под логотип */
+.ou-header__logo {
+	height: 100%;
+	display: grid;
+	place-items: center;
+	padding-inline: 12px;
+}
+
+.ou-header__logo img {
+	display: block;
+	max-height: calc(var(--header-height)- 24px);
+	max-width: calc(var(--logo-col-w)- 24px);
+}
+
+/* Правая часть: сверху бренд, снизу подпись страницы */
+.ou-header__text {
+	display: grid;
+	grid-template-rows: 1fr 1fr;
+	align-content: center;
+	padding-right: 16px;
+	line-height: 1;
+}
+
+/* "Open University" — Abel + разная раскраска букв */
+.ou-header__brand {
+	font-family: 'Abel', system-ui, sans-serif;
+	font-size: 1.5rem; /* ~24px */
+	letter-spacing: .2px;
+}
+
+.ou-brand-ou {
+	color: var(--accent);
+}
+
+.ou-brand-rest {
+	color: var(--text);
+}
+
+/* "Log In" — тот же Abel, чуть "жирнее" и светлее */
+.ou-header__page {
+	margin-top: 4px;
+	font-family: 'Abel', system-ui, sans-serif;
+	font-size: 1rem;
+	font-weight: 600; /* синтетически усилит начертание */
+	color: var(--text-muted); /* светлее, чем основной текст */
+}
+
+/* Область под хедером (пока только фон и отступы) */
+.login-main {
+	min-height: calc(100vh - var(--header-height));
+	display: grid;
+	place-items: start center;
+	/* карточка логина позже будет по центру по горизонтали */
+	padding: 24px 16px 32px;
+}
+
+/* ===== Login card ===== */
+:root {
+	--card-radius: 16px;
+	--card-shadow-right: 12px 14px 28px rgba(0, 0, 0, .18);
+	/* тень вниз+вправо */
+	--field-gap: 16px;
+	--input-radius: 12px;
+	--placeholder: #9aa3af;
+}
+
+.login-card {
+	width: 100%;
+	max-width: 440px;
+	margin-top: 8px; /* чтобы не липло к хедеру */
+	background: #fff;
+	border-radius: var(--card-radius);
+	box-shadow: var(--card-shadow-right);
+	padding: 20px 20px 24px; /* внутренний отступ (padding) */
+}
+
+.login-card__title {
+	margin: 0 0 12px 0;
+	font-family: 'Abel', system-ui, sans-serif;
+	font-size: 1.4rem;
+	letter-spacing: .2px;
+}
+
+.login-form {
+	display: grid;
+	gap: var(--field-gap);
+}
+
+.login-field {
+	display: grid;
+	gap: 6px;
+}
+
+.login-label {
+	font-size: .95rem;
+}
+
+/* Поля ввода с акцентной рамкой (#05A) */
+.ou-input {
+	width: 100%;
+	padding: 12px 14px;
+	border: 2px solid var(--accent);
+	border-radius: var(--input-radius);
+	background: #fff;
+	color: var(--text);
+	outline: none;
+	transition: box-shadow .15s ease, border-color .15s ease;
+}
+
+.ou-input::placeholder {
+	color: var(--placeholder);
+}
+
+.ou-input:focus {
+	box-shadow: 0 0 0 3px rgba(0, 85, 170, .20);
+	/* мягкая подсветка фокуса */
+	border-color: var(--accent);
+}
+
+/* Обёртка для поля пароля + кнопка глаза (пока без логики) */
+.password-wrap {
+	position: relative;
+}
+
+.show-btn {
+	position: absolute;
+	top: 50%;
+	right: 8px;
+	transform: translateY(-50%);
+	border: 0;
+	background: transparent;
+	font-size: 1rem;
+	padding: 4px;
+	border-radius: 8px;
+}
+
+.show-btn[disabled] {
+	opacity: .5;
+	cursor: default;
+}
+
+/* Кнопка входа справа внизу */
+.login-actions {
+	display: flex;
+	justify-content: flex-end;
+	margin-top: 4px;
+}
+
+.ou-btn {
+	border: 0;
+	border-radius: 12px;
+	background: var(--accent);
+	color: #fff;
+	font-weight: 600;
+	padding: 10px 16px;
+	cursor: pointer;
+	transition: transform .06s ease, filter .15s ease;
+}
+
+.ou-btn:hover {
+	filter: brightness(1.05);
+}
+
+.ou-btn:active {
+	transform: translateY(1px);
+}
+
+/* чтобы текст не забегал под кнопку-глаз */
+.ou-input--password {
+	padding-right: 40px;
+}
+
+/* (опционально) сделаем кнопку активнее при ховере */
+.show-btn:hover {
+	filter: brightness(1.1);
+}
+
+/* ===== Двухколоночный лэйаут под хедером ===== */
+.login-grid{
+  width: 100%;
+  max-width: 1040px;
+  display: grid;
+  grid-template-columns: 1fr;     /* по умолчанию — одна колонка (мобилки) */
+  gap: 20px;
+  margin-top: 8px;                /* отступ от хедера */
+}
+
+/* На широких — две колонки: слева логин, справа подсказки */
+@media (min-width: 900px){
+  .login-grid{
+    grid-template-columns: 1fr 1fr;
+    align-items: start;
+  }
+}
+
+/* ===== Карточка с подсказками (визуально как логин-карта) ===== */
+.tips-card{
+  width: 100%;
+  background: #fff;
+  border-radius: var(--card-radius);
+  box-shadow: var(--card-shadow-right);
+  padding: 20px 20px 24px;
+}
+
+/* Заголовок и подзаголовки в стиле логина */
+.tips-title{
+  margin: 0 0 12px 0;
+  font-family: 'Abel', system-ui, sans-serif;
+  font-size: 1.25rem;
+  letter-spacing: .2px;
+}
+
+.tips-subtitle{
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 6px;
+}
+
+.tips-section{ margin-top: 10px; }
+
+.tips-list{
+  margin: 0;
+  padding-left: 1.1rem;         /* маркерный отступ */
+}
+
+.tips-list li{ margin: 4px 0; }
+
+/* Читаемые «чипы» для логина/пароля */
+.tips-list code{
+  background: #f7fafc;
+  border: 1px solid #e6e9ef;
+  border-radius: 6px;
+  padding: 2px 6px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: .95em;
+}
