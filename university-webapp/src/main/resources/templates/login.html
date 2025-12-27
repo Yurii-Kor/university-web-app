@@ -4,18 +4,13 @@
 <meta charset="utf-8" />
 <title>Login</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<link
-	href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css"
-	rel="stylesheet"
-	integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB"
-	crossorigin="anonymous">
 <link rel="icon" th:href="@{/favicon.ico}" href="/favicon.ico" />
 <link rel="stylesheet" th:href="@{/css/app.css}" href="/css/app.css" />
+<link rel="stylesheet" th:href="@{/css/pages/login.css}" href="/css/pages/login.css" />
 </head>
 
 <body class="login-page">
 
-	<!-- Хедер — без изменений -->
 	<header class="ou-header">
 		<div class="ou-header__logo">
 			<img th:src="@{/images/ou-logo.png}" src="/images/ou-logo.png"
@@ -32,9 +27,24 @@
 
 	<main class="login-main">
 		<div class="login-grid">
-			<section class="login-card" role="region"
-				aria-labelledby="login-title">
-				<h1 id="login-title" class="login-card__title">Sign in</h1>
+			<section class="ou-card login-card" role="region" aria-labelledby="login-title">
+				<h1 id="login-title" class="ou-card__title">Sign in</h1>
+				
+				<div class="ou-alert ou-alert--error" th:if="${param.bad != null}">
+  					Invalid email or password.
+				</div>
+
+				<div class="ou-alert ou-alert--warn" th:if="${param.disabled != null}">
+  					Your account is disabled. Please contact an administrator.
+				</div>
+
+				<div class="ou-alert ou-alert--warn" th:if="${param.locked != null}">
+  					Your account is locked. Please contact an administrator.
+				</div>
+
+				<div class="ou-alert ou-alert--success" th:if="${param.logout != null}">
+  					You have been logged out.
+				</div>
 
 				<form class="login-form" th:action="@{/login}" method="post"
 					novalidate>
@@ -66,23 +76,52 @@
 				</form>
 			</section>
 
-			<aside class="tips-card" role="complementary"
-				aria-labelledby="tips-title">
-				<h2 id="tips-title" class="tips-title">Test accounts</h2>
+			<aside class="ou-card tips-card" role="complementary" aria-labelledby="tips-title">
+				<h2 id="tips-title" class="ou-card__title">Test accounts</h2>
 
 				<div class="tips-section">
 					<div class="tips-subtitle">Active</div>
 					<ul class="tips-list">
-						<li>Teacher: <code>teacher2@mail.com</code> / <code>Tch-2!dev</code></li>
-						<li>Student: <code>student2@mail.com</code> / <code>Std-2!dev</code></li>
+  						<li class="tips-item">
+    						<span class="tips-label">Teacher:</span>
+    						<code class="tips-code">teacher2@mail.com</code>
+    						<code class="tips-code">Tch-2!dev</code>
+  						</li>
+
+  						<li class="tips-item">
+    						<span class="tips-label">Student:</span>
+    						<code class="tips-code">student2@mail.com</code>
+    						<code class="tips-code">Std-2!dev</code>
+  						</li>
+
+  						<li class="tips-item">
+    						<span class="tips-label">Admin:</span>
+    						<code class="tips-code">admin2@mail.com</code>
+    						<code class="tips-code">Adm-2!dev</code>
+  						</li>
 					</ul>
 				</div>
 
 				<div class="tips-section">
 					<div class="tips-subtitle">Blocked (for testing)</div>
 					<ul class="tips-list">
-						<li>Teacher: <code>teacher1@mail.com</code> / <code>Tch-1!dev</code></li>
-						<li>Student: <code>student1@mail.com</code> / <code>Std-1!dev</code></li>
+						<li class="tips-item">
+    						<span class="tips-label">Teacher:</span>
+    						<code class="tips-code">teacher1@mail.com</code>
+    						<code class="tips-code">Tch-1!dev</code>
+  						</li>
+
+  						<li class="tips-item">
+    						<span class="tips-label">Student:</span>
+    						<code class="tips-code">student1@mail.com</code>
+    						<code class="tips-code">Std-1!dev</code>
+  						</li>
+
+  						<li class="tips-item">
+    						<span class="tips-label">Admin:</span>
+    						<code class="tips-code">admin1@mail.com</code>
+    						<code class="tips-code">Adm-1!dev</code>
+  						</li>
 					</ul>
 				</div>
 			</aside>

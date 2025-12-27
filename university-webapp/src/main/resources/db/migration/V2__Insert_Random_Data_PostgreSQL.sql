@@ -4,8 +4,10 @@ DO $$
 DECLARE
   teacher_count         int  := 6;
   student_count         int  := 100;
+  admin_count           int  := 2;
   disabled_teacher_num  int  := 1;
   disabled_student_num  int  := 1;
+  disabled_admin_num    int  := 1;
 
   fn text[] := ARRAY[
     'Alice','Bob','Charlie','David','Eva','Frank','Grace','Hannah','Ian','Jane',
@@ -55,13 +57,25 @@ BEGIN
     ln[1 + floor(random() * ln_len)::int]
   FROM generate_series(1, student_count) AS s
   ON CONFLICT (email) DO NOTHING;
+  
+  -- ADMINS: email: adminN@mail.com, pass: Adm-N!dev
+  INSERT INTO app_user (email, password, role, first_name, last_name)
+  SELECT
+    format('admin%s@mail.com', s),
+    crypt(format('Adm-%s!dev', s), gen_salt('bf', 10)),
+    'ADMIN',
+    fn[1 + floor(random() * fn_len)::int],
+    ln[1 + floor(random() * ln_len)::int]
+  FROM generate_series(1, admin_count) AS s
+  ON CONFLICT (email) DO NOTHING;
 
   -- DISABLE USERS
   UPDATE app_user
   SET enabled = false
   WHERE email IN (
     format('teacher%s@mail.com', disabled_teacher_num),
-    format('student%s@mail.com', disabled_student_num)
+    format('student%s@mail.com', disabled_student_num),
+    format('admin%s@mail.com', disabled_admin_num)
   );
 
   ----------------------------------------------------------------------

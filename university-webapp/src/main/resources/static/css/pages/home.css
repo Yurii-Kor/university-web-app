@@ -1,0 +1,36 @@
+/* Main area below the header */
+.home-main {
+  min-height: calc(100vh - var(--header-height));
+  padding: var(--space-5) var(--space-3) 32px;
+}
+
+/* Page content wrapper */
+.home-wrap {
+  width: 100%;
+  max-width: 1040px;
+  margin: 0 auto;
+}
+
+/* Single info card */
+.home-card {
+  width: 100%;
+  max-width: 860px;
+}
+
+.home-text-muted {
+  color: var(--text-muted);
+}
+
+.home-subtitle {
+  margin: var(--space-4) 0 var(--space-2) 0;
+  font-size: 1.1rem;
+}
+
+.home-list {
+  margin: 0;
+  padding-left: 1.1rem;
+}
+
+.home-list li {
+  margin: 6px 0;
+}

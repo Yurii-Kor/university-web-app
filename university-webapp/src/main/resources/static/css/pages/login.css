@@ -1,0 +1,86 @@
+/* Area below the header */
+.login-main {
+  min-height: calc(100vh - var(--header-height));
+  display: grid;
+  place-items: start center;
+  padding: var(--space-5) var(--space-3) 32px;
+}
+
+/* Two-column layout */
+.login-grid {
+  width: 100%;
+  max-width: 1040px;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-4);
+  margin-top: 8px;
+}
+
+@media (min-width: 900px) {
+  .login-grid {
+    grid-template-columns: 1fr 1fr;
+    align-items: start;
+  }
+}
+
+/* Form */
+.login-form { display: grid; gap: var(--space-3); }
+
+.login-field { display: grid; gap: var(--space-1); }
+
+.login-label { font-size: 0.95rem; }
+
+.login-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 4px;
+}
+
+/* Cards (only sizing/spacing — base visuals are in app.css) */
+.login-card { width: 100%; max-width: 440px; margin-top: 8px; }
+.tips-card  { width: 100%; }
+
+/* Tips */
+.tips-subtitle {
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 6px;
+}
+
+.tips-section { margin-top: 10px; }
+
+.tips-list { margin: 0; padding-left: 1.1rem; }
+.tips-list li { margin: 4px 0; }
+
+.tips-list code {
+  background: #f7fafc;
+  border: 1px solid #e6e9ef;
+  border-radius: 6px;
+  padding: 2px 6px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.95em;
+}
+
+/* Test accounts alignment */
+.tips-list {
+  list-style: none;
+  padding-left: 0;
+  margin: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.tips-item {
+  display: grid;
+  grid-template-columns: 90px 1fr auto; /* label | email | password */
+  column-gap: 10px;
+  align-items: baseline;
+}
+
+.tips-label {
+  font-weight: 600;
+}
+
+.tips-code {
+  white-space: nowrap;
+}

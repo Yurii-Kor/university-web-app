@@ -1,0 +1,151 @@
+/* Profile pages (admin/teacher/student) */
+body.profile-page {
+  background: var(--bg);
+}
+
+.profile-main {
+  padding: var(--space-5) var(--space-3);
+}
+
+.profile-wrap {
+  max-width: 920px;
+  margin: 0 auto;
+}
+
+.profile-grid {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.profile-subtitle {
+  margin: var(--space-4) 0 var(--space-2);
+  font-family: 'Abel', system-ui, sans-serif;
+  font-size: 1.15rem;
+  letter-spacing: 0.2px;
+}
+
+/* Key-value definition list (dl/dt/dd) */
+.kv {
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  column-gap: var(--space-3);
+  row-gap: var(--space-2);
+}
+
+.kv-key,
+.kv-val {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  background: rgba(0, 0, 0, 0.03);
+}
+
+.kv-key {
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.kv-val {
+  word-break: break-word;
+}
+
+/* Optional: on small screens stack into 1 column */
+@media (max-width: 640px) {
+  .kv {
+    grid-template-columns: 1fr;
+  }
+
+  .kv-key,
+  .kv-val {
+    border-radius: var(--radius-md);
+  }
+
+  .kv-key {
+    background: rgba(0, 0, 0, 0.05);
+  }
+}
+
+.profile-note {
+  margin: var(--space-3) 0 0;
+  color: var(--text-muted);
+  font-size: 0.95rem;
+}
+
+/* make content inside card narrower */
+.profile-card-inner {
+  max-width: 680px;
+  margin: 0 auto;
+}
+
+/* ===== inline edit form ===== */
+.profile-actions {
+  display: flex;
+  gap: var(--space-2);
+  justify-content: flex-end;
+  margin-bottom: var(--space-2);
+}
+
+.profile-edit {
+  margin-top: var(--space-3);
+}
+
+.profile-edit summary {
+  list-style: none;
+  cursor: pointer;
+}
+
+.profile-edit summary::-webkit-details-marker {
+  display: none;
+}
+
+.profile-edit__body {
+  margin-top: var(--space-3);
+  border-top: 1px solid rgba(0,0,0,0.08);
+  padding-top: var(--space-3);
+}
+
+.form-grid {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.form-row label {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 6px;
+  color: var(--text-muted);
+}
+
+.form-actions {
+  display: flex;
+  gap: var(--space-2);
+  justify-content: flex-end;
+  margin-top: var(--space-2);
+}
+
+.ou-btn--secondary {
+  background: transparent;
+  color: var(--text);
+  border: 2px solid rgba(0,0,0,0.18);
+}
+
+.ou-btn--secondary:hover {
+  background: rgba(0,0,0,0.04);
+}
+
+/* narrower kv */
+.kv {
+  grid-template-columns: 180px 1fr; 
+}
+
+.kv-val {
+  max-width: 420px; 
+}
+
+/* if value is long: wrap nicely */
+.kv-val {
+  overflow-wrap: anywhere;
+}
+

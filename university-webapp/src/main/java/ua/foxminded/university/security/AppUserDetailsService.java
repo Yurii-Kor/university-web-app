@@ -16,15 +16,15 @@ public class AppUserDetailsService implements UserDetailsService {
 	private final AppUserRepository usersRepository;
 
 	@Override
-	public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-		String email = username == null ? null : username.toLowerCase();
+	public UserDetails loadUserByUsername(String rawemail) throws UsernameNotFoundException {
+		String email = rawemail == null ? null : rawemail.toLowerCase();
 
 		AppUser currentUser = usersRepository.findByEmailIgnoreCase(email)
-				.orElseThrow(() -> new UsernameNotFoundException("User not found: " + username));
+				.orElseThrow(() -> new UsernameNotFoundException("User not found: " + rawemail));
 
 		var authorities = List.of(new SimpleGrantedAuthority("ROLE_" + currentUser.getRole().name()));
 
-		return User.withUsername(currentUser.getEmail())
+		return User.withUsername(currentUser.getId().toString())
 				.password(currentUser.getPassword())
 				.authorities(authorities)
 				.disabled(!currentUser.isEnabled())
