@@ -2,8 +2,6 @@ package ua.foxminded.university.web.profile;
 
 import lombok.RequiredArgsConstructor;
 
-import java.util.Optional;
-
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -13,9 +11,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
-import org.springframework.web.servlet.support.RequestContextUtils;
 
-import jakarta.servlet.http.HttpServletRequest;
 import ua.foxminded.university.service.AppUserService;
 import ua.foxminded.university.service.StudentService;
 import ua.foxminded.university.service.TeacherService;
@@ -36,61 +32,48 @@ public class ProfileController {
 	private final DtoFieldNormalizer fieldNormalizer;
 
 	@GetMapping("/profile")
-	public String profileRouter(@AuthenticationPrincipal UserDetails principal, 
-								HttpServletRequest request,
-								RedirectAttributes ra) {
+	public String profile(@AuthenticationPrincipal UserDetails principal, Model model) {
+	    principalHandler.requirePrincipal(principal);
+	    var roleKey = principalHandler.getRole(principal);
+	    var userId = principalHandler.parseUserId(principal);
 
-		principalHandler.requirePrincipal(principal);
-		var roleKey = principalHandler.getRole(principal);
-
-		var param = Optional.ofNullable(request.getQueryString())
-				.filter(qs -> !qs.isBlank())
-				.map(qs -> "?" + qs)
-				.orElse("");
-
-		Optional.ofNullable(RequestContextUtils.getInputFlashMap(request))
-				.ifPresent(flash -> flash.forEach(ra::addFlashAttribute));
-
-		return switch (roleKey) {
-			case "admin", "teacher", "student" -> "redirect:/profile/" + roleKey + param;
-			default ->
-				throw new AccessDeniedException("Unsupported role=" + roleKey + " for userId=" + principal.getUsername());
-		};
-	}
-
-	@GetMapping("/profile/admin")
-	public String adminProfile(@AuthenticationPrincipal UserDetails principal, Model model) {
-		var userId = principalHandler.parseUserId(principal);
-		model.addAttribute("profile", appUserService.getAdminProfileView(userId));
+	    return switch (roleKey) {
+	    
+		case "admin" -> {
+			model.addAttribute("profile", appUserService.getAdminProfileView(userId));
+			yield "profile/admin";
+		}
 		
-		return "profile/admin";
-	}
-
-	@GetMapping("/profile/teacher")
-	public String teacherProfile(@AuthenticationPrincipal UserDetails principal, Model model) {
-		var userId = principalHandler.parseUserId(principal);
-		model.addAttribute("profile", teacherService.getTeacherProfileView(userId));
+		case "teacher" -> {
+			model.addAttribute("profile", teacherService.getTeacherProfileView(userId));
+			yield "profile/teacher";
+		}
 		
-		return "profile/teacher";
-	}
-
-	@GetMapping("/profile/student")
-	public String studentProfile(@AuthenticationPrincipal UserDetails principal, Model model) {
-		var userId = principalHandler.parseUserId(principal);
-		model.addAttribute("profile", studentService.getStudentProfileView(userId));
+		case "student" -> {
+			model.addAttribute("profile", studentService.getStudentProfileView(userId));
+			yield "profile/student";
+		}
 		
-		return "profile/student";
+		default ->
+			throw new AccessDeniedException("Unsupported role=" + roleKey + " for userId=" + principal.getUsername());
+			
+	    };
 	}
 
 	@PostMapping("/profile/self/update")
-	public String updateSelf(@AuthenticationPrincipal UserDetails principal, @ModelAttribute SelfUpdateForm form) {        
-        appUserService.updateProfileFields(new AppUserSelfUpdateDto(
-        		principalHandler.parseUserId(principal),
-        		fieldNormalizer.normalizeEmail(form.email()),
-        		fieldNormalizer.normalizeField(form.firstName()),
-        		fieldNormalizer.normalizeField(form.lastName())
-        ));
+	public String updateSelf(@AuthenticationPrincipal UserDetails principal,
+	                         @ModelAttribute SelfUpdateForm form,
+	                         RedirectAttributes ra) {
 
-		return "redirect:/profile?updated";
+	    appUserService.updateProfileFields(new AppUserSelfUpdateDto(
+	        principalHandler.parseUserId(principal),
+	        fieldNormalizer.normalizeEmail(form.email()),
+	        fieldNormalizer.normalizeField(form.firstName()),
+	        fieldNormalizer.normalizeField(form.lastName())
+	    ));
+
+	    ra.addFlashAttribute("updated", true);
+	    
+	    return "redirect:/profile";
 	}
 }

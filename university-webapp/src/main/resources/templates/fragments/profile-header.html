@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<body>
+
+<header class="ou-header"
+        th:fragment="ouHeader(pageTitle)">
+  <div class="ou-header__logo">
+    <img th:src="@{/images/ou-logo.png}" src="/images/ou-logo.png" alt="Open University logo">
+  </div>
+
+  <div class="ou-header__text ou-header__text--with-actions">
+    <div class="ou-header__brand" aria-label="Open University">
+      <span class="ou-brand-ou">O</span><span class="ou-brand-rest">pen</span>
+      <span class="ou-brand-ou">U</span><span class="ou-brand-rest">niversity</span>
+    </div>
+
+    <div class="ou-header__page" aria-label="Current page"
+         th:text="${pageTitle}">
+      Page
+    </div>
+
+    <div class="ou-header__actions" aria-label="Header actions">
+      <form class="ou-inline-form" th:action="@{/logout}" method="post">
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
+        <button type="submit" class="ou-btn ou-btn--ghost">Log out</button>
+      </form>
+    </div>
+  </div>
+</header>
+
+</body>
+</html>

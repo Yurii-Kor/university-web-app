@@ -4,8 +4,6 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.authentication.AuthenticationProvider;
-import org.springframework.security.authentication.DisabledException;
-import org.springframework.security.authentication.LockedException;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -35,29 +33,21 @@ public class SecurityConfig {
 
 		http.csrf(Customizer.withDefaults())
 
-				.authorizeHttpRequests(
-						reg -> reg.requestMatchers("/", "/login", "/css/**", "/js/**", "/images/**", "/favicon.ico")
-								.permitAll()
-								.anyRequest()
-								.authenticated())
+				.authorizeHttpRequests(reg -> reg.requestMatchers("/css/**", "/js/**", "/images/**", "/favicon.ico").permitAll()
+						.requestMatchers("/").permitAll()
+						.requestMatchers("/login").anonymous()
+						.anyRequest().authenticated())
 
 				.formLogin(form -> form.loginPage("/login")
 						.loginProcessingUrl("/login")
 						.defaultSuccessUrl("/profile", true)
-						.failureHandler((req, res, ex) -> {
-							String q;
-							q = (ex instanceof DisabledException) ? "disabled" : "bad";
-							q = (ex instanceof LockedException)   ? "locked"   : q;
-							
-							res.sendRedirect("/login?" + q);
-						})
-						.permitAll())
+						.failureUrl("/login?error"))
 
 				.exceptionHandling(ex -> ex.authenticationEntryPoint((req, res, authEx) -> {
 					doLogoutIfAuthenticated(req, res, logoutHandler);
-					res.sendRedirect("/login?auth");
+					res.sendRedirect(req.getContextPath() + "/login?auth");
 				}).accessDeniedHandler((req, res, deniedEx) -> {
-					res.sendRedirect("/profile?denied");
+					res.sendRedirect(resolveDeniedRedirect(req));
 				}))
 
 				.logout(logout -> logout.logoutUrl("/logout")
@@ -84,5 +74,16 @@ public class SecurityConfig {
 		if (authenticated) {
 			logoutHandler.logout(req, res, auth);
 		}
+	}
+	
+	private String resolveDeniedRedirect(HttpServletRequest req) {
+		String ctx = req.getContextPath();
+		String uri = req.getRequestURI();
+
+		if ((ctx + "/login").equals(uri)) {
+			return ctx + "/profile";
+		}
+
+		return ctx + "/profile?denied";
 	}
 }
