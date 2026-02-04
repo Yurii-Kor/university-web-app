@@ -1,27 +1,27 @@
 <!doctype html>
-<html lang="en"
-      xmlns:th="http://www.thymeleaf.org">
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
 <body>
 
-<div th:fragment="selfEdit(profile, denied, hasError, hasUpdated, err)">
+<div th:fragment="selfEdit(profile, hasError, hasUpdated, err)" class="profile-edit-block">
 
-  <div th:if="${hasError}" class="ou-alert ou-alert--error" th:text="${err}">
-    Something went wrong.
-  </div>
-
-  <div class="ou-alert ou-alert--warn" th:if="${denied}">
-    Access denied.
-  </div>
-
-  <div class="ou-alert ou-alert--success" th:if="${hasUpdated}">
+  <div class="ou-alert ou-alert--success profile-edit-block__msg"
+       th:if="${hasUpdated}">
     Profile updated.
   </div>
 
   <details class="profile-edit"
-           th:attr="open=${(hasUpdated or denied or hasError) ? 'open' : null}">
+           th:attr="open=${hasError ? 'open' : null}">
+
     <summary class="ou-btn ou-btn--ghost">Edit profile</summary>
 
     <div class="profile-edit__body">
+
+      <div class="ou-alert ou-alert--error profile-edit__msg"
+           th:if="${hasError}"
+           th:text="${err}">
+        Something went wrong.
+      </div>
+
       <form th:action="@{/profile/self/update}" method="post" class="form-grid">
         <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
 

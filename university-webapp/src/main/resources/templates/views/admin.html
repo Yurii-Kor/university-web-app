@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="utf-8" />
+  <title>Admin</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="icon" th:href="@{/favicon.ico}" href="/favicon.ico" />
+  <link rel="stylesheet" th:href="@{/css/app.css}" href="/css/app.css" />
+  <link rel="stylesheet" th:href="@{/css/pages/profile.css}" href="/css/pages/profile.css" />
+</head>
+
+<body class="profile-page">
+  <div th:replace="~{fragments/header :: ouHeader('admin')}"></div>
+
+  <main class="profile-main">
+    <div class="profile-wrap">
+      <section class="ou-card profile-grid">
+        <div class="profile-card-inner">
+          <h1 class="ou-card__title">Admin view</h1>
+          <p class="profile-note">Stub page. Content will be added later.</p>
+        </div>
+      </section>
+    </div>
+  </main>
+</body>
+</html>

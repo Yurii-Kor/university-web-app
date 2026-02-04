@@ -11,17 +11,18 @@
 </head>
 
 <body class="profile-page">
-<div th:replace="~{fragments/profile-header :: ouHeader('Profile (Teacher)')}"></div>
+<div th:replace="~{fragments/header :: ouHeader('profile')}"></div>
 
 <main class="profile-main"
-      th:with="denied=${param.denied != null},
-               hasError=${err != null},
+      th:with="hasError=${err != null},
                hasUpdated=${updated == true}">
                
  	<div class="profile-wrap">
     	<section class="ou-card profile-grid" aria-labelledby="profile-title">
     		<div class="profile-card-inner">
       			<h1 id="profile-title" class="ou-card__title">Teacher profile</h1>
+      			
+      			<div th:replace="~{fragments/profile-notices :: profileNotices(${profileMsg})}"></div>
 
       			<dl class="kv" aria-label="Account details">
         			<dt class="kv-key">Email</dt>
@@ -49,7 +50,6 @@
       			
       			<div th:replace="~{fragments/profile-edit :: selfEdit(
                 	${profile},
-                	${denied},
                 	${hasError},
                 	${hasUpdated},
                 	${err} )}">

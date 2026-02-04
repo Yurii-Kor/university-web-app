@@ -2,22 +2,28 @@ package ua.foxminded.university.security.config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.logout.SecurityContextLogoutHandler;
 
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
+import ua.foxminded.university.model.domain.enums.UserRole;
+import ua.foxminded.university.security.web.LoginAuthEntryPoint;
+import ua.foxminded.university.security.web.LoginFailureHandler;
+import ua.foxminded.university.security.web.LogoutToLoginSuccessHandler;
+import ua.foxminded.university.security.web.ProfileAccessDeniedHandler;
 
 @Configuration
 public class SecurityConfig {
+	
+	private static final String SESSION_NAME ="JSESSIONID";
+	
+	private static final String ADMIN = UserRole.ADMIN.name();
+	private static final String TEACHER = UserRole.TEACHER.name();
+	private static final String STUDENT = UserRole.STUDENT.name();
 
 	@Bean
 	AuthenticationProvider authenticationProvider(UserDetailsService uds, PasswordEncoder encoder) {
@@ -28,62 +34,42 @@ public class SecurityConfig {
 	}
 
 	@Bean
-	SecurityFilterChain filterChain(HttpSecurity http, AuthenticationProvider authProvider) throws Exception {
-		var logoutHandler = new SecurityContextLogoutHandler();
-
+	SecurityFilterChain filterChain(HttpSecurity http, 
+									AuthenticationProvider authProvider, 
+									LoginFailureHandler failureHandler, 
+									LoginAuthEntryPoint loginAuthEntryPoint,
+									ProfileAccessDeniedHandler profileAccessDeniedHandler,
+									LogoutToLoginSuccessHandler logoutSuccessHandler) throws Exception {
+		
 		http.csrf(Customizer.withDefaults())
 
 				.authorizeHttpRequests(reg -> reg.requestMatchers("/css/**", "/js/**", "/images/**", "/favicon.ico").permitAll()
 						.requestMatchers("/").permitAll()
 						.requestMatchers("/login").anonymous()
+						.requestMatchers("/admin/**", "/admin").hasRole(ADMIN)
+						.requestMatchers("/schedule/**", "/schedule").hasAnyRole(TEACHER, STUDENT)
 						.anyRequest().authenticated())
 
 				.formLogin(form -> form.loginPage("/login")
 						.loginProcessingUrl("/login")
 						.defaultSuccessUrl("/profile", true)
-						.failureUrl("/login?error"))
+						.failureHandler(failureHandler))
 
-				.exceptionHandling(ex -> ex.authenticationEntryPoint((req, res, authEx) -> {
-					doLogoutIfAuthenticated(req, res, logoutHandler);
-					res.sendRedirect(req.getContextPath() + "/login?auth");
-				}).accessDeniedHandler((req, res, deniedEx) -> {
-					res.sendRedirect(resolveDeniedRedirect(req));
-				}))
+				.exceptionHandling(ex -> ex
+						.authenticationEntryPoint(loginAuthEntryPoint)
+						.accessDeniedHandler(profileAccessDeniedHandler))
 
 				.logout(logout -> logout.logoutUrl("/logout")
-						.logoutSuccessUrl("/")
+						.logoutUrl("/logout")
+					    .logoutSuccessHandler(logoutSuccessHandler)
 						.invalidateHttpSession(true)
 						.clearAuthentication(true)
-						.deleteCookies("JSESSIONID"))
+						.deleteCookies(SESSION_NAME))
 
 				.authenticationProvider(authProvider)
 
 				.httpBasic(Customizer.withDefaults());
 
 		return http.build();
-	}
-
-	private void doLogoutIfAuthenticated(HttpServletRequest req, 
-										 HttpServletResponse res,
-										 SecurityContextLogoutHandler logoutHandler) {
-		
-		var auth = SecurityContextHolder.getContext().getAuthentication();
-
-		var authenticated = auth != null && !(auth instanceof AnonymousAuthenticationToken) && auth.isAuthenticated();
-
-		if (authenticated) {
-			logoutHandler.logout(req, res, auth);
-		}
-	}
-	
-	private String resolveDeniedRedirect(HttpServletRequest req) {
-		String ctx = req.getContextPath();
-		String uri = req.getRequestURI();
-
-		if ((ctx + "/login").equals(uri)) {
-			return ctx + "/profile";
-		}
-
-		return ctx + "/profile?denied";
 	}
 }

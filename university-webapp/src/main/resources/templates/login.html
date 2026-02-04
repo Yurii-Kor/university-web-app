@@ -16,13 +16,19 @@
 			<img th:src="@{/images/ou-logo.png}" src="/images/ou-logo.png"
 				alt="Open University logo">
 		</div>
-		<div class="ou-header__text">
-			<div class="ou-header__brand" aria-label="Open University">
-				<span class="ou-brand-ou">O</span><span class="ou-brand-rest">pen
-				</span> <span class="ou-brand-ou">U</span><span class="ou-brand-rest">niversity</span>
-			</div>
-			<div class="ou-header__page" aria-label="Current page">Log In</div>
-		</div>
+		
+		<div class="ou-header__text ou-header__text--with-actions">
+    		<div class="ou-header__brand" aria-label="Open University">
+      			<span class="ou-brand-ou">O</span><span class="ou-brand-rest">pen</span>
+      			<span class="ou-brand-ou">U</span><span class="ou-brand-rest">niversity</span>
+    		</div>
+
+    		<div class="ou-header__page" aria-label="Current page">Log In</div>
+
+    		<div class="ou-header__actions" aria-label="Header actions">
+      			<a th:href="@{/}" href="/" class="ou-btn ou-btn--ghost">Home</a>
+    		</div>
+  		</div>
 	</header>
 
 	<main class="login-main">
@@ -30,21 +36,26 @@
 			<section class="ou-card login-card" role="region" aria-labelledby="login-title">
 				<h1 id="login-title" class="ou-card__title">Sign in</h1>
 				
-				<div class="ou-alert ou-alert--error" th:if="${param.bad != null}">
+				<div class="ou-alert ou-alert--error" th:if="${loginMsg == 'BAD_CREDENTIALS'}">
   					Invalid email or password.
 				</div>
 
-				<div class="ou-alert ou-alert--warn" th:if="${param.disabled != null}">
+				<div class="ou-alert ou-alert--warn" th:if="${loginMsg == 'ACCOUNT_BLOCKED'}">
   					Your account is disabled. Please contact an administrator.
 				</div>
 
-				<div class="ou-alert ou-alert--warn" th:if="${param.locked != null}">
-  					Your account is locked. Please contact an administrator.
+				<div class="ou-alert ou-alert--warn" th:if="${loginMsg == 'AUTH_REQUIRED'}">
+  					Login required.
 				</div>
 
-				<div class="ou-alert ou-alert--success" th:if="${param.logout != null}">
+				<div class="ou-alert ou-alert--warn" th:if="${loginMsg == 'SESSION_EXPIRED'}">
+  					Your session expired. Please log in again.
+				</div>
+
+				<div class="ou-alert ou-alert--success" th:if="${loginMsg == 'LOGGED_OUT'}">
   					You have been logged out.
 				</div>
+
 
 				<form class="login-form" th:action="@{/login}" method="post"
 					novalidate>
@@ -84,20 +95,32 @@
 					<ul class="tips-list">
   						<li class="tips-item">
     						<span class="tips-label">Teacher:</span>
-    						<code class="tips-code">teacher2@mail.com</code>
-    						<code class="tips-code">Tch-2!dev</code>
+    						
+    						<code class="tips-code" id="acc-teacher2-email">teacher2@mail.com</code>
+    						<button type="button" class="tips-copy" data-copy="#acc-teacher2-email" title="Copy email" aria-label="Copy email">📋</button>
+    						
+    						<code class="tips-code" id="acc-teacher2-pass">Tch-2!dev</code>
+    						<button type="button" class="tips-copy" data-copy="#acc-teacher2-pass" title="Copy password" aria-label="Copy password">📋</button>
   						</li>
 
   						<li class="tips-item">
     						<span class="tips-label">Student:</span>
-    						<code class="tips-code">student2@mail.com</code>
-    						<code class="tips-code">Std-2!dev</code>
+    						
+    						<code class="tips-code" id="acc-student2-email">student2@mail.com</code>
+    						<button type="button" class="tips-copy" data-copy="#acc-student2-email" title="Copy email" aria-label="Copy email">📋</button>
+    						
+    						<code class="tips-code" id="acc-student2-pass">Std-2!dev</code>
+    						<button type="button" class="tips-copy" data-copy="#acc-student2-pass" title="Copy password" aria-label="Copy password">📋</button>
   						</li>
 
   						<li class="tips-item">
     						<span class="tips-label">Admin:</span>
-    						<code class="tips-code">admin2@mail.com</code>
-    						<code class="tips-code">Adm-2!dev</code>
+    						
+    						<code class="tips-code" id="acc-admin2-email">admin2@mail.com</code>
+    						<button type="button" class="tips-copy" data-copy="#acc-admin2-email" title="Copy email" aria-label="Copy email">📋</button>
+    						
+    						<code class="tips-code" id="acc-admin2-pass">Adm-2!dev</code>
+    						<button type="button" class="tips-copy" data-copy="#acc-admin2-pass" title="Copy password" aria-label="Copy password">📋</button>
   						</li>
 					</ul>
 				</div>
@@ -107,20 +130,32 @@
 					<ul class="tips-list">
 						<li class="tips-item">
     						<span class="tips-label">Teacher:</span>
-    						<code class="tips-code">teacher1@mail.com</code>
-    						<code class="tips-code">Tch-1!dev</code>
+    						
+    						<code class="tips-code" id="acc-teacher1-email">teacher1@mail.com</code>
+    						<button type="button" class="tips-copy" data-copy="#acc-teacher1-email" title="Copy email" aria-label="Copy email">📋</button>
+    						
+    						<code class="tips-code" id="acc-teacher1-pass">Tch-1!dev</code>
+    						<button type="button" class="tips-copy" data-copy="#acc-teacher1-pass" title="Copy password" aria-label="Copy password">📋</button>
   						</li>
 
   						<li class="tips-item">
     						<span class="tips-label">Student:</span>
-    						<code class="tips-code">student1@mail.com</code>
-    						<code class="tips-code">Std-1!dev</code>
+    						
+    						<code class="tips-code" id="acc-student1-email">student1@mail.com</code>
+    						<button type="button" class="tips-copy" data-copy="#acc-student1-email" title="Copy email" aria-label="Copy email">📋</button>
+    						
+    						<code class="tips-code" id="acc-student1-pass">Std-1!dev</code>
+    						<button type="button" class="tips-copy" data-copy="#acc-student1-pass" title="Copy password" aria-label="Copy password">📋</button>
   						</li>
 
   						<li class="tips-item">
     						<span class="tips-label">Admin:</span>
-    						<code class="tips-code">admin1@mail.com</code>
-    						<code class="tips-code">Adm-1!dev</code>
+    						
+    						<code class="tips-code" id="acc-admin1-email">admin1@mail.com</code>
+    						<button type="button" class="tips-copy" data-copy="#acc-admin1-email" title="Copy email" aria-label="Copy email">📋</button>
+    						
+    						<code class="tips-code" id="acc-admin1-pass">Adm-1!dev</code>
+    						<button type="button" class="tips-copy" data-copy="#acc-admin1-pass" title="Copy password" aria-label="Copy password">📋</button>
   						</li>
 					</ul>
 				</div>
@@ -128,25 +163,7 @@
 		</div>
 	</main>
 
-	<script>
-  (function () {
-    const input = document.getElementById('password');
-    const btn = document.getElementById('togglePassword');
-    if (!input || !btn) return;
-
-    btn.addEventListener('click', () => {
-      const show = input.type === 'password';
-      input.type = show ? 'text' : 'password';
-      btn.setAttribute('aria-pressed', String(show));
-      btn.title = show ? 'Hide password' : 'Show password';
-      btn.textContent = show ? '🙈' : '👁';
-
-      input.focus({ preventScroll: true });
-      const len = input.value.length;
-      try { input.setSelectionRange(len, len); } catch(e) {}
-    });
-  })();
-  </script>
+	<script th:src="@{/js/login.js}" src="/js/login.js" defer></script>
 
 </body>
 

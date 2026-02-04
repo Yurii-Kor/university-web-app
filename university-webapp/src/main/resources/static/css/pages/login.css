@@ -84,3 +84,38 @@
 .tips-code {
   white-space: nowrap;
 }
+
+.tips-copy {
+  border: 2px solid rgba(0,0,0,0.18);
+  background: transparent;
+  color: var(--text);
+  border-radius: 999px;
+  width: 34px;
+  height: 34px;
+  display: inline-grid;
+  place-items: center;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0;
+}
+
+.tips-copy:hover {
+  background: rgba(0,0,0,0.04);
+}
+
+.tips-copy:active {
+  transform: translateY(1px);
+}
+
+.tips-copy:disabled {
+  opacity: 0.7;
+  cursor: default;
+}
+
+.tips-item {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
