@@ -26,12 +26,10 @@
       		
       		<div class="ou-header__actions" aria-label="Header actions">
 
-  				<!-- Anonymous: show Log in -->
   				<div sec:authorize="isAnonymous()">
     				<a class="ou-btn ou-btn--ghost" th:href="@{/login}" href="/login">Log in</a>
   				</div>
 
-  				<!-- Authenticated: show Profile + Log out -->
   				<div sec:authorize="isAuthenticated()">
     				<a class="ou-btn ou-btn--ghost" th:href="@{/profile}" href="/profile">Profile</a>
 

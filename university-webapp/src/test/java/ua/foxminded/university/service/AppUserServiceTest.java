@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 
@@ -168,6 +169,29 @@ class AppUserServiceTest {
 	void createAdmins_duplicateAcrossCalls_fails() {
 		var dup = newAdminDto(testAdmin.getEmail());
 		assertThrows(IllegalArgumentException.class, () -> appUserService.createAdmins(List.of(dup)));
+	}
+	
+	@Test
+	@DisplayName("listAdmins: returns only admins and contains existing ADMIN")
+	void listAdmins_onlyAdmins_containsTestAdmin() {
+	    var rows = appUserService.listAdmins();
+
+	    assertNotNull(rows);
+	    assertFalse(rows.isEmpty(), "Must contain at least one admin (seeded in @BeforeAll)");
+
+	    var me = rows.stream()
+	            .filter(r -> Objects.equals(r.id(), testAdmin.getId()))
+	            .findFirst()
+	            .orElseThrow(() -> new AssertionError("Expected testAdmin to be present in listAdmins()"));
+
+	    assertEquals(testAdmin.getEmail(), me.email());
+	    assertEquals(testAdmin.getFirstName(), me.firstName());
+	    assertEquals(testAdmin.getLastName(), me.lastName());
+	    assertEquals(testAdmin.isEnabled(), me.enabled());
+	    assertNotNull(me.createdAt(), "createdAt must be populated by DB");
+
+	    assertTrue(rows.stream().noneMatch(r -> Objects.equals(r.id(), userStudent.getId())),
+	            "Non-admin users must not appear in admin rows");
 	}
 
 	@Test

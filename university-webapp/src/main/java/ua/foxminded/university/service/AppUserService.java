@@ -21,6 +21,7 @@ import ua.foxminded.university.model.domain.AppUser;
 import ua.foxminded.university.model.domain.enums.UserRole;
 import ua.foxminded.university.model.repository.AppUserRepository;
 import ua.foxminded.university.model.repository.dto.AdminProfileView;
+import ua.foxminded.university.model.repository.dto.AdminRowView;
 import ua.foxminded.university.security.PasswordPolicy;
 import ua.foxminded.university.service.dto.request.appuser.AppUserCreateDto;
 import ua.foxminded.university.service.dto.request.appuser.AppUserPasswordChangeDto;
@@ -91,6 +92,12 @@ public class AppUserService {
 		return usersRepository.findAdminProfileViewById(id)
 				.orElseThrow(() -> new EntityNotFoundException("Admin user not found: id=" + id));
 	}
+	
+	@Transactional(value = TxType.SUPPORTS)
+	public List<AdminRowView> listAdmins() {
+	    return usersRepository.findAdminRows();
+	}
+
 
 	@Transactional(value = TxType.REQUIRES_NEW)
 	public void changePasswordSelf(AppUserPasswordChangeDto dto) {

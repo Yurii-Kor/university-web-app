@@ -33,7 +33,6 @@ public class ProfileController {
 
 	@GetMapping("/profile")
 	public String profile(@AuthenticationPrincipal UserDetails principal, Model model) {
-	    principalHandler.requirePrincipal(principal);
 	    var roleKey = principalHandler.getRole(principal);
 	    var userId = principalHandler.parseUserId(principal);
 

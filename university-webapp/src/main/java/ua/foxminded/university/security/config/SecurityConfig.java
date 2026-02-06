@@ -5,6 +5,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.Customizer;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -17,6 +18,7 @@ import ua.foxminded.university.security.web.LogoutToLoginSuccessHandler;
 import ua.foxminded.university.security.web.ProfileAccessDeniedHandler;
 
 @Configuration
+@EnableMethodSecurity
 public class SecurityConfig {
 	
 	private static final String SESSION_NAME ="JSESSIONID";

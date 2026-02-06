@@ -38,7 +38,9 @@ body {
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
 }
 
-body.login-page {
+/* Page background variants */
+body.login-page,
+body.home-page {
   background: var(--bg);
 }
 
@@ -91,6 +93,27 @@ body.login-page {
   color: var(--text-muted);
 }
 
+/* Header actions layout (right-side actions) */
+.ou-header__text--with-actions {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-rows: 1fr 1fr;
+  align-items: center;
+  column-gap: var(--space-3);
+}
+
+.ou-header__text--with-actions .ou-header__brand { grid-column: 1; grid-row: 1; }
+.ou-header__text--with-actions .ou-header__page  { grid-column: 1; grid-row: 2; }
+
+.ou-header__actions {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  justify-content: flex-end;
+}
+
 /* ===== Reusable components ===== */
 
 /* Card — shared base style for all cards */
@@ -137,10 +160,41 @@ body.login-page {
   padding: 10px 16px;
   cursor: pointer;
   transition: transform 0.06s ease, filter 0.15s ease;
+
+  /* Make .ou-btn usable for <a> and <button> consistently */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  line-height: 1;
 }
 
 .ou-btn:hover { filter: brightness(1.05); }
 .ou-btn:active { transform: translateY(1px); }
+
+/* Ghost button (nice for header on white background) */
+.ou-btn--ghost {
+  background: transparent;
+  color: var(--accent);
+  border: 2px solid var(--accent);
+  padding: 8px 14px;
+}
+
+.ou-btn--ghost:hover {
+  filter: none;
+  background: rgba(0, 85, 170, 0.08);
+}
+
+/* Danger button (shared modifier) */
+.ou-btn--danger {
+  background: rgba(220, 38, 38, 1);
+}
+
+/* Inline form helper (for logout form in header) */
+.ou-inline-form {
+  display: inline;
+  margin: 0;
+}
 
 /* Password "eye" — can be treated as a shared component */
 .password-wrap { position: relative; }
@@ -162,66 +216,7 @@ body.login-page {
 .show-btn:hover { filter: brightness(1.1); }
 .show-btn[disabled] { opacity: 0.5; cursor: default; }
 
-/* Page background variants */
-body.home-page {
-  background: var(--bg);
-}
-
-/* Header actions (e.g., Login / Logout button on the right) */
-.ou-header__text--with-actions {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  grid-template-rows: 1fr 1fr;
-  align-items: center;
-  column-gap: var(--space-3);
-}
-
-.ou-header__text--with-actions .ou-header__brand { grid-column: 1; grid-row: 1; }
-.ou-header__text--with-actions .ou-header__page  { grid-column: 1; grid-row: 2; }
-
-.ou-header__actions {
-  grid-column: 2;
-  grid-row: 1 / span 2;
-  display: flex;
-  gap: var(--space-2);
-  align-items: center;
-  justify-content: flex-end;
-}
-
-/* Make .ou-btn usable for <a> and <button> consistently */
-.ou-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  text-decoration: none;
-  line-height: 1;
-}
-
-/* Ghost button (nice for header on white background) */
-.ou-btn--ghost {
-  background: transparent;
-  color: var(--accent);
-  border: 2px solid var(--accent);
-  padding: 8px 14px;
-}
-
-.ou-btn--ghost:hover {
-  filter: none;
-  background: rgba(0, 85, 170, 0.08);
-}
-
-/* Inline form helper (for logout form in header) */
-.ou-inline-form {
-  display: inline;
-  margin: 0;
-}
-
-body.home-page {
-  background: var(--bg);
-}
-
 /* Alert */
-
 .ou-alert {
   border-radius: var(--radius-md);
   padding: 12px 14px;
@@ -327,11 +322,6 @@ body.home-page {
   white-space: nowrap;
 }
 
-/* header actions already flex; ensure good spacing */
-.ou-header__actions {
-  gap: var(--space-2);
-}
-
 /* On small screens: hide roles to save space */
 @media (max-width: 720px) {
   .ou-userchip__meta { display: none; }
@@ -352,4 +342,25 @@ body.home-page {
 
 .profile-edit__msg {
   margin-bottom: var(--space-3);
+}
+
+/* ===== Badges (shared) ===== */
+.ou-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-weight: 800;
+  font-size: 0.85rem;
+  border: 2px solid transparent;
+}
+
+.ou-badge--success {
+  background: rgba(34, 197, 94, 0.12);
+  border-color: rgba(34, 197, 94, 0.35);
+}
+
+.ou-badge--warn {
+  background: rgba(245, 158, 11, 0.12);
+  border-color: rgba(245, 158, 11, 0.35);
 }
