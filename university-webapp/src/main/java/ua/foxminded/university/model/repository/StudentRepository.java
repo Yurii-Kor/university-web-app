@@ -38,4 +38,7 @@ public interface StudentRepository extends JpaRepository<Student, Long> {
 			where s.id = :id
 			""")
 	Optional<StudentProfileView> findStudentProfileViewById(@Param("id") Long id);
+	
+	@Query("select s.group.id from Student s where s.id = :studentId")
+	Optional<Long> findGroupIdByStudentId(@Param("studentId") Long studentId);
 }

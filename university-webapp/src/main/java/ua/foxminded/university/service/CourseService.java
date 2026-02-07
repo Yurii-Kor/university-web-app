@@ -12,6 +12,7 @@ import ua.foxminded.university.model.domain.StudyGroup;
 import ua.foxminded.university.model.repository.CourseRepository;
 import ua.foxminded.university.model.repository.StudyGroupRepository;
 import ua.foxminded.university.model.repository.TeacherRepository;
+import ua.foxminded.university.model.repository.dto.CourseCardView;
 import ua.foxminded.university.service.dto.request.course.CourseCreateDto;
 import ua.foxminded.university.service.dto.request.course.CourseSelfUpdateDto;
 import ua.foxminded.university.service.dto.request.course.CourseUpdateCodesDto;
@@ -85,6 +86,25 @@ public class CourseService {
 		}
 
 		return courseRepository.findAllById(distinct);
+	}
+	
+	@Transactional(value = TxType.SUPPORTS)
+	public List<CourseCardView> listCourseCardsForAdmin() {
+	    return courseRepository.findCourseCardsAll();
+	}
+
+	@Transactional(value = TxType.SUPPORTS)
+	public List<CourseCardView> listCourseCardsForTeacher(Long teacherId) {
+		Optional.ofNullable(teacherId).orElseThrow(() -> new IllegalArgumentException("teacherId must not be null"));
+		
+		return courseRepository.findCourseCardsByTeacherId(teacherId);
+	}
+	
+	@Transactional(value = TxType.SUPPORTS)
+	public List<CourseCardView> listCourseCardsForStudent(Long studentId) {
+		Optional.ofNullable(studentId).orElseThrow(() -> new IllegalArgumentException("studentId must not be null"));
+
+	    return courseRepository.findCourseCardsByGroupId(studentId);
 	}
 
 	@Transactional(value = TxType.REQUIRES_NEW)

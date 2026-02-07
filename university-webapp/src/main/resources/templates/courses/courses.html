@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+  <meta charset="utf-8" />
+  <title th:text="${pageTitle}">Courses</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="icon" th:href="@{/favicon.ico}" href="/favicon.ico" />
+  <link rel="stylesheet" th:href="@{/css/app.css}" href="/css/app.css" />
+  <link rel="stylesheet" th:href="@{/css/pages/courses.css}" href="/css/pages/courses.css" />
+</head>
+
+<body class="ou-page courses-page">
+<div th:replace="~{fragments/header :: ouHeader('courses')}"></div>
+
+<main class="courses-main">
+  <section class="ou-card courses-shell" aria-label="Courses">
+
+    <div class="courses-toolbar">
+      <div>
+        <h1 class="ou-card__title" th:text="${pageTitle}">Courses</h1>
+        <p class="courses-subtitle" th:text="${pageSubtitle}">...</p>
+      </div>
+
+      <div class="courses-toolbar__actions">
+        <button type="button"
+                class="ou-btn ou-btn--ghost"
+                id="toggleDescriptions"
+                th:if="${!#lists.isEmpty(courses)}">
+          Show descriptions
+        </button>
+
+        <a class="ou-btn ou-btn--ghost"
+           sec:authorize="hasRole('ADMIN')"
+           th:href="@{/courses/create}">
+          + Create course
+        </a>
+      </div>
+    </div>
+
+    <!-- flash messages -->
+    <div class="ou-alert ou-alert--success" th:if="${ok != null}" th:text="${ok}">
+      Done.
+    </div>
+
+    <div class="ou-alert ou-alert--error" th:if="${err != null}" th:text="${err}">
+      Something went wrong.
+    </div>
+
+    <!-- empty -->
+    <div class="ou-alert ou-alert--warn" th:if="${#lists.isEmpty(courses)}">
+      No courses found.
+    </div>
+
+    <!-- grid -->
+    <div class="courses-grid" th:if="${!#lists.isEmpty(courses)}">
+      <article class="ou-card course-card"
+               th:each="c : ${courses}"
+               th:attr="data-id=${c.id}"
+               th:with="
+                 hasDesc=${c.description != null and !c.description.isBlank()},
+                 hasEmail=${c.teacherEmail != null and !c.teacherEmail.isBlank()}
+               ">
+
+        <div class="course-card__head">
+          <div class="course-card__who">
+            <div class="course-card__code">
+              <span th:text="${c.code}">CS-101</span>
+            </div>
+
+            <div class="course-card__name">
+              <span th:text="${c.name}">Course name</span>
+            </div>
+          </div>
+
+          <!-- groups badge: ONLY ADMIN + TEACHER -->
+          <span class="ou-badge ou-badge--success"
+                sec:authorize="hasAnyRole('ADMIN','TEACHER')"
+                th:text="${c.groupsCount} + (c.groupsCount == 1 ? ' group' : ' groups')">
+            0 groups
+          </span>
+        </div>
+
+        <dl class="course-kv">
+          <dt>ID</dt>
+          <dd th:text="${c.id}">1</dd>
+
+          <!-- Teacher details: ONLY ADMIN + STUDENT -->
+          <th:block sec:authorize="hasAnyRole('ADMIN','STUDENT')">
+            <dt>Teacher</dt>
+            <dd>
+              <div class="course-teacher">
+                <span class="course-teacher__name"
+                      th:text="${c.teacherFirstName + ' ' + c.teacherLastName}">
+                  Teacher Name
+                </span>
+
+                <a class="course-teacher__email"
+                   th:if="${hasEmail}"
+                   th:href="|mailto:${c.teacherEmail}|"
+                   th:text="${c.teacherEmail}">
+                  teacher@example.com
+                </a>
+              </div>
+            </dd>
+          </th:block>
+        </dl>
+
+        <!-- Description: full width (no duplicated "Description" label in dt) -->
+        <div class="course-desc-wrap">
+          <details class="course-desc" th:if="${hasDesc}">
+            <summary class="course-desc__summary">Description</summary>
+            <div class="course-desc__body" th:text="${c.description}">
+              —
+            </div>
+          </details>
+
+          <div class="course-desc course-desc--empty" th:unless="${hasDesc}">
+            —
+          </div>
+        </div>
+
+        <!-- ADMIN management block placeholder -->
+        <div class="course-actions" sec:authorize="hasRole('ADMIN')">
+          <!-- TODO: import fragment later -->
+        </div>
+
+      </article>
+    </div>
+
+  </section>
+</main>
+
+<script>
+  (function () {
+    const btn = document.getElementById('toggleDescriptions');
+    if (!btn) return;
+
+    const details = Array.from(document.querySelectorAll('details.course-desc'));
+    if (details.length === 0) {
+      btn.remove();
+      return;
+    }
+
+    let opened = false;
+
+    btn.addEventListener('click', function () {
+      opened = !opened;
+
+      details.forEach(d => { d.open = opened; });
+
+      btn.textContent = opened ? 'Hide descriptions' : 'Show descriptions';
+    });
+  })();
+</script>
+
+</body>
+</html>
