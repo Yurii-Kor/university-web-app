@@ -5,9 +5,11 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import ua.foxminded.university.model.domain.Course;
 import ua.foxminded.university.model.repository.dto.CourseCardView;
+import ua.foxminded.university.model.repository.dto.CourseHeaderView;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 
 public interface CourseRepository extends JpaRepository<Course, Long> {
 	boolean existsByIdAndTeacher_Id(Long courseId, Long teacherId);
@@ -108,4 +110,11 @@ public interface CourseRepository extends JpaRepository<Course, Long> {
 		    order by lower(c.code)
 		""")
 	List<CourseCardView> findCourseCardsByGroupId(@Param("studentId") Long studentId);
+	
+	@Query("""
+	        select new ua.foxminded.university.model.repository.dto.CourseHeaderView(c.id, c.code, c.name)
+	        from Course c
+	        where c.id = :id
+	    """)
+	Optional<CourseHeaderView> findCourseHeaderById(@Param("id") Long id);
 }

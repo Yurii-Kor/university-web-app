@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import ua.foxminded.university.model.domain.StudyGroup;
+import ua.foxminded.university.model.repository.dto.GroupOptionView;
 import ua.foxminded.university.model.repository.dto.IdCountAgg;
 
 import java.util.Collection;
@@ -39,4 +40,26 @@ public interface StudyGroupRepository extends JpaRepository<StudyGroup, Long> {
 			""")
 	List<String> findConflictingNamesIgnoreCase(@Param("names") Collection<String> names,
 			@Param("ids") Collection<Long> ids);
+	
+	@Query("""
+	        select new ua.foxminded.university.model.repository.dto.GroupOptionView(g.id, g.name)
+	        from Course c
+	        join c.groups g
+	        where c.id = :courseId
+	        order by g.name
+	    """)
+	List<GroupOptionView> findAssignedGroupOptions(@Param("courseId") Long courseId);
+
+	    @Query("""
+	        select new ua.foxminded.university.model.repository.dto.GroupOptionView(g.id, g.name)
+	        from StudyGroup g
+	        where not exists (
+	            select 1
+	            from Course c
+	            join c.groups g2
+	            where c.id = :courseId and g2.id = g.id
+	        )
+	        order by g.name
+	    """)
+	List<GroupOptionView> findAvailableGroupOptions(@Param("courseId") Long courseId);
 }
