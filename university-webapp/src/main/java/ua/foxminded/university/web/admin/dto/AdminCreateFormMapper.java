@@ -1,5 +1,7 @@
 package ua.foxminded.university.web.admin.dto;
 
+import java.util.Optional;
+
 import org.springframework.stereotype.Component;
 import lombok.RequiredArgsConstructor;
 import ua.foxminded.university.service.dto.request.appuser.AppUserCreateDto;
@@ -12,6 +14,8 @@ public class AdminCreateFormMapper {
     private final DtoFieldNormalizer normalizer;
 
     public AppUserCreateDto toCreateDto(AdminCreateForm form) {
+		form = Optional.ofNullable(form).orElse(new AdminCreateForm("", "", "", "", ""));
+		
         return new AppUserCreateDto(
             normalizer.normalizeEmail(form.email()),
             form.newPassword(),

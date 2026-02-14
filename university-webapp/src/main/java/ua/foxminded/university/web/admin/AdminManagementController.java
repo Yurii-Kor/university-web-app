@@ -45,8 +45,7 @@ public class AdminManagementController {
 	}
 	
 	@GetMapping("/create")
-	public String createAdminPage(Model model) {
-	    model.addAttribute("form", new AdminCreateForm("", "", "", "", ""));
+	public String createAdminPage(@ModelAttribute("form") AdminCreateForm form) {
 	    return "admin/create";
 	}
 	

@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<body>
+
+<div th:fragment="courseAdminActions(c)" class="course-actions-bar">
+
+  <details class="course-self-edit">
+    <summary class="ou-btn ou-btn--ghost">Update</summary>
+
+    <form class="course-self-edit__form"
+          method="post"
+          th:action="@{/courses/self/update}">
+
+      <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
+      <input type="hidden" name="id" th:value="${c.id}" />
+
+      <div class="course-self-edit__divider" aria-hidden="true"></div>
+
+      <div class="course-self-edit__fields">
+        <div>
+          <label class="course-self-edit__label"
+                 th:for="|code_${c.id}|">Code</label>
+          <input class="ou-input"
+                 th:id="|code_${c.id}|"
+                 name="code"
+                 type="text"
+                 placeholder="e.g. CS-101"
+                 th:value="${c.code}" />
+        </div>
+
+        <div>
+          <label class="course-self-edit__label"
+                 th:for="|name_${c.id}|">Name</label>
+          <input class="ou-input"
+                 th:id="|name_${c.id}|"
+                 name="name"
+                 type="text"
+                 placeholder="Course name"
+                 th:value="${c.name}" />
+        </div>
+
+        <div class="course-self-edit__teacher"
+             th:with="hasEmail=${c.teacherEmail != null and !c.teacherEmail.isBlank()}">
+
+          <label class="course-self-edit__label"
+                 th:for="|teacher_${c.id}|">Teacher</label>
+
+          <select class="ou-input"
+                  th:id="|teacher_${c.id}|"
+                  name="teacherId">
+            <option value="" selected>— Keep current teacher —</option>
+
+            <option th:each="t : ${teachers}"
+                    th:value="${t.id}"
+                    th:text="${t.firstName + ' ' + t.lastName + (t.email != null ? ' (' + t.email + ')' : '')}">
+              Teacher Name
+            </option>
+          </select>
+
+          <p class="course-self-edit__hint"
+             th:text="|Current: ${c.teacherFirstName} ${c.teacherLastName}${hasEmail ? ' (' + c.teacherEmail + ')' : ''}|">
+            Current: —
+          </p>
+        </div>
+      </div>
+
+      <div class="course-self-edit__actions">
+        <button type="button"
+                class="ou-btn ou-btn--ghost"
+                data-course-edit-cancel>
+          Cancel
+        </button>
+
+        <button type="submit" class="ou-btn">
+          Save
+        </button>
+      </div>
+    </form>
+  </details>
+
+  <div class="course-actions-bar__other">
+    <span aria-hidden="true"></span>
+
+    <a class="ou-btn ou-btn--ghost"
+       th:href="@{/courses/{id}/groups(id=${c.id})}">
+      Groups
+    </a>
+
+    <form class="ou-inline-form course-actions-bar__delete"
+          method="post"
+          th:action="@{/courses/{id}/delete(id=${c.id})}">
+      <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
+      <button type="submit" class="ou-btn ou-btn--danger" onclick="return confirm('Delete this course?');">
+        Delete
+      </button>
+    </form>
+  </div>
+
+</div>
+
+</body>
+</html>

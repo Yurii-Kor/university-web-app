@@ -6,6 +6,7 @@ import org.springframework.data.repository.query.Param;
 
 import ua.foxminded.university.model.domain.Teacher;
 import ua.foxminded.university.model.repository.dto.IdCountAgg;
+import ua.foxminded.university.model.repository.dto.TeacherOptionView;
 import ua.foxminded.university.model.repository.dto.TeacherProfileView;
 
 import java.util.Collection;
@@ -40,6 +41,16 @@ public interface TeacherRepository extends JpaRepository<Teacher, Long> {
 			from Teacher t
 			join t.user u
 			where t.id = :id
-			""")
+		""")
 	Optional<TeacherProfileView> findTeacherProfileViewById(@Param("id") Long id);
+	
+	@Query("""
+			select new ua.foxminded.university.model.repository.dto.TeacherOptionView(
+			  t.id, u.firstName, u.lastName, u.email
+			)
+			from Teacher t
+			join t.user u
+			order by lower(u.lastName), lower(u.firstName), t.id
+		""")
+	List<TeacherOptionView> findTeacherOptions();
 }

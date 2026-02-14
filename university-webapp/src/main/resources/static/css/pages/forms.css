@@ -72,3 +72,15 @@ body.ou-page { background: var(--bg); }
   flex-wrap: wrap;
   margin-top: var(--space-2);
 }
+
+/* Make textarea look consistent with inputs */
+.ou-input--textarea {
+  width: 100%;
+  resize: vertical;
+  min-height: 140px;
+}
+
+/* Normalize select height across browsers */
+select.ou-input {
+  height: 46px;
+}
