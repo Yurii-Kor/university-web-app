@@ -95,23 +95,17 @@ public class CourseService {
 	}
 
 	@Transactional(value = TxType.SUPPORTS)
-	public List<CourseCardView> listCourseCardsForTeacher(Long teacherId) {
-		Optional.ofNullable(teacherId).orElseThrow(() -> new IllegalArgumentException("teacherId must not be null"));
-		
+	public List<CourseCardView> listCourseCardsForTeacher(long teacherId) {		
 		return courseRepository.findCourseCardsByTeacherId(teacherId);
 	}
 	
 	@Transactional(value = TxType.SUPPORTS)
-	public List<CourseCardView> listCourseCardsForStudent(Long studentId) {
-		Optional.ofNullable(studentId).orElseThrow(() -> new IllegalArgumentException("studentId must not be null"));
-
-	    return courseRepository.findCourseCardsByGroupId(studentId);
+	public List<CourseCardView> listCourseCardsForStudent(long studentId) {
+	    return courseRepository.findCourseCardsByStudentId(studentId);
 	}
 	
 	@Transactional(value = TxType.SUPPORTS)
-	public CourseGroupsPageView getCourseGroupsPage(Long courseId) {
-		Optional.ofNullable(courseId).orElseThrow(() -> new IllegalArgumentException("courseId must not be null"));
-
+	public CourseGroupsPageView getCourseGroupsPage(long courseId) {
 	    var header = courseRepository.findCourseHeaderById(courseId)
 	            .orElseThrow(() -> new EntityNotFoundException("Course not found: id=" + courseId));
 
@@ -123,45 +117,21 @@ public class CourseService {
 
 	@Transactional(value = TxType.REQUIRES_NEW)
 	public Course updateSelf(CourseSelfUpdateDto patch) {
-		requireValidation(patch);
-		var managed = getManagedCourse(patch.id(), "updateSelf");
-		
-		Optional.ofNullable(patch.code())
-				.filter(newCode -> !newCode.isEmpty())
-				.filter(newCode -> !newCode.equalsIgnoreCase(Optional.ofNullable(managed.getCode()).orElse("")))
-				.ifPresent(newCode -> {
-					assertCodeFreeInDbForSelfUpdate(patch.id(), newCode.trim().toLowerCase());
-					managed.setCode(newCode);
-				});
+	    requireValidation(patch);
+	    var managed = getManagedCourse(patch.id());
 
-		Optional.ofNullable(patch.name())
-				.filter(newName -> !newName.isEmpty())
-				.filter(newName -> !newName.equalsIgnoreCase(Optional.ofNullable(managed.getName()).orElse("")))
-				.ifPresent(newName -> {
-					assertNamesFreeInDb(List.of(newName.trim().toLowerCase()));
-					managed.setName(newName);
-				});
-		
-		Optional.ofNullable(patch.teacherId())
-				.ifPresent(newTeacherId -> {
-					var sameTeacher = Optional.ofNullable(managed.getTeacher())
-                            .map(t -> newTeacherId.equals(t.getId()))
-                            .orElse(false);
-					
-					if (!sameTeacher) {
-						assertTeacherExists(newTeacherId);
-						managed.setTeacher(teacherRepository.getReferenceById(newTeacherId));
-					}
-				});
+	    applyCodePatch(managed, patch);
+	    applyNamePatch(managed, patch);
+	    applyTeacherPatch(managed, patch);
 
-		log.debug("updateSelf: updated code/name/teacher for courseId={}", managed.getId());
-		return managed;
+	    log.debug("updateSelf: updated code/name/teacher for courseId={}", managed.getId());
+	    return managed;
 	}
 	
 	@Transactional(value = TxType.REQUIRES_NEW)
 	public Course updateDescription(CourseDescriptionUpdateDto patch) {
 		requireValidation(patch);
-		var managed = getManagedCourse(patch.id(), "updateDescription");
+		var managed = getManagedCourse(patch.id());
 
 		Optional.ofNullable(patch.description())
 				.map(String::trim)
@@ -172,12 +142,7 @@ public class CourseService {
 	}
 
 	@Transactional(value = TxType.REQUIRES_NEW)
-	public int addGroupsToCourse(Long courseId, Collection<Long> groupIds) {
-		Optional.ofNullable(courseId).orElseThrow(() -> {
-			log.error("addGroupsToCourse: courseId is null");
-			return new IllegalArgumentException("courseId must not be null");
-		});
-
+	public int addGroupsToCourse(long courseId, Collection<Long> groupIds) {
 		var distinct = Optional.ofNullable(groupIds)
 				.orElseGet(Collections::emptyList)
 				.stream()
@@ -199,7 +164,7 @@ public class CourseService {
 		return attachExistingGroupsToCourse(courseId, existing);
 	}
 
-	private int attachExistingGroupsToCourse(Long courseId, Set<Long> existingGroupIds) {
+	private int attachExistingGroupsToCourse(long courseId, Set<Long> existingGroupIds) {
 		var course = courseRepository.findById(courseId).orElseThrow(() -> {
 			log.error("addGroupsToCourse: course not found: id={}", courseId);
 			return new EntityNotFoundException("Course not found: id=" + courseId);
@@ -224,12 +189,7 @@ public class CourseService {
 	}
 
 	@Transactional(value = TxType.REQUIRES_NEW)
-	public int removeGroupsFromCourse(Long courseId, Collection<Long> groupIds) {
-		Optional.ofNullable(courseId).orElseThrow(() -> {
-			log.error("removeGroupsFromCourse: courseId is null");
-			return new IllegalArgumentException("courseId must not be null");
-		});
-
+	public int removeGroupsFromCourse(long courseId, Collection<Long> groupIds) {
 		var distinct = Optional.ofNullable(groupIds)
 				.orElseGet(Collections::emptyList)
 				.stream()
@@ -244,7 +204,7 @@ public class CourseService {
 		return doRemoveGroupsFromCourse(courseId, distinct);
 	}
 
-	private int doRemoveGroupsFromCourse(Long courseId, Collection<Long> groupIds) {
+	private int doRemoveGroupsFromCourse(long courseId, Collection<Long> groupIds) {
 		var course = courseRepository.findById(courseId).orElseThrow(() -> {
 			log.error("removeGroupsFromCourse: course not found: id={}", courseId);
 			return new EntityNotFoundException("Course not found: id=" + courseId);
@@ -266,12 +226,17 @@ public class CourseService {
 
 	@Transactional(value = TxType.REQUIRES_NEW)
 	public DeleteResult deleteByIds(Collection<Long> ids) {
-		if (Optional.ofNullable(ids).map(Collection::isEmpty).orElse(true)) {
+		var distinct = Optional.ofNullable(ids)
+				.orElseGet(Collections::emptyList)
+				.stream()
+				.filter(Objects::nonNull)
+				.collect(Collectors.toSet());
+		
+		if (distinct.isEmpty()) {
 			log.warn("deleteByIds called with null/empty list");
 			return new DeleteResult(Set.of(), Set.of());
 		}
 
-		var distinct = ids.stream().filter(Objects::nonNull).collect(Collectors.toSet());
 		var existing = courseRepository.findAllById(distinct);
 
 		var deletedIds = existing.stream().map(Course::getId).collect(Collectors.toSet());
@@ -280,6 +245,37 @@ public class CourseService {
 		courseRepository.deleteAll(existing);
 		log.info("Deleted {} course(s); not found: {}", deletedIds.size(), notFound);
 		return new DeleteResult(deletedIds, notFound);
+	}
+	
+	private void applyCodePatch(Course managed, CourseSelfUpdateDto patch) {
+	    Optional.ofNullable(patch.code())
+	            .map(String::trim)
+	            .filter(code -> !code.isEmpty())
+	            .filter(code -> isDifferentIgnoreCase(code, managed.getCode()))
+	            .ifPresent(code -> {
+	                assertCodeFreeInDbForSelfUpdate(patch.id(), code.toLowerCase());
+	                managed.setCode(code);
+	            });
+	}
+	
+	private void applyNamePatch(Course managed, CourseSelfUpdateDto patch) {
+	    Optional.ofNullable(patch.name())
+	            .map(String::trim)
+	            .filter(name -> !name.isEmpty())
+	            .filter(name -> isDifferentIgnoreCase(name, managed.getName()))
+	            .ifPresent(name -> {
+	                assertNamesFreeInDb(List.of(name.toLowerCase()));
+	                managed.setName(name);
+	            });
+	}
+	
+	private void applyTeacherPatch(Course managed, CourseSelfUpdateDto patch) {
+	    Optional.ofNullable(patch.teacherId())
+	            .filter(newTeacherId -> isDifferentTeacher(managed, newTeacherId))
+	            .ifPresent(newTeacherId -> {
+	                assertTeacherExists(newTeacherId);
+	                managed.setTeacher(teacherRepository.getReferenceById(newTeacherId));
+	            });
 	}
 
 	private void attachTeacherRefs(Collection<Course> courses) {
@@ -298,7 +294,7 @@ public class CourseService {
 		}
 	}
 	
-	private void assertTeacherExists(Long teacherId) {
+	private void assertTeacherExists(long teacherId) {
 	    if (!teacherRepository.existsById(teacherId)) {
 	        log.error("updateSelf: teacher not found: id={}", teacherId);
 	        throw new EntityNotFoundException("Teacher not found: id=" + teacherId);
@@ -321,7 +317,7 @@ public class CourseService {
 		}
 	}
 	
-	private void assertCodeFreeInDbForSelfUpdate(Long courseId, String codeLower) {
+	private void assertCodeFreeInDbForSelfUpdate(long courseId, String codeLower) {
 	    var conflicts = courseRepository.findConflictingCodesIgnoreCase(Set.of(codeLower), List.of(courseId));
 	    if (!conflicts.isEmpty()) {
 	        log.warn("target course code already taken by other course(s): {}", conflicts);
@@ -334,11 +330,22 @@ public class CourseService {
 		validator.validate(patch);
 	}
 	
-	private Course getManagedCourse(Long id, String opName) {
+	private Course getManagedCourse(long id) {
 	    return courseRepository.findById(id).orElseThrow(() -> {
-	        log.error("{}: Course not found: id={}", opName, id);
+	        log.error("Course not found: id={}", id);
 	        return new EntityNotFoundException("Course not found: id=" + id);
 	    });
 	}
 
+	private boolean isDifferentIgnoreCase(String newValue, String currentValue) {
+	    return Optional.ofNullable(currentValue)
+	            .map(current -> !current.equalsIgnoreCase(newValue))
+	            .orElse(true);
+	}
+
+	private boolean isDifferentTeacher(Course managed, Long newTeacherId) {
+	    return Optional.ofNullable(managed.getTeacher())
+	            .map(teacher -> !newTeacherId.equals(teacher.getId()))
+	            .orElse(true);
+	}
 }

@@ -74,43 +74,33 @@ public class LessonService {
 	}
 
 	@Transactional(value = TxType.REQUIRES_NEW)
-	public Lesson updateSelf(LessonSelfUpdateDto patch) {
-		patch = Optional.ofNullable(patch)
-                .orElseThrow(() -> new IllegalArgumentException("lesson patch must not be null"));
+	public Lesson updateSelf(LessonSelfUpdateDto dto) {
+	    var patch = requireValidatedPatch(dto);
 
-		validator.validate(patch);
+	    var teacherId = Optional.ofNullable(patch.teacherId())
+	            .orElseThrow(() -> new IllegalArgumentException("teacherId must not be null"));
 
-		var teacherId = Objects.requireNonNull(patch.teacherId(), "teacherId must not be null");
+	    var lessonId = Optional.ofNullable(patch.id())
+	            .orElseThrow(() -> new IllegalArgumentException("lessonId must not be null"));
 
-		var id = patch.id();
-		var managed = scheduleRepository.findById(id).orElseThrow(() -> {
-			log.error("updateSelf: ScheduleEntry not found: id={}", id);
-			return new EntityNotFoundException("ScheduleEntry not found: id=" + id);
-		});
+	    var managed = getManagedLesson(lessonId);
 
-		assertEntryBelongsToTeacher(managed, teacherId);
+	    assertEntryBelongsToTeacher(managed, teacherId);
 
-		Optional.ofNullable(patch.courseId()).ifPresent(courseId -> updateCourse(managed, courseId, teacherId));
+	    applyCoursePatch(managed, patch.courseId(), teacherId);
+	    applyGroupPatch(managed, patch.groupId());
 
-		Optional.ofNullable(patch.groupId()).ifPresent(newGroup -> updateGroup(managed, newGroup));
+	    assertGroupAttachedToCourse(managed);
 
-		assertGroupAttachedToCourse(managed);
+	    applyRoomPatch(managed, patch.room());
+	    applyTimePatch(managed, patch.startTime(), patch.endTime());
+	    applyLessonTypePatch(managed, patch.lessonType());
+	    applyDescriptionPatch(managed, patch.description());
 
-		Optional.ofNullable(patch.room()).ifPresent(newRoom -> updateRoom(managed, newRoom));
+	    assertNoOverlaps(managed, teacherId);
 
-		var startTime = patch.startTime();
-		var endTime = patch.endTime();
-		Optional.ofNullable(startTime).or(() -> Optional.ofNullable(endTime)).ifPresent(__ -> {
-			updateEntryTime(managed, startTime, endTime);
-		});
-
-		Optional.ofNullable(patch.lessonType()).ifPresent(newType -> managed.setLessonType(newType));
-
-		Optional.ofNullable(patch.description()).ifPresent(desc -> managed.setDescription(desc.trim().isEmpty() ? null : desc));
-
-		assertNoOverlaps(managed, teacherId);
-
-		return managed;
+	    log.debug("updateSelf: updated lesson id={}", managed.getId());
+	    return managed;
 	}
 
 	@Transactional(value = TxType.SUPPORTS)
@@ -130,12 +120,7 @@ public class LessonService {
 	}
 
 	@Transactional(value = TxType.REQUIRES_NEW)
-	public DeleteResult deleteByIds(Collection<Long> ids, Long teacherId) {
-		Optional.ofNullable(teacherId).orElseThrow(() -> {
-			log.error("deleteByIds called with null teacherId");
-			throw new IllegalArgumentException("teacherId must not be null");
-		});
-
+	public DeleteResult deleteByIds(Collection<Long> ids, long teacherId) {
 		var distinct = Optional.ofNullable(ids)
 				.orElseGet(Collections::emptyList)
 				.stream()
@@ -150,7 +135,7 @@ public class LessonService {
 		return doDeleteByIds(distinct, teacherId);
 	}
 
-	private DeleteResult doDeleteByIds(Collection<Long> distinctIds, Long teacherId) {
+	private DeleteResult doDeleteByIds(Collection<Long> distinctIds, long teacherId) {
 		var existing = new HashSet<>(scheduleRepository.findExistingIds(distinctIds));
 		var notFound = distinctIds.stream().filter(id -> !existing.contains(id)).collect(Collectors.toSet());
 		if (existing.isEmpty()) {
@@ -165,15 +150,43 @@ public class LessonService {
 
 		return new DeleteResult(existing, notFound);
 	}
+	
+	private void applyCoursePatch(Lesson managed, Long courseId, long teacherId) {
+	    Optional.ofNullable(courseId).ifPresent(id -> updateCourse(managed, id, teacherId));
+	}
 
-	private void assertEntryBelongsToTeacher(Lesson managed, Long teacherId) {
-		Long courseId = Optional.ofNullable(managed.getCourse())
+	private void applyGroupPatch(Lesson managed, Long groupId) {
+	    Optional.ofNullable(groupId).ifPresent(id -> updateGroup(managed, id));
+	}
+
+	private void applyRoomPatch(Lesson managed, String room) {
+	    Optional.ofNullable(room).ifPresent(value -> updateRoom(managed, value));
+	}
+
+	private void applyTimePatch(Lesson managed, OffsetDateTime start, OffsetDateTime end) {
+	    Optional.ofNullable(start)
+	            .or(() -> Optional.ofNullable(end))
+	            .ifPresent(__ -> updateEntryTime(managed, start, end));
+	}
+
+	private void applyLessonTypePatch(Lesson managed, LessonType lessonType) {
+	    Optional.ofNullable(lessonType).ifPresent(managed::setLessonType);
+	}
+
+	private void applyDescriptionPatch(Lesson managed, String description) {
+	    Optional.ofNullable(description)
+	            .map(String::trim)
+	            .ifPresent(desc -> managed.setDescription(desc.isEmpty() ? null : desc));
+	}
+
+	private void assertEntryBelongsToTeacher(Lesson managed, long teacherId) {
+		var courseId = Optional.ofNullable(managed.getCourse())
 				.map(Course::getId)
 				.orElseThrow(() -> new IllegalStateException("Managed entry has no course"));
 		assertCourseBelongsToTeacher(courseId, teacherId);
 	}
 
-	private void updateCourse(Lesson managed, Long newCourseId, Long teacherId) {
+	private void updateCourse(Lesson managed, long newCourseId, long teacherId) {
 		if (Optional.ofNullable(managed.getCourse())
 				.map(Course::getId)
 				.map(id -> Objects.equals(id, newCourseId))
@@ -187,7 +200,7 @@ public class LessonService {
 		log.info("updateCourse: entry id={} course -> {}", managed.getId(), newCourseId);
 	}
 
-	private void assertCourseBelongsToTeacher(Long courseId, Long teacherId) {
+	private void assertCourseBelongsToTeacher(long courseId, long teacherId) {
 		var isExist = courseRepository.existsByIdAndTeacher_Id(courseId, teacherId);
 		if (!isExist) {
 			log.error("teacher {} is not owner of course {}", teacherId, courseId);
@@ -195,7 +208,7 @@ public class LessonService {
 		}
 	}
 
-	private void assertScheduleEntriesBelongToTeacher(Collection<Long> existingIds, Long teacherId) {
+	private void assertScheduleEntriesBelongToTeacher(Collection<Long> existingIds, long teacherId) {
 		var ids = existingIds.stream().filter(Objects::nonNull).collect(Collectors.toSet());
 		var owned = new HashSet<>(scheduleRepository.findOwnedIds(ids, teacherId));
 		var notOwned = ids.stream().filter(id -> !owned.contains(id)).collect(Collectors.toSet());
@@ -206,7 +219,7 @@ public class LessonService {
 		}
 	}
 
-	private void updateGroup(Lesson managed, Long newGroupId) {
+	private void updateGroup(Lesson managed, long newGroupId) {
 		var currentGroupIdOpt = Optional.ofNullable(managed.getGroup()).map(StudyGroup::getId);
 
 		if (currentGroupIdOpt.map(id -> Objects.equals(id, newGroupId)).orElse(false)) {
@@ -226,14 +239,14 @@ public class LessonService {
 		}
 	}
 
-	private Course requireCourseRef(Long id) {
+	private Course requireCourseRef(long id) {
 		return courseRepository.findById(id).orElseThrow(() -> {
 			log.error("Course not found: id={}", id);
 			return new EntityNotFoundException("Course not found: id=" + id);
 		});
 	}
 
-	private StudyGroup requireGroupRef(Long id) {
+	private StudyGroup requireGroupRef(long id) {
 		return groupRepository.findById(id).orElseThrow(() -> {
 			log.error("StudyGroup not found: id={}", id);
 			return new EntityNotFoundException("StudyGroup not found: id=" + id);
@@ -251,7 +264,7 @@ public class LessonService {
 				managed.getEndTime());
 	}
 
-	private void assertNoOverlaps(Lesson draft, Long teacherId) {
+	private void assertNoOverlaps(Lesson draft, long teacherId) {
 		var start = Optional.ofNullable(draft).map(Lesson::getStartTime).orElseThrow(() -> {
 			log.error("assertNoOverlaps: startTime is null");
 			return new IllegalArgumentException("startTime must not be null");
@@ -317,5 +330,20 @@ public class LessonService {
 			log.error("time range check failed: endTime {} is not after startTime {} (id={})", et, st, e.getId());
 			throw new IllegalStateException("End time must be strictly after start time");
 		}
+	}
+	
+	private LessonSelfUpdateDto requireValidatedPatch(LessonSelfUpdateDto dto) {
+	    var patch = Optional.ofNullable(dto)
+	            .orElseThrow(() -> new IllegalArgumentException("lesson patch must not be null"));
+
+	    validator.validate(patch);
+	    return patch;
+	}
+
+	private Lesson getManagedLesson(long lessonId) {
+	    return scheduleRepository.findById(lessonId).orElseThrow(() -> {
+	        log.error("updateSelf: ScheduleEntry not found: id={}", lessonId);
+	        return new EntityNotFoundException("ScheduleEntry not found: id=" + lessonId);
+	    });
 	}
 }

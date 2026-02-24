@@ -90,7 +90,7 @@ public class TeacherService {
     }
 	
 	@Transactional(value = TxType.SUPPORTS)
-	public TeacherProfileView getTeacherProfileView(Long id) {
+	public TeacherProfileView getTeacherProfileView(long id) {
 		return teacherRepository.findTeacherProfileViewById(id)
 				.orElseThrow(() -> new EntityNotFoundException("Teacher not found: id=" + id));
 	}
@@ -117,12 +117,16 @@ public class TeacherService {
 
 	@Transactional(value = TxType.REQUIRES_NEW)
 	public DeleteResult deleteByIds(Collection<Long> ids) {
-		if (Optional.ofNullable(ids).map(Collection::isEmpty).orElse(true)) {
+		var distinct = Optional.ofNullable(ids)
+				.orElseGet(Collections::emptyList)
+				.stream()
+				.filter(Objects::nonNull)
+				.collect(Collectors.toSet());
+		
+		if (distinct.isEmpty()) {
 			log.warn("deleteByIds called with null/empty list");
 			return new DeleteResult(Set.of(), Set.of());
 		}
-
-		var distinct = ids.stream().filter(Objects::nonNull).collect(Collectors.toSet());
 
 		assertTeachersHaveNoCourses(distinct);
 

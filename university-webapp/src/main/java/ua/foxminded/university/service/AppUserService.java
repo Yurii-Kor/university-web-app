@@ -88,7 +88,7 @@ public class AppUserService {
 	}
 	
 	@Transactional(value = TxType.SUPPORTS)
-	public AdminProfileView getAdminProfileView(Long id) {
+	public AdminProfileView getAdminProfileView(long id) {
 		return usersRepository.findAdminProfileViewById(id)
 				.orElseThrow(() -> new EntityNotFoundException("Admin user not found: id=" + id));
 	}
@@ -119,50 +119,30 @@ public class AppUserService {
 
 	@Transactional(TxType.REQUIRES_NEW)
 	public void updateProfileFields(AppUserSelfUpdateDto dto) {
-		dto = Optional.ofNullable(dto)
-                .orElseThrow(() -> new IllegalArgumentException("DTO must not be null"));
+	    var patch = requireValidated(dto);
+	    var user = getManagedUser(patch.id());
 
-		validator.validate(dto);
+	    applyEmailPatch(user, patch.email());
+	    applyFirstNamePatch(user, patch.firstName());
+	    applyLastNamePatch(user, patch.lastName());
 
-		var id = dto.id();
-		var user = usersRepository.findById(id).orElseThrow(() -> {
-			log.error("updateProfileFields: AppUser not found: id={}", id);
-			return new EntityNotFoundException("AppUser not found: id=" + id);
-		});
-
-		Optional.ofNullable(dto.email()).ifPresent(newEmail -> {
-			var same = Optional.ofNullable(user.getEmail()).filter(newEmail::equals).isPresent();
-			if (!same) {
-				assertEmailUniqueForAnother(newEmail, user.getId());
-				user.setEmail(newEmail);
-			}
-		});
-
-		Optional.ofNullable(dto.firstName())
-				.filter(newFirst -> !newFirst.equals(Optional.ofNullable(user.getFirstName()).orElse(null)))
-				.ifPresent(user::setFirstName);
-
-		Optional.ofNullable(dto.lastName())
-				.filter(newLast -> !newLast.equals(Optional.ofNullable(user.getLastName()).orElse(null)))
-				.ifPresent(user::setLastName);
-
-		log.debug("updateProfileFields: updated profile fields for userId={}", id);
+	    log.debug("updateProfileFields: updated profile fields for userId={}", user.getId());
 	}
 
 	@Transactional(value = TxType.REQUIRES_NEW)
-	public Integer enableUsersByIds(Collection<Long> ids) {
+	public int enableUsersByIds(Collection<Long> ids) {
 		return setEnabledFlag(ids, true);
 	}
 
 	@Transactional(value = TxType.REQUIRES_NEW)
-	public Integer disableUsersByIds(Collection<Long> ids) {
+	public int disableUsersByIds(Collection<Long> ids) {
 		return setEnabledFlag(ids, false);
 	}
 
 	@Transactional(value = TxType.REQUIRES_NEW)
 	public DeleteResult deleteAdminsByIds(Collection<Long> ids) {
 		var distinct = Optional.ofNullable(ids)
-				.orElseGet(List::of)
+				.orElseGet(Collections::emptyList)
 				.stream()
 				.filter(Objects::nonNull)
 				.collect(Collectors.toSet());
@@ -187,6 +167,27 @@ public class AppUserService {
 		usersRepository.deleteAll(found);
 		return new DeleteResult(foundIds, notFound);
 	}
+	
+	private void applyEmailPatch(AppUser user, String newEmail) {
+	    Optional.ofNullable(newEmail)
+	            .filter(email -> !Objects.equals(email, user.getEmail()))
+	            .ifPresent(email -> {
+	                assertEmailUniqueForAnother(email, user.getId());
+	                user.setEmail(email);
+	            });
+	}
+
+	private void applyFirstNamePatch(AppUser user, String newFirstName) {
+	    Optional.ofNullable(newFirstName)
+	            .filter(first -> !Objects.equals(first, user.getFirstName()))
+	            .ifPresent(user::setFirstName);
+	}
+
+	private void applyLastNamePatch(AppUser user, String newLastName) {
+	    Optional.ofNullable(newLastName)
+	            .filter(last -> !Objects.equals(last, user.getLastName()))
+	            .ifPresent(user::setLastName);
+	}
 
 	private void assertEmailsFreeInDb(Collection<String> emails) {
 		var normalized = emails.stream()
@@ -205,7 +206,7 @@ public class AppUserService {
 		}
 	}
 
-	private Integer setEnabledFlag(Collection<Long> ids, boolean enabled) {
+	private int setEnabledFlag(Collection<Long> ids, boolean enabled) {
 		var distinct = Optional.ofNullable(ids)
 				.orElseGet(List::of)
 				.stream()
@@ -252,7 +253,7 @@ public class AppUserService {
 		}
 	}
 
-	private void assertEmailUniqueForAnother(String email, Long selfId) {
+	private void assertEmailUniqueForAnother(String email, long selfId) {
 		if (usersRepository.existsByEmailIgnoreCaseAndIdNot(email, selfId)) {
 			log.warn("assertEmailUniqueForAnother: email already taken: email='{}', requesterUserId={}", email, selfId);
 			throw new IllegalArgumentException("Email is already taken");
@@ -276,5 +277,20 @@ public class AppUserService {
 			log.error("deleteAdminsByIds: attempt to delete the last admin(s)");
 			return new IllegalStateException("Cannot delete the last admin user");
 		});
+	}
+	
+	private AppUserSelfUpdateDto requireValidated(AppUserSelfUpdateDto dto) {
+	    dto = Optional.ofNullable(dto)
+	            .orElseThrow(() -> new IllegalArgumentException("DTO must not be null"));
+
+	    validator.validate(dto);
+	    return dto;
+	}
+
+	private AppUser getManagedUser(long userId) {
+	    return usersRepository.findById(userId).orElseThrow(() -> {
+	        log.error("updateProfileFields: AppUser not found: id={}", userId);
+	        return new EntityNotFoundException("AppUser not found: id=" + userId);
+	    });
 	}
 }

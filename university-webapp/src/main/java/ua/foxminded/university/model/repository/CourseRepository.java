@@ -109,7 +109,7 @@ public interface CourseRepository extends JpaRepository<Course, Long> {
 		    group by c.id, c.code, c.name, c.description, t.id, u.email, u.firstName, u.lastName
 		    order by lower(c.code)
 		""")
-	List<CourseCardView> findCourseCardsByGroupId(@Param("studentId") Long studentId);
+	List<CourseCardView> findCourseCardsByStudentId(@Param("studentId") Long studentId);
 	
 	@Query("""
 	        select new ua.foxminded.university.model.repository.dto.CourseHeaderView(c.id, c.code, c.name)

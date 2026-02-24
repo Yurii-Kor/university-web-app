@@ -97,12 +97,16 @@ public class StudyGroupService {
 
 	@Transactional(value = TxType.REQUIRES_NEW)
 	public DeleteResult deleteByIds(Collection<Long> ids) {
-		if (Optional.ofNullable(ids).map(Collection::isEmpty).orElse(true)) {
+		var distinct = Optional.ofNullable(ids)
+				.orElseGet(Collections::emptyList)
+				.stream()
+				.filter(Objects::nonNull)
+				.collect(Collectors.toSet());
+		
+		if (distinct.isEmpty()) {
 			log.warn("deleteByIds called with null/empty list");
 			return new DeleteResult(Set.of(), Set.of());
 		}
-
-		var distinct = ids.stream().filter(Objects::nonNull).collect(Collectors.toSet());
 
 		assertGroupsHaveNoStudents(distinct);
 
@@ -151,7 +155,7 @@ public class StudyGroupService {
 		}
 	}
 
-	private void assertNameFreeInDbForRename(String newName, Long selfId) {
+	private void assertNameFreeInDbForRename(String newName, long selfId) {
 		var probe = Set.of(newName.trim().toLowerCase());
 		var self = List.of(selfId);
 

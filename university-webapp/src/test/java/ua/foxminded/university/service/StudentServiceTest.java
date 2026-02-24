@@ -232,14 +232,6 @@ class StudentServiceTest {
 	}
 
 	@Test
-	@DisplayName("moveStudentsToGroup: null targetGroupId -> IllegalArgumentException")
-	void moveStudentsToGroup_nullTargetGroup_fails() {
-		assertThrows(IllegalArgumentException.class,
-				() -> studentService.moveStudentsToGroup(List.of(1L, 2L), null),
-				"Should fail when targetGroupId is null");
-	}
-
-	@Test
 	@DisplayName("moveStudentsToGroup: null or empty student ids -> returns 0")
 	void moveStudentsToGroup_nullOrEmptyIds_returnsZero() {
 		assertEquals(0, studentService.moveStudentsToGroup(null, updatedGroup.getId()), "null ids must return 0");

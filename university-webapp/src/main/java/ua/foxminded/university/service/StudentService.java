@@ -91,13 +91,13 @@ public class StudentService {
 	}
 	
 	@Transactional(value = TxType.SUPPORTS)
-	public StudentProfileView getStudentProfileView(Long id) {
+	public StudentProfileView getStudentProfileView(long id) {
 		return studentRepository.findStudentProfileViewById(id)
 				.orElseThrow(() -> new EntityNotFoundException("Student not found: id=" + id));
 	}
 
 	@Transactional(value = TxType.REQUIRES_NEW)
-	public Integer moveStudentsToGroup(Collection<Long> studentIds, Long targetGroupId) {
+	public int moveStudentsToGroup(Collection<Long> studentIds, long targetGroupId) {
 		if (Optional.ofNullable(studentIds).map(Collection::isEmpty).orElse(true)) {
 			log.warn("moveStudentsToGroup called with null/empty student Ids");
 			return NOT_UPDATED;
@@ -118,12 +118,17 @@ public class StudentService {
 
 	@Transactional(value = TxType.REQUIRES_NEW)
 	public DeleteResult deleteByIds(Collection<Long> ids) {
-		if (Optional.ofNullable(ids).map(Collection::isEmpty).orElse(true)) {
+		var distinct = Optional.ofNullable(ids)
+				.orElseGet(Collections::emptyList)
+				.stream()
+				.filter(Objects::nonNull)
+				.collect(Collectors.toSet());
+		
+		if (distinct.isEmpty()) {
 			log.warn("deleteByIds called with null/empty list");
 			return new DeleteResult(Set.of(), Set.of());
 		}
 
-		var distinct = ids.stream().filter(Objects::nonNull).collect(Collectors.toSet());
 		var existing = studentRepository.findAllById(distinct);
 
 		var deletedIds = existing.stream().map(Student::getId).collect(Collectors.toSet());
@@ -152,12 +157,7 @@ public class StudentService {
 		}
 	}
 
-	private StudyGroup requireGroupRef(Long groupId) {
-		Optional.ofNullable(groupId).orElseThrow(() -> {
-			log.error("moveStudentsToGroup: null target group id");
-			return new IllegalArgumentException("targetGroupId must not be null");
-		});
-
+	private StudyGroup requireGroupRef(long groupId) {
 		if (!groupRepository.existsById(groupId)) {
 			log.error("moveStudentsToGroup: StudyGroup not found: id={}", groupId);
 			throw new EntityNotFoundException("StudyGroup not found: id=" + groupId);

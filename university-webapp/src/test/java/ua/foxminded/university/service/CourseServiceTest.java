@@ -16,6 +16,7 @@ import org.springframework.test.context.ActiveProfiles;
 import ua.foxminded.university.TestcontainersConfiguration;
 import ua.foxminded.university.model.domain.AppUser;
 import ua.foxminded.university.model.domain.Course;
+import ua.foxminded.university.model.domain.Student;
 import ua.foxminded.university.model.domain.StudyGroup;
 import ua.foxminded.university.model.domain.Teacher;
 import ua.foxminded.university.model.domain.enums.AcademicRank;
@@ -64,11 +65,11 @@ class CourseServiceTest {
     static final String DESC_A = "  Intro to algorithms ";
     static final String DESC_BLANK = "   ";
 
-    static final Long NON_EXISTENT_ID = 999_999L;
+    static final long NON_EXISTENT_ID = 999_999L;
 
-    static final Integer ONE_GROUP = 1;
-    static final Integer TWO_GROUPS = 2;
-    static final Integer ONE_COURSE = 1;
+    static final int ONE_GROUP = 1;
+    static final int TWO_GROUPS = 2;
+    static final int ONE_COURSE = 1;
 
     @Autowired
     private CourseService courseService;
@@ -80,6 +81,7 @@ class CourseServiceTest {
     private Teacher testTeacher;
     private Teacher otherTeacher;
     private StudyGroup g1, g2;
+    private Student studentInG1;
 
     private CourseCreateDto newCreateDto(String code, String name, String desc, Long teacherId) {
         return new CourseCreateDto(code, name, desc, teacherId);
@@ -99,7 +101,6 @@ class CourseServiceTest {
 
     @BeforeAll
     void setup() {
-        // Teacher #1
         var testUser1 = AppUser.builder()
                 .email("teacher@example.com")
                 .password("Abcd1234!")
@@ -117,7 +118,6 @@ class CourseServiceTest {
                         .build())
                 .getFirst();
 
-        // Teacher #2 (для update teacher)
         var testUser2 = AppUser.builder()
                 .email("teacher2@example.com")
                 .password("Abcd1234!")
@@ -149,6 +149,23 @@ class CourseServiceTest {
                         )))
                         .build())
                 .getFirst();
+        
+        var studentUser = AppUser.builder()
+                .email("student@example.com")
+                .password("Abcd1234!")
+                .role(UserRole.STUDENT)
+                .firstName("Grace")
+                .lastName("Hopper")
+                .enabled(true)
+                .build();
+        
+        studentInG1 = initializer
+                .persistAll(Student.builder()
+                        .user(studentUser)
+                        .group(g1)
+                        .enrollmentYear(2024)
+                        .build())
+                .getFirst();
     }
 
     @BeforeEach
@@ -156,6 +173,8 @@ class CourseServiceTest {
         courseSecurity = courseService
                 .createAll(List.of(newCreateDto(CODE_SEC_UPPER, COURSE_SECURITY, "", testTeacher.getId())))
                 .getFirst();
+        
+        courseService.addGroupsToCourse(courseSecurity.getId(), List.of(g1.getId()));
     }
 
     @AfterEach
@@ -272,6 +291,92 @@ class CourseServiceTest {
         var res = courseService.findByIds(ids);
         assertEquals(ONE_COURSE, res.size());
         assertEquals(courseSecurity.getId(), res.getFirst().getId());
+    }
+    
+    @Test
+    @DisplayName("listCourseCardsForAdmin: returns all course cards")
+    void listCourseCardsForAdmin_returnsAll() {
+        var cards = courseService.listCourseCardsForAdmin();
+
+        assertNotNull(cards);
+        assertFalse(cards.isEmpty(), "admin list must not be empty");
+
+        var ids = cards.stream().map(c -> c.id()).toList();
+
+        assertTrue(ids.contains(courseOperationSys.getId()), "must contain seeded OS course");
+        assertTrue(ids.contains(courseSecurity.getId()), "must contain seeded Security course");
+    }
+    
+    @Test
+    @DisplayName("listCourseCardsForTeacher: returns only teacher courses")
+    void listCourseCardsForTeacher_existingTeacher_returnsOnlyOwnCourses() {
+        tempCourse = courseService.createAll(List.of(
+                newCreateDto(TO_CREATE_CODE, TO_CREATE_NAME, null, otherTeacher.getId())
+        )).getFirst();
+
+        var cards = courseService.listCourseCardsForTeacher(testTeacher.getId());
+
+        assertNotNull(cards);
+        assertFalse(cards.isEmpty());
+
+        var ids = cards.stream().map(c -> c.id()).toList();
+
+        assertTrue(ids.contains(courseOperationSys.getId()), "must contain OS course of testTeacher");
+        assertTrue(ids.contains(courseSecurity.getId()), "must contain Security course of testTeacher");
+        assertFalse(ids.contains(tempCourse.getId()), "must not contain course of another teacher");
+    }
+    
+    @Test
+    @DisplayName("listCourseCardsForTeacher: non-existing teacher id -> empty list")
+    void listCourseCardsForTeacher_notFound_returnsEmpty() {
+        var cards = courseService.listCourseCardsForTeacher(NON_EXISTENT_ID);
+
+        assertNotNull(cards);
+        assertTrue(cards.isEmpty(), "non-existing teacher must return empty list");
+    }
+    
+    @Test
+    @DisplayName("listCourseCardsForStudent: returns courses available for student's group")
+    void listCourseCardsForStudent_existingStudent_returnsGroupCourses() {
+        var cards = courseService.listCourseCardsForStudent(studentInG1.getId());
+
+        assertNotNull(cards);
+        assertFalse(cards.isEmpty());
+
+        var ids = cards.stream().map(c -> c.id()).toList();
+
+        assertTrue(ids.contains(courseOperationSys.getId()), "student in g1 must see OS course");
+        assertTrue(ids.contains(courseSecurity.getId()), "student in g1 must see Security course");
+    }
+    
+    @Test
+    @DisplayName("listCourseCardsForStudent: non-existing student id -> empty list")
+    void listCourseCardsForStudent_notFound_returnsEmpty() {
+        var cards = courseService.listCourseCardsForStudent(NON_EXISTENT_ID);
+
+        assertNotNull(cards);
+        assertTrue(cards.isEmpty(), "non-existing student must return empty list");
+    }
+    
+    @Test
+    @DisplayName("getCourseGroupsPage: existing course id -> returns page view with header and assigned/available groups")
+    void getCourseGroupsPage_existingId_returnsPage() {
+        var page = courseService.getCourseGroupsPage(courseSecurity.getId());
+
+        assertNotNull(page, "page must not be null");
+        assertNotNull(page.course(), "course header must not be null");
+
+        assertEquals(g1.getId(), page.assigned().getFirst().id(), "assigned groups must match seeded data");
+        assertEquals(g2.getId(), page.available().getFirst().id(), "no available groups must match seeded data");
+    }
+
+    @Test
+    @DisplayName("getCourseGroupsPage: non-existing course id -> EntityNotFoundException")
+    void getCourseGroupsPage_notFound_fails() {
+        var ex = assertThrows(EntityNotFoundException.class,
+                () -> courseService.getCourseGroupsPage(NON_EXISTENT_ID));
+
+        assertEquals("Course not found: id=" + NON_EXISTENT_ID, ex.getMessage());
     }
 
     // ---------------- UPDATE SELF ----------------
@@ -440,12 +545,6 @@ class CourseServiceTest {
     }
 
     @Test
-    @DisplayName("addGroupsToCourse: courseId = null -> IllegalArgumentException")
-    void addGroupsToCourse_nullCourseId_fails() {
-        assertThrows(IllegalArgumentException.class, () -> courseService.addGroupsToCourse(null, List.of(g1.getId())));
-    }
-
-    @Test
     @DisplayName("addGroupsToCourse: non-existing course -> EntityNotFoundException")
     void addGroupsToCourse_courseNotFound_fails() {
         assertThrows(EntityNotFoundException.class,
@@ -482,13 +581,6 @@ class CourseServiceTest {
         assertEquals(0, courseService.removeGroupsFromCourse(courseOperationSys.getId(), null));
         assertEquals(0, courseService.removeGroupsFromCourse(courseOperationSys.getId(), List.of()));
         assertEquals(0, courseService.removeGroupsFromCourse(courseOperationSys.getId(), Arrays.asList(null, null)));
-    }
-
-    @Test
-    @DisplayName("removeGroupsFromCourse: null courseId -> IllegalArgumentException")
-    void removeGroupsFromCourse_nullCourseId_fails() {
-        assertThrows(IllegalArgumentException.class,
-                () -> courseService.removeGroupsFromCourse(null, List.of(g1.getId())));
     }
 
     @Test
