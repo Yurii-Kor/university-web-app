@@ -24,6 +24,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import ua.foxminded.university.model.repository.dto.CourseHeaderView;
 import ua.foxminded.university.model.repository.dto.GroupOptionView;
 import ua.foxminded.university.service.CourseService;
+import ua.foxminded.university.service.TeacherService;
 import ua.foxminded.university.service.dto.response.CourseGroupsPageView;
 import ua.foxminded.university.web.testconfig.MethodSecurityTestConfig;
 
@@ -36,6 +37,9 @@ class CourseGroupsControllerWebMvcTest {
 
     @Autowired
     MockMvc mockMvc;
+    
+    @MockitoBean
+    TeacherService teacherService;
 
     @MockitoBean
     CourseService courseService;

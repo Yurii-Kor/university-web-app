@@ -16,9 +16,7 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import ua.foxminded.university.model.repository.dto.TeacherOptionView;
 import ua.foxminded.university.service.CourseService;
-import ua.foxminded.university.service.TeacherService;
 import ua.foxminded.university.service.dto.request.course.CourseCreateDto;
 import ua.foxminded.university.web.bind.TrimToNullUppercaseEditor;
 
@@ -29,7 +27,6 @@ import ua.foxminded.university.web.bind.TrimToNullUppercaseEditor;
 public class CourseCreateController {
 
 	private final CourseService courseService;
-	private final TeacherService teacherService;
 
     @InitBinder("form")
     void initBinder(WebDataBinder binder) {
@@ -51,10 +48,5 @@ public class CourseCreateController {
         courseService.createAll(List.of(form));
         ra.addFlashAttribute("ok", "Course created.");
         return "redirect:/courses";
-    }
-
-    @ModelAttribute("teachers")
-    public List<TeacherOptionView> teachers() {
-        return teacherService.listTeacherOptions();
     }
 }

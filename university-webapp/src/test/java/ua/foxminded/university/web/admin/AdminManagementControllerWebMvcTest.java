@@ -27,6 +27,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import ua.foxminded.university.model.repository.dto.AdminRowView;
 import ua.foxminded.university.service.AppUserService;
+import ua.foxminded.university.service.TeacherService;
 import ua.foxminded.university.service.dto.request.appuser.AppUserCreateDto;
 import ua.foxminded.university.service.dto.response.DeleteResult;
 import ua.foxminded.university.web.admin.dto.AdminCreateForm;
@@ -42,6 +43,9 @@ class AdminManagementControllerWebMvcTest {
 
     @Autowired
     MockMvc mockMvc;
+    
+    @MockitoBean
+    TeacherService teacherService;
 
     @MockitoBean
     AppUserService appUserService;

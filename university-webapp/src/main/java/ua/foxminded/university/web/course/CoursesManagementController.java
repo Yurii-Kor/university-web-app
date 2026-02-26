@@ -14,9 +14,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import lombok.RequiredArgsConstructor;
-import ua.foxminded.university.model.repository.dto.TeacherOptionView;
 import ua.foxminded.university.service.CourseService;
-import ua.foxminded.university.service.TeacherService;
 import ua.foxminded.university.service.dto.request.course.CourseDescriptionUpdateDto;
 import ua.foxminded.university.service.dto.request.course.CourseSelfUpdateDto;
 import ua.foxminded.university.web.bind.TrimToNullUppercaseEditor;
@@ -28,7 +26,6 @@ import ua.foxminded.university.web.util.PrincipalHandler;
 public class CoursesManagementController {
 
     private final CourseService courseService;
-    private final TeacherService teacherService;
     private final PrincipalHandler principalHandler;
 
     @GetMapping
@@ -96,11 +93,6 @@ public class CoursesManagementController {
         ra.addFlashAttribute("courseOp", "self");
 
         return "redirect:/courses";
-    }
-    
-    @ModelAttribute("teachers")
-    public List<TeacherOptionView> teachers() {
-        return teacherService.listTeacherOptions();
     }
 
     @PostMapping("/{id}/delete")

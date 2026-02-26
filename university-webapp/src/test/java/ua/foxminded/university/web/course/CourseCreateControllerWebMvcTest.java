@@ -68,8 +68,8 @@ class CourseCreateControllerWebMvcTest {
                         .with(user(USER_ID.toString()).roles("TEACHER")))
                 .andExpect(status().is3xxRedirection());
 
-        verifyNoInteractions(courseService, teacherService);
-    }
+        verifyNoInteractions(courseService);
+        verify(teacherService).listTeacherOptions();    }
 
     @Test
     @DisplayName("POST /courses/create as ADMIN ok -> redirects /courses, flash ok, calls service")
@@ -131,8 +131,8 @@ class CourseCreateControllerWebMvcTest {
                         .param("name", "Intro"))
                 .andExpect(status().is3xxRedirection());
 
-        verifyNoInteractions(courseService, teacherService);
-    }
+        verifyNoInteractions(courseService);
+        verify(teacherService).listTeacherOptions();    }
 
     @Test
     @DisplayName("POST /courses/create when service throws IllegalArgumentException -> redirects /courses/create, flash err + form restored (handler)")

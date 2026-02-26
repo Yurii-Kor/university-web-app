@@ -1,0 +1,27 @@
+package ua.foxminded.university.web.teacher;
+
+import java.util.List;
+
+import org.springframework.web.bind.annotation.ControllerAdvice;
+import org.springframework.web.bind.annotation.ModelAttribute;
+
+import lombok.RequiredArgsConstructor;
+import ua.foxminded.university.model.repository.dto.TeacherOptionView;
+import ua.foxminded.university.service.TeacherService;
+import ua.foxminded.university.web.course.CourseCreateController;
+import ua.foxminded.university.web.course.CoursesManagementController;
+
+@ControllerAdvice(assignableTypes = {
+        CourseCreateController.class,
+        CoursesManagementController.class
+})
+@RequiredArgsConstructor
+public class TeacherModelAttributesAdvice {
+
+    private final TeacherService teacherService;
+
+    @ModelAttribute("teachers")
+    public List<TeacherOptionView> teachers() {
+        return teacherService.listTeacherOptions();
+    }
+}
