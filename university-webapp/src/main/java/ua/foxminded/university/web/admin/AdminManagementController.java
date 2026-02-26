@@ -2,24 +2,25 @@ package ua.foxminded.university.web.admin;
 
 import java.util.Comparator;
 import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
 
+import org.springframework.beans.propertyeditors.StringTrimmerEditor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.validation.BindingResult;
+import org.springframework.web.bind.WebDataBinder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
-import jakarta.validation.Validator;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import ua.foxminded.university.model.repository.dto.AdminRowView;
 import ua.foxminded.university.service.AppUserService;
-import ua.foxminded.university.service.dto.request.appuser.AppUserCreateDto;
 import ua.foxminded.university.web.admin.dto.AdminCreateForm;
 import ua.foxminded.university.web.admin.dto.AdminCreateFormMapper;
+import ua.foxminded.university.web.admin.validation.AdminCreateFormValidator;
+import ua.foxminded.university.web.bind.TrimToNullLowercaseEditor;
 import ua.foxminded.university.web.util.PrincipalHandler;
 
 @Controller
@@ -27,51 +28,55 @@ import ua.foxminded.university.web.util.PrincipalHandler;
 @RequiredArgsConstructor
 public class AdminManagementController {
 
-	private final AppUserService appUserService;
+    private final AppUserService appUserService;
+    private final PrincipalHandler principalHandler;
+    private final AdminCreateFormMapper mapper;
+    private final AdminCreateFormValidator adminCreateFormValidator;
 
-	private final PrincipalHandler principalHandler;
-	private final AdminCreateFormMapper mapper;
-    private final Validator validator;
+    @InitBinder("form")
+    void initBinder(WebDataBinder binder) {
+        binder.registerCustomEditor(String.class, "email", new TrimToNullLowercaseEditor());
+        binder.registerCustomEditor(String.class, "firstName", new StringTrimmerEditor(true));
+        binder.registerCustomEditor(String.class, "lastName", new StringTrimmerEditor(true));
 
-	@GetMapping
-	public String adminsPage(@AuthenticationPrincipal UserDetails principal, Model model) {
-		var selfId = principalHandler.parseUserId(principal);
-		var admins = sortAdminsForView(appUserService.listAdmins(), selfId);
+        binder.addValidators(adminCreateFormValidator);
+    }
 
-		model.addAttribute("admins", admins);
-		model.addAttribute("selfId", selfId);
+    @GetMapping
+    public String adminsPage(@AuthenticationPrincipal UserDetails principal, Model model) {
+        var selfId = principalHandler.parseUserId(principal);
+        var admins = sortAdminsForView(appUserService.listAdmins(), selfId);
 
-		return "admin/admins";
-	}
-	
-	@GetMapping("/create")
-	public String createAdminPage(@ModelAttribute("form") AdminCreateForm form) {
-	    return "admin/create";
-	}
-	
-	@PostMapping("/create")
-	public String createAdmin(@ModelAttribute("form") AdminCreateForm form,
-	                          BindingResult br,
-	                          RedirectAttributes ra) {
+        model.addAttribute("admins", admins);
+        model.addAttribute("selfId", selfId);
 
-	    var dto = mapper.toCreateDto(form);
-	    
-	    bindPasswords(br, form);
-	    bindValidationResult(br, dto);
+        return "admin/admins";
+    }
 
-	    if (br.hasErrors()) {
-	        return "admin/create";
-	    }
+    @GetMapping("/create")
+    public String createAdminPage(@ModelAttribute("form") AdminCreateForm form) {
+        return "admin/create";
+    }
 
-	    appUserService.createAdmins(List.of(dto));
+    @PostMapping("/create")
+    public String createAdmin(@Valid @ModelAttribute("form") AdminCreateForm form,
+                              BindingResult br,
+                              RedirectAttributes ra) {
 
-	    ra.addFlashAttribute("created", true);
-	    return "redirect:/admin";
-	}
-	
-	@PostMapping("/{id}/enable")
+        if (br.hasErrors()) {
+            return "admin/create";
+        }
+
+        var dto = mapper.toCreateDto(form);
+        appUserService.createAdmins(List.of(dto));
+
+        ra.addFlashAttribute("created", true);
+        return "redirect:/admin";
+    }
+
+    @PostMapping("/{id}/enable")
     public String enableAdmin(@AuthenticationPrincipal UserDetails principal,
-                              @PathVariable("id") Long id,
+                              @PathVariable("id") long id,
                               RedirectAttributes ra) {
 
         var selfId = principalHandler.parseUserId(principal);
@@ -82,10 +87,10 @@ public class AdminManagementController {
         ra.addFlashAttribute("ok", "Admin enabled.");
         return "redirect:/admin";
     }
-	
-	@PostMapping("/{id}/disable")
+
+    @PostMapping("/{id}/disable")
     public String disableAdmin(@AuthenticationPrincipal UserDetails principal,
-                               @PathVariable("id") Long id,
+                               @PathVariable("id") long id,
                                RedirectAttributes ra) {
 
         var selfId = principalHandler.parseUserId(principal);
@@ -96,10 +101,10 @@ public class AdminManagementController {
         ra.addFlashAttribute("ok", "Admin disabled.");
         return "redirect:/admin";
     }
-	
-	@PostMapping("/{id}/delete")
+
+    @PostMapping("/{id}/delete")
     public String deleteAdmin(@AuthenticationPrincipal UserDetails principal,
-                              @PathVariable("id") Long id,
+                              @PathVariable("id") long id,
                               RedirectAttributes ra) {
 
         var selfId = principalHandler.parseUserId(principal);
@@ -117,46 +122,19 @@ public class AdminManagementController {
 
         return "redirect:/admin";
     }
-	
-	private void assertNotSelf(Long targetId, long selfId) {
-		Optional.ofNullable(targetId)
-				.filter(target -> target != selfId)
-				.orElseThrow(() -> new IllegalStateException("You cannot modify your own admin account here."));
 
-	}
+    private void assertNotSelf(long targetId, long selfId) {
+        if (targetId == selfId) {
+            throw new IllegalStateException("You cannot modify your own admin account here.");
+        }
+    }
 
-	private void bindPasswords(BindingResult br, AdminCreateForm form) {
-		var newPass = Optional.ofNullable(form.newPassword()).filter(s -> !s.isBlank());
-		var confirmPas = Optional.ofNullable(form.confirmPassword()).filter(s -> !s.isBlank());
-
-		if (confirmPas.isEmpty()) {
-	        br.rejectValue("confirmPassword", "NotBlank", "Confirm password is required.");
-	        return;
-	    }
-		
-		if (newPass.isEmpty()) {
-	        return;
-	    }
-
-	    if (!Objects.equals(newPass.get(), confirmPas.get())) {
-	        br.rejectValue("confirmPassword", "Mismatch", "Passwords do not match.");
-	    }
-	}
-
-	private void bindValidationResult(BindingResult br, AppUserCreateDto dto) {
-	    validator.validate(dto).forEach(v -> {
-	        br.rejectValue(v.getPropertyPath().toString(), "Invalid", v.getMessage());
-	    });
-	}
-
-
-	private List<AdminRowView> sortAdminsForView(List<AdminRowView> admins, long selfId) {
-		return admins.stream()
-				.sorted(Comparator
-						.comparingInt((AdminRowView a) -> a.id() != null && a.id() == selfId ? 0 : 1)
-						.thenComparingInt(a -> a.enabled() ? 0 : 1)
-						.thenComparing(AdminRowView::id, Comparator.nullsLast(Long::compareTo)))
-				.toList();
-	}
-
+    private List<AdminRowView> sortAdminsForView(List<AdminRowView> admins, long selfId) {
+        return admins.stream()
+                .sorted(Comparator
+                        .comparingInt((AdminRowView a) -> a.id() != null && a.id() == selfId ? 0 : 1)
+                        .thenComparingInt(a -> a.enabled() ? 0 : 1)
+                        .thenComparing(AdminRowView::id, Comparator.nullsLast(Long::compareTo)))
+                .toList();
+    }
 }

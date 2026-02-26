@@ -2,12 +2,14 @@ package ua.foxminded.university.web.course;
 
 import java.util.List;
 
+import org.springframework.beans.propertyeditors.StringTrimmerEditor;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
+import org.springframework.web.bind.WebDataBinder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
@@ -15,9 +17,9 @@ import lombok.RequiredArgsConstructor;
 import ua.foxminded.university.model.repository.dto.TeacherOptionView;
 import ua.foxminded.university.service.CourseService;
 import ua.foxminded.university.service.TeacherService;
-import ua.foxminded.university.web.course.dto.CourseDescriptionUpdateForm;
-import ua.foxminded.university.web.course.dto.CourseFormMapper;
-import ua.foxminded.university.web.course.dto.CourseSelfUpdateForm;
+import ua.foxminded.university.service.dto.request.course.CourseDescriptionUpdateDto;
+import ua.foxminded.university.service.dto.request.course.CourseSelfUpdateDto;
+import ua.foxminded.university.web.bind.TrimToNullUppercaseEditor;
 import ua.foxminded.university.web.util.PrincipalHandler;
 
 @Controller
@@ -28,7 +30,6 @@ public class CoursesManagementController {
     private final CourseService courseService;
     private final TeacherService teacherService;
     private final PrincipalHandler principalHandler;
-    private final CourseFormMapper mapper;
 
     @GetMapping
     public String coursesPage(@AuthenticationPrincipal UserDetails principal, Model model) {
@@ -61,13 +62,20 @@ public class CoursesManagementController {
             default -> throw new AccessDeniedException("Unsupported role=" + roleKey + " for userId=" + userId);
         };
     }
+    
+    @InitBinder
+    void initBinder(WebDataBinder binder) {
+        binder.registerCustomEditor(String.class, new StringTrimmerEditor(true));
+        binder.registerCustomEditor(String.class, "description", new StringTrimmerEditor(false));
+        binder.registerCustomEditor(String.class, "code", new TrimToNullUppercaseEditor());
+    }
 
     @PostMapping("/description/update")
     @PreAuthorize("hasAnyRole('ADMIN','TEACHER')")
-    public String updateDescription(@ModelAttribute CourseDescriptionUpdateForm patch,
+    public String updateDescription(@ModelAttribute("patch") CourseDescriptionUpdateDto patch,
                                     RedirectAttributes ra) {
 
-        courseService.updateDescription(mapper.toDescriptionUpdateDto(patch));
+        courseService.updateDescription(patch);
 
         ra.addFlashAttribute("ok", "Description updated.");
         ra.addFlashAttribute("courseId", patch.id());
@@ -78,10 +86,10 @@ public class CoursesManagementController {
 
     @PostMapping("/self/update")
     @PreAuthorize("hasRole('ADMIN')")
-    public String updateSelf(@ModelAttribute CourseSelfUpdateForm patch,
+    public String updateSelf(@ModelAttribute CourseSelfUpdateDto  patch,
                              RedirectAttributes ra) {
 
-        courseService.updateSelf(mapper.toSelfUpdateDto(patch));
+        courseService.updateSelf(patch);
 
         ra.addFlashAttribute("ok", "Course updated.");
         ra.addFlashAttribute("courseId", patch.id());

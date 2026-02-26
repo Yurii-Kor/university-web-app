@@ -8,7 +8,8 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
-import ua.foxminded.university.web.course.dto.CourseCreateForm;
+
+import ua.foxminded.university.service.dto.request.course.CourseCreateDto;
 
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -67,12 +68,12 @@ public class CourseCreateExceptionHandler {
         return "redirect:/courses/create";
     }
 
-    private CourseCreateForm formFromRequest(HttpServletRequest req) {
+    private CourseCreateDto formFromRequest(HttpServletRequest req) {
         String code = req.getParameter("code");
         String name = req.getParameter("name");
         String description = req.getParameter("description");
         Long teacherId = parseLong(req.getParameter("teacherId"));
-        return new CourseCreateForm(code, name, description, teacherId);
+        return new CourseCreateDto(code, name, description, teacherId);
     }
 
     private Long parseLong(String raw) {

@@ -32,7 +32,6 @@ import ua.foxminded.university.service.TeacherService;
 import ua.foxminded.university.service.dto.response.DeleteResult;
 import ua.foxminded.university.service.dto.request.course.CourseDescriptionUpdateDto;
 import ua.foxminded.university.service.dto.request.course.CourseSelfUpdateDto;
-import ua.foxminded.university.web.course.dto.CourseFormMapper;
 import ua.foxminded.university.web.testconfig.MethodSecurityTestConfig;
 import ua.foxminded.university.web.util.PrincipalHandler;
 
@@ -53,9 +52,6 @@ class CoursesManagementControllerWebMvcTest {
 
     @MockitoBean
     PrincipalHandler principalHandler;
-
-    @MockitoBean
-    CourseFormMapper mapper;
 
     @Test
     @DisplayName("GET /courses as admin -> 200, courses/courses, model has title/subtitle/courses/teachers")
@@ -123,9 +119,6 @@ class CoursesManagementControllerWebMvcTest {
     @Test
     @DisplayName("POST /courses/description/update as TEACHER ok -> redirects /courses, flash ok/courseId/courseOp, calls service")
     void postUpdateDescription_teacher_ok_redirectsAndSetsFlash() throws Exception {
-        var dto = mock(CourseDescriptionUpdateDto.class);
-        when(mapper.toDescriptionUpdateDto(any())).thenReturn(dto);
-
         mockMvc.perform(post("/courses/description/update")
                         .with(user(USER_ID.toString()).roles("TEACHER"))
                         .with(csrf())
@@ -137,15 +130,14 @@ class CoursesManagementControllerWebMvcTest {
                 .andExpect(flash().attribute("courseId", 10L))
                 .andExpect(flash().attribute("courseOp", "description"));
 
-        verify(courseService).updateDescription(dto);
+        verify(courseService).updateDescription(
+                new CourseDescriptionUpdateDto(10L, "New desc")
+        );
     }
 
     @Test
     @DisplayName("POST /courses/self/update as ADMIN ok -> redirects /courses, flash ok/courseId/courseOp, calls service")
     void postUpdateSelf_admin_ok_redirectsAndSetsFlash() throws Exception {
-        var dto = mock(CourseSelfUpdateDto.class);
-        when(mapper.toSelfUpdateDto(any())).thenReturn(dto);
-
         mockMvc.perform(post("/courses/self/update")
                         .with(user(USER_ID.toString()).roles("ADMIN"))
                         .with(csrf())
@@ -159,13 +151,14 @@ class CoursesManagementControllerWebMvcTest {
                 .andExpect(flash().attribute("courseId", 11L))
                 .andExpect(flash().attribute("courseOp", "self"));
 
-        verify(courseService).updateSelf(dto);
+        verify(courseService).updateSelf(
+                new CourseSelfUpdateDto(11L, "CS-999", "X", 5L)
+        );
     }
 
     @Test
     @DisplayName("POST /courses/self/update as TEACHER -> redirect /courses, flash err=Access denied, service not called")
     void postUpdateSelf_teacher_forbidden_redirectsAndSetsErrFlash() throws Exception {
-
         mockMvc.perform(post("/courses/self/update")
                         .with(user("42").roles("TEACHER"))
                         .with(csrf())

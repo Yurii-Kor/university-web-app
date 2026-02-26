@@ -10,14 +10,12 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 import java.time.OffsetDateTime;
-import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Path;
-import jakarta.validation.Validator;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -33,10 +31,11 @@ import ua.foxminded.university.service.dto.request.appuser.AppUserCreateDto;
 import ua.foxminded.university.service.dto.response.DeleteResult;
 import ua.foxminded.university.web.admin.dto.AdminCreateForm;
 import ua.foxminded.university.web.admin.dto.AdminCreateFormMapper;
+import ua.foxminded.university.web.admin.validation.AdminCreateFormValidator;
 import ua.foxminded.university.web.util.PrincipalHandler;
 
 @WebMvcTest(controllers = AdminManagementController.class)
-@Import({ AdminExceptionHandler.class, PrincipalHandler.class })
+@Import({ AdminExceptionHandler.class, PrincipalHandler.class, AdminCreateFormValidator.class })
 class AdminManagementControllerWebMvcTest {
 
     private static final Long SELF_ID = 42L;
@@ -49,9 +48,6 @@ class AdminManagementControllerWebMvcTest {
 
     @MockitoBean
     AdminCreateFormMapper mapper;
-
-    @MockitoBean
-    Validator validator;
 
     @Test
     @DisplayName("GET /admin -> 200, admin/admins, model has sorted admins and selfId")
@@ -90,7 +86,6 @@ class AdminManagementControllerWebMvcTest {
         var dto = new AppUserCreateDto("admin@ex.com", "Abcd1234!", "Alice", "Admin");
 
         when(mapper.toCreateDto(any(AdminCreateForm.class))).thenReturn(dto);
-        when(validator.validate(any(AppUserCreateDto.class))).thenReturn(Collections.emptySet());
 
         mockMvc.perform(post("/admin/create")
                         .with(user(Long.toString(SELF_ID)).roles("ADMIN"))
@@ -113,7 +108,6 @@ class AdminManagementControllerWebMvcTest {
         var dto = new AppUserCreateDto("admin@ex.com", "Abcd1234!", "Alice", "Admin");
 
         when(mapper.toCreateDto(any(AdminCreateForm.class))).thenReturn(dto);
-        when(validator.validate(any(AppUserCreateDto.class))).thenReturn(Collections.emptySet());
 
         mockMvc.perform(post("/admin/create")
                         .with(user(Long.toString(SELF_ID)).roles("ADMIN"))
@@ -136,7 +130,6 @@ class AdminManagementControllerWebMvcTest {
         var dto = new AppUserCreateDto("taken@ex.com", "Abcd1234!", "Alice", "Admin");
 
         when(mapper.toCreateDto(any(AdminCreateForm.class))).thenReturn(dto);
-        when(validator.validate(any(AppUserCreateDto.class))).thenReturn(Collections.emptySet());
         doThrow(new IllegalArgumentException("Emails already exist: [taken@ex.com]"))
                 .when(appUserService).createAdmins(any());
 
@@ -257,7 +250,6 @@ class AdminManagementControllerWebMvcTest {
         when(path.toString()).thenReturn("email");
         when(violation.getPropertyPath()).thenReturn(path);
         when(violation.getMessage()).thenReturn("must be a well-formed email address");
-        when(validator.validate(any(AppUserCreateDto.class))).thenReturn(Set.of(violation));
 
         mockMvc.perform(post("/admin/create")
                         .with(user(Long.toString(SELF_ID)).roles("ADMIN"))
