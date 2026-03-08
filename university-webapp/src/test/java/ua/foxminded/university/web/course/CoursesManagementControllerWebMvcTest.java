@@ -36,6 +36,7 @@ import ua.foxminded.university.web.course.page.strategy.AdminCoursesPageStrategy
 import ua.foxminded.university.web.course.page.strategy.StudentCoursesPageStrategy;
 import ua.foxminded.university.web.course.page.strategy.TeacherCoursesPageStrategy;
 import ua.foxminded.university.web.testconfig.MethodSecurityTestConfig;
+import ua.foxminded.university.web.util.ExceptionMessageReader;
 import ua.foxminded.university.web.util.PrincipalHandler;
 
 @WebMvcTest(controllers = CoursesManagementController.class)
@@ -45,7 +46,8 @@ import ua.foxminded.university.web.util.PrincipalHandler;
     CoursesPageModelFactory.class,
     AdminCoursesPageStrategy.class,
     TeacherCoursesPageStrategy.class,
-    StudentCoursesPageStrategy.class
+    StudentCoursesPageStrategy.class,
+	ExceptionMessageReader.class
 })
 class CoursesManagementControllerWebMvcTest {
 

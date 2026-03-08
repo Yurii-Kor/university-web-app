@@ -32,9 +32,10 @@ import ua.foxminded.university.service.TeacherService;
 import ua.foxminded.university.service.dto.request.course.CourseCreateDto;
 import ua.foxminded.university.service.exception.course.CourseCreateException;
 import ua.foxminded.university.web.testconfig.MethodSecurityTestConfig;
+import ua.foxminded.university.web.util.ExceptionMessageReader;
 
 @WebMvcTest(controllers = CourseCreateController.class)
-@Import({ CourseCreateExceptionHandler.class, MethodSecurityTestConfig.class })
+@Import({ CourseCreateExceptionHandler.class, MethodSecurityTestConfig.class, ExceptionMessageReader.class })
 class CourseCreateControllerWebMvcTest {
 
     private static final Long USER_ID = 42L;

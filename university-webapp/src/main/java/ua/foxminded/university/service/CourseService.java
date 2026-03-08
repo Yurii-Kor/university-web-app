@@ -18,7 +18,7 @@ import ua.foxminded.university.model.repository.dto.GroupOptionView;
 import ua.foxminded.university.service.dto.request.course.CourseCreateDto;
 import ua.foxminded.university.service.dto.request.course.CourseDescriptionUpdateDto;
 import ua.foxminded.university.service.dto.request.course.CourseSelfUpdateDto;
-import ua.foxminded.university.service.dto.response.CourseGroupsPageView;
+import ua.foxminded.university.service.dto.response.CourseGroupsView;
 import ua.foxminded.university.service.exception.course.CourseCreateException;
 import ua.foxminded.university.service.exception.course.CourseSelfUpdateException;
 import ua.foxminded.university.service.util.validation.EntityValidatior;
@@ -104,14 +104,14 @@ public class CourseService {
 	}
 	
 	@Transactional(value = TxType.SUPPORTS)
-	public CourseGroupsPageView getCourseGroupsPage(long courseId) {
+	public CourseGroupsView getCourseGroupsView(long courseId) {
 	    var header = courseRepository.findCourseHeaderById(courseId)
 	            .orElseThrow(() -> new EntityNotFoundException("Course not found: id=" + courseId));
 
 	    List<GroupOptionView> assigned = groupRepository.findAssignedGroupOptions(courseId);
 	    List<GroupOptionView> available = groupRepository.findAvailableGroupOptions(courseId);
 
-	    return new CourseGroupsPageView(header, assigned, available);
+	    return new CourseGroupsView(header, assigned, available);
 	}
 
 	@Transactional(value = TxType.REQUIRES_NEW)

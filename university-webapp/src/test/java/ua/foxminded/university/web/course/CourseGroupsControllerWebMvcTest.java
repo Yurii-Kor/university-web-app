@@ -26,12 +26,13 @@ import ua.foxminded.university.model.repository.dto.CourseHeaderView;
 import ua.foxminded.university.model.repository.dto.GroupOptionView;
 import ua.foxminded.university.service.CourseService;
 import ua.foxminded.university.service.TeacherService;
-import ua.foxminded.university.service.dto.response.CourseGroupsPageView;
+import ua.foxminded.university.service.dto.response.CourseGroupsView;
 import ua.foxminded.university.service.exception.course.CourseGroupsOpException;
 import ua.foxminded.university.web.testconfig.MethodSecurityTestConfig;
+import ua.foxminded.university.web.util.ExceptionMessageReader;
 
 @WebMvcTest(controllers = CourseGroupsController.class)
-@Import({ CourseGroupsExceptionHandler.class, MethodSecurityTestConfig.class })
+@Import({ CourseGroupsExceptionHandler.class, MethodSecurityTestConfig.class, ExceptionMessageReader.class })
 class CourseGroupsControllerWebMvcTest {
 
     private static final Long USER_ID = 42L;
@@ -49,9 +50,9 @@ class CourseGroupsControllerWebMvcTest {
         var header = new CourseHeaderView(COURSE_ID, "CS-101", "Algorithms");
         var assigned = List.of(new GroupOptionView(1L, "Group A"));
         var available = List.of(new GroupOptionView(2L, "Group B"));
-        var page = new CourseGroupsPageView(header, assigned, available);
+        var page = new CourseGroupsView(header, assigned, available);
 
-        when(courseService.getCourseGroupsPage(COURSE_ID)).thenReturn(page);
+        when(courseService.getCourseGroupsView(COURSE_ID)).thenReturn(page);
 
         mockMvc.perform(get("/courses/{courseId}/groups", COURSE_ID)
                         .with(user(USER_ID.toString()).roles("ADMIN")))
@@ -60,13 +61,13 @@ class CourseGroupsControllerWebMvcTest {
                 .andExpect(model().attribute("pageTitle", "Course groups"))
                 .andExpect(model().attribute("page", sameInstance(page)));
 
-        verify(courseService).getCourseGroupsPage(COURSE_ID);
+        verify(courseService).getCourseGroupsView(COURSE_ID);
     }
     
     @Test
     @DisplayName("GET /courses/{courseId}/groups when EntityNotFoundException -> redirect /courses, flash err")
     void getPage_entityNotFound_redirectsToCoursesAndSetsFlashErr() throws Exception {
-        when(courseService.getCourseGroupsPage(COURSE_ID))
+        when(courseService.getCourseGroupsView(COURSE_ID))
                 .thenThrow(new EntityNotFoundException("Course not found: id=" + COURSE_ID));
 
         mockMvc.perform(get("/courses/{courseId}/groups", COURSE_ID)
@@ -75,7 +76,7 @@ class CourseGroupsControllerWebMvcTest {
                 .andExpect(redirectedUrl("/courses"))
                 .andExpect(flash().attribute("err", "Course not found: id=" + COURSE_ID));
 
-        verify(courseService).getCourseGroupsPage(COURSE_ID);
+        verify(courseService).getCourseGroupsView(COURSE_ID);
     }
 
     @Test

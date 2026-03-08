@@ -329,7 +329,7 @@ class CourseServiceTest {
     @Test
     @DisplayName("getCourseGroupsPage: existing course id -> returns page view with header and assigned/available groups")
     void getCourseGroupsPage_existingId_returnsPage() {
-        var page = courseService.getCourseGroupsPage(courseSecurity.getId());
+        var page = courseService.getCourseGroupsView(courseSecurity.getId());
 
         assertNotNull(page, "page must not be null");
         assertNotNull(page.course(), "course header must not be null");
@@ -342,7 +342,7 @@ class CourseServiceTest {
     @DisplayName("getCourseGroupsPage: non-existing course id -> EntityNotFoundException")
     void getCourseGroupsPage_notFound_fails() {
         var ex = assertThrows(EntityNotFoundException.class,
-                () -> courseService.getCourseGroupsPage(NON_EXISTENT_ID));
+                () -> courseService.getCourseGroupsView(NON_EXISTENT_ID));
 
         assertEquals("Course not found: id=" + NON_EXISTENT_ID, ex.getMessage());
     }

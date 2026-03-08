@@ -35,6 +35,7 @@ import ua.foxminded.university.web.profile.page.ProfilePageModelFactory;
 import ua.foxminded.university.web.profile.page.strategy.AdminProfilePageStrategy;
 import ua.foxminded.university.web.profile.page.strategy.StudentProfilePageStrategy;
 import ua.foxminded.university.web.profile.page.strategy.TeacherProfilePageStrategy;
+import ua.foxminded.university.web.util.ExceptionMessageReader;
 import ua.foxminded.university.web.util.PrincipalHandler;
 
 @WebMvcTest(controllers = ProfileController.class)
@@ -44,7 +45,8 @@ import ua.foxminded.university.web.util.PrincipalHandler;
 	ProfilePageModelFactory.class,
 	AdminProfilePageStrategy.class,
 	StudentProfilePageStrategy.class,
-	TeacherProfilePageStrategy.class
+	TeacherProfilePageStrategy.class,
+	ExceptionMessageReader.class
 })
 class ProfileControllerWebMvcTest {
 	

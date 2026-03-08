@@ -33,10 +33,11 @@ import ua.foxminded.university.service.dto.response.DeleteResult;
 import ua.foxminded.university.web.admin.dto.AdminCreateForm;
 import ua.foxminded.university.web.admin.dto.AdminCreateFormMapper;
 import ua.foxminded.university.web.admin.validation.AdminCreateFormValidator;
+import ua.foxminded.university.web.util.ExceptionMessageReader;
 import ua.foxminded.university.web.util.PrincipalHandler;
 
 @WebMvcTest(controllers = AdminManagementController.class)
-@Import({ AdminExceptionHandler.class, PrincipalHandler.class, AdminCreateFormValidator.class })
+@Import({ AdminExceptionHandler.class, PrincipalHandler.class, AdminCreateFormValidator.class, ExceptionMessageReader.class })
 class AdminManagementControllerWebMvcTest {
 
     private static final Long SELF_ID = 42L;

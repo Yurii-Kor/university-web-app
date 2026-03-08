@@ -17,9 +17,9 @@ public class CourseGroupsController {
     private final CourseService courseService;
 
     @GetMapping
-    public String page(@PathVariable long courseId, Model model) {
+    public String view(@PathVariable long courseId, Model model) {
         model.addAttribute("pageTitle", "Course groups");
-        model.addAttribute("page", courseService.getCourseGroupsPage(courseId));
+        model.addAttribute("page", courseService.getCourseGroupsView(courseId));
         return "courses/course-groups";
     }
 
