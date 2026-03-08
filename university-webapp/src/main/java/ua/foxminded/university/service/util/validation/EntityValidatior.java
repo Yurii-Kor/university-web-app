@@ -8,43 +8,47 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @RequiredArgsConstructor
 @Component
 public class EntityValidatior {
 
-	private static final Logger log = LoggerFactory.getLogger(EntityValidatior.class);
+    private static final Logger log = LoggerFactory.getLogger(EntityValidatior.class);
 
-	private final Validator validator;
+    private final Validator validator;
 
-	public <T> void validate(T target) {
-		var singletonOrEmpty = Optional.ofNullable(target).map(List::of).orElseGet(Collections::emptyList);
+    public <T> void validateWithId(T target, Long entityId) {
+		Optional.ofNullable(target).orElseThrow(() -> new IllegalArgumentException("target must not be null"));
 
-		validateAll(singletonOrEmpty);
-	}
+        var violations = validator.validate(target);
+        if (!violations.isEmpty()) {
+        	log.warn("Entety With Id: {} - violations found: {}", entityId, violations.size());
+            throw new ContextConstraintViolationException(entityId, new HashSet<>(violations));
+        }
+    }
 
-	public <T> void validateAll(Collection<T> targets) {
-		Optional.ofNullable(targets).filter(list -> !list.isEmpty()).ifPresent(list -> {
-			log.debug("validateAll: start, items={}", list.size());
+    public <T> void validate(T target) {
+        var singletonOrEmpty = Optional.ofNullable(target).map(List::of).orElseGet(Collections::emptyList);
+        validateAll(singletonOrEmpty);
+    }
 
-			Set<ConstraintViolation<?>> violations = list.stream()
-					.filter(Objects::nonNull)
-					.flatMap(t -> validator.validate(t).stream())
-					.collect(Collectors.toSet());
+    public <T> void validateAll(Collection<T> targets) {
+        Optional.ofNullable(targets).filter(list -> !list.isEmpty()).ifPresent(list -> {
+            log.debug("validateAll: start, items={}", list.size());
 
-			if (!violations.isEmpty()) {
-				log.warn("validateAll: violations found: {}", violations.size());
-				throw new ConstraintViolationException(violations);
-			}
+            Set<ConstraintViolation<?>> violations = list.stream()
+                    .filter(Objects::nonNull)
+                    .flatMap(t -> validator.validate(t).stream())
+                    .collect(Collectors.toSet());
 
-			log.debug("validateAll: OK (no violations)");
-		});
-	}
+            if (!violations.isEmpty()) {
+                log.warn("validateAll: violations found: {}", violations.size());
+                throw new ConstraintViolationException(violations);
+            }
+
+            log.debug("validateAll: OK (no violations)");
+        });
+    }
 }

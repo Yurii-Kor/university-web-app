@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+
 import ua.foxminded.university.model.domain.Course;
 import ua.foxminded.university.model.domain.StudyGroup;
 import ua.foxminded.university.model.repository.CourseRepository;
@@ -18,10 +19,10 @@ import ua.foxminded.university.service.dto.request.course.CourseCreateDto;
 import ua.foxminded.university.service.dto.request.course.CourseDescriptionUpdateDto;
 import ua.foxminded.university.service.dto.request.course.CourseSelfUpdateDto;
 import ua.foxminded.university.service.dto.response.CourseGroupsPageView;
-import ua.foxminded.university.service.dto.response.DeleteResult;
+import ua.foxminded.university.service.exception.course.CourseCreateException;
+import ua.foxminded.university.service.exception.course.CourseSelfUpdateException;
 import ua.foxminded.university.service.util.validation.EntityValidatior;
 import ua.foxminded.university.service.util.DtoMapper;
-import ua.foxminded.university.service.util.DuplicateGuard;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -30,9 +31,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 @Transactional
 public class CourseService {
-
-	private static final int NOT_UPDATED = 0;
-
+	
 	private static final Logger log = LoggerFactory.getLogger(CourseService.class);
 
 	private final CourseRepository courseRepository;
@@ -40,37 +39,37 @@ public class CourseService {
 	private final StudyGroupRepository groupRepository;
 	private final EntityValidatior validator;
 	private final DtoMapper dtoMapper;
-	private final DuplicateGuard duplicateGuard;
-
+	
 	@Transactional(value = TxType.REQUIRES_NEW)
-	public List<Course> createAll(Collection<CourseCreateDto> drafts) {
-		drafts = Optional.ofNullable(drafts).orElseGet(List::of).stream().filter(Objects::nonNull).toList();
-		if (drafts.isEmpty()) {
-			log.warn("createAll: nothing to persist (null/empty input)");
-			return List.of();
-		}
+	public Course create(CourseCreateDto draft) {
+		Optional.ofNullable(draft).ifPresentOrElse(p -> validator.validate(p), () -> {
+			log.warn("create: draft is null");
+			throw new IllegalArgumentException("draft must not be null");
+		});
+		
+		findExistingCode(draft.code().toLowerCase()).ifPresent(existing -> {
+			log.warn("create: code conflict (requestedCode='{}', existing='{}')", draft.code(), existing);
+	        throw new CourseCreateException(draft, "Course codes already exist: [" + existing + "]");
+	    });
+		
+		findExistingName(draft.name().toLowerCase()).ifPresent(existing -> {
+			log.warn("create: name conflict (requestedName='{}', existing='{}')", draft.name(), existing);
+	        throw new CourseCreateException(draft, "Course names already exist: [" + existing + "]");
+	    });
 
-		validator.validateAll(drafts);
+		var teacher = teacherRepository.findById(draft.teacherId()).orElseThrow(() -> {
+			log.warn("create: teacher not found (teacherId={})", draft.teacherId());
+			return new CourseCreateException(draft, "Teacher not found: id=" + draft.teacherId());
+		});
 
-		var toPersist = dtoMapper.toCourseEntities(drafts);
-		if (toPersist.isEmpty()) {
-			log.warn("createAll: nothing to persist (null/empty input)");
-			return List.of();
-		}
+		var course = dtoMapper.toCourseEntity(draft).orElseThrow(() -> {
+			log.warn("create: mapper produced null Course (code='{}', name='{}')", draft.code(), draft.name());
+			return new IllegalArgumentException("Mapper produced null Course");
+		});
 
-		var codesLower = toPersist.stream().map(Course::getCode).map(String::trim).map(String::toLowerCase).toList();
-		var namesLower = toPersist.stream().map(Course::getName).map(String::trim).map(String::toLowerCase).toList();
+	    course.setTeacher(teacher);
 
-		duplicateGuard.assertNoDuplicates(codesLower, "normalized course codes");
-		duplicateGuard.assertNoDuplicates(namesLower, "normalized course names");
-
-		assertCodesFreeInDbForCreate(codesLower);
-		assertNamesFreeInDb(namesLower);
-
-		assertTeachersExist(toPersist);
-		attachTeacherRefs(toPersist);
-
-		return courseRepository.saveAll(toPersist);
+	    return courseRepository.save(course);
 	}
 
 	@Transactional(value = TxType.SUPPORTS)
@@ -117,8 +116,15 @@ public class CourseService {
 
 	@Transactional(value = TxType.REQUIRES_NEW)
 	public Course updateSelf(CourseSelfUpdateDto patch) {
-	    requireValidation(patch);
-	    var managed = getManagedCourse(patch.id());
+		Optional.ofNullable(patch).ifPresentOrElse(p -> validator.validateWithId(p, p.id()), () -> {
+			log.warn("updateSelf: patch is null");
+			throw new IllegalArgumentException("patch must not be null");
+		});
+		
+		var managed = courseRepository.findById(patch.id()).orElseThrow(() -> {
+			log.warn("updateSelf: course not found (courseId={})", patch.id());
+			return new EntityNotFoundException("Course not found: id=" + patch.id());
+		});
 
 	    applyCodePatch(managed, patch);
 	    applyNamePatch(managed, patch);
@@ -130,9 +136,16 @@ public class CourseService {
 	
 	@Transactional(value = TxType.REQUIRES_NEW)
 	public Course updateDescription(CourseDescriptionUpdateDto patch) {
-		requireValidation(patch);
-		var managed = getManagedCourse(patch.id());
-
+		Optional.ofNullable(patch).ifPresentOrElse(p -> validator.validateWithId(p, p.id()), () -> {
+			log.warn("updateDescription: patch is null");
+			throw new IllegalArgumentException("patch must not be null");
+		});
+		
+		var managed = courseRepository.findById(patch.id()).orElseThrow(() -> {
+			log.warn("updateDescription: course not found (courseId={})", patch.id());
+			return new EntityNotFoundException("Course not found: id=" + patch.id());
+		});
+		
 		Optional.ofNullable(patch.description())
 				.map(String::trim)
 				.ifPresent(desc -> managed.setDescription(desc.isEmpty() ? null : desc));
@@ -140,201 +153,116 @@ public class CourseService {
 		log.debug("updateDescription: updated description for courseId={}", managed.getId());
 		return managed;
 	}
-
-	@Transactional(value = TxType.REQUIRES_NEW)
-	public int addGroupsToCourse(long courseId, Collection<Long> groupIds) {
-		var distinct = Optional.ofNullable(groupIds)
-				.orElseGet(Collections::emptyList)
-				.stream()
-				.filter(Objects::nonNull)
-				.collect(Collectors.toSet());
-
-		if (distinct.isEmpty()) {
-			log.warn("addGroupsToCourse: null/empty groupIds or only nulls -> nothing to do");
-			return NOT_UPDATED;
-		}
-
-		var existing = new HashSet<>(groupRepository.findExistingIds(distinct));
-		var missing = distinct.stream().filter(id -> !existing.contains(id)).toList();
-		if (!missing.isEmpty()) {
-			log.error("addGroupsToCourse: StudyGroups not found: {}", missing);
-			throw new EntityNotFoundException("StudyGroups not found: " + missing);
-		}
-
-		return attachExistingGroupsToCourse(courseId, existing);
-	}
-
-	private int attachExistingGroupsToCourse(long courseId, Set<Long> existingGroupIds) {
+	
+	@Transactional(TxType.REQUIRES_NEW)
+	public Optional<Long> addGroupToCourse(long courseId, long groupId) {
 		var course = courseRepository.findById(courseId).orElseThrow(() -> {
-			log.error("addGroupsToCourse: course not found: id={}", courseId);
+			log.warn("addGroupToCourse: course not found (courseId={})", courseId);
 			return new EntityNotFoundException("Course not found: id=" + courseId);
 		});
-
-		var groupsSet = Optional.ofNullable(course.getGroups()).orElseGet(() -> {
-			course.setGroups(new LinkedHashSet<>());
-			return course.getGroups();
-		});
-
-		var already = groupsSet.stream().map(StudyGroup::getId).filter(Objects::nonNull).collect(Collectors.toSet());
-		var toAddIds = existingGroupIds.stream().filter(id -> !already.contains(id)).collect(Collectors.toSet());
-
-		if (toAddIds.isEmpty()) {
-			log.info("addGroupsToCourse: nothing new to add for courseId={}", courseId);
-			return NOT_UPDATED;
-		}
-
-		toAddIds.stream().map(groupRepository::getReferenceById).forEach(groupsSet::add);
-		log.info("addGroupsToCourse: added {} group(s) to courseId={}", toAddIds.size(), courseId);
-		return toAddIds.size();
-	}
-
-	@Transactional(value = TxType.REQUIRES_NEW)
-	public int removeGroupsFromCourse(long courseId, Collection<Long> groupIds) {
-		var distinct = Optional.ofNullable(groupIds)
-				.orElseGet(Collections::emptyList)
-				.stream()
-				.filter(Objects::nonNull)
-				.collect(Collectors.toSet());
-
-		if (distinct.isEmpty()) {
-			log.warn("removeGroupsFromCourse: null/empty groupIds or only nulls -> nothing to do");
-			return NOT_UPDATED;
-		}
-
-		return doRemoveGroupsFromCourse(courseId, distinct);
-	}
-
-	private int doRemoveGroupsFromCourse(long courseId, Collection<Long> groupIds) {
-		var course = courseRepository.findById(courseId).orElseThrow(() -> {
-			log.error("removeGroupsFromCourse: course not found: id={}", courseId);
-			return new EntityNotFoundException("Course not found: id=" + courseId);
-		});
-
-		var groupsSet = course.getGroups();
-		if (Optional.ofNullable(groupsSet).map(Collection::isEmpty).orElse(true)) {
-			log.info("removeGroupsFromCourse: courseId={} has no groups -> nothing to remove", courseId);
-			return NOT_UPDATED;
-		}
-
-		int before = groupsSet.size();
-		groupsSet.removeIf(g -> groupIds.contains(g.getId()));
-		int removed = before - groupsSet.size();
-
-		log.info("removeGroupsFromCourse: removed {} group(s) from courseId={}", removed, courseId);
-		return removed;
-	}
-
-	@Transactional(value = TxType.REQUIRES_NEW)
-	public DeleteResult deleteByIds(Collection<Long> ids) {
-		var distinct = Optional.ofNullable(ids)
-				.orElseGet(Collections::emptyList)
-				.stream()
-				.filter(Objects::nonNull)
-				.collect(Collectors.toSet());
 		
-		if (distinct.isEmpty()) {
-			log.warn("deleteByIds called with null/empty list");
-			return new DeleteResult(Set.of(), Set.of());
+		var groups = Optional.ofNullable(course.getGroups()).orElseGet(() -> {
+	        course.setGroups(new LinkedHashSet<>());
+	        return course.getGroups();
+	    });
+
+	    var already = groups.stream().map(StudyGroup::getId).filter(Objects::nonNull).collect(Collectors.toSet());
+	    if (already.contains(groupId)) {
+	    	log.debug("addGroupToCourse: already attached (courseId={}, groupId={})", courseId, groupId);
+	        return Optional.empty();
+	    }
+		
+	    groups.add(groupRepository.getReferenceById(groupId));
+	    log.debug("addGroupToCourse: attached group (courseId={}, groupId={})", courseId, groupId);
+	    
+		return Optional.of(groupId);
+	}
+	
+	@Transactional(TxType.REQUIRES_NEW)
+	public Optional<Long> removeGroupFromCourse(long courseId, long groupId) {
+		var course = courseRepository.findById(courseId).orElseThrow(() -> {
+			log.warn("removeGroupFromCourse: course not found (courseId={})", courseId);
+			return new EntityNotFoundException("Course not found: id=" + courseId);
+		});
+		
+		var groups = Optional.ofNullable(course.getGroups()).orElseGet(Collections::emptySet);
+		var already = groups.stream().map(StudyGroup::getId).filter(Objects::nonNull).collect(Collectors.toSet());
+		if (!already.contains(groupId)) {
+			log.debug("removeGroupFromCourse: not attached (courseId={}, groupId={})", courseId, groupId);
+			return Optional.empty();
 		}
-
-		var existing = courseRepository.findAllById(distinct);
-
-		var deletedIds = existing.stream().map(Course::getId).collect(Collectors.toSet());
-		var notFound = distinct.stream().filter(id -> !deletedIds.contains(id)).collect(Collectors.toSet());
-
-		courseRepository.deleteAll(existing);
-		log.info("Deleted {} course(s); not found: {}", deletedIds.size(), notFound);
-		return new DeleteResult(deletedIds, notFound);
+		
+		groups.removeIf(g -> Objects.equals(g.getId(), groupId));
+		log.debug("removeGroupFromCourse: detached group (courseId={}, groupId={})", courseId, groupId);
+		
+		return Optional.of(groupId);
+	}
+	
+	@Transactional(value = TxType.REQUIRES_NEW)
+	public void delete(long id) {
+	    if (!courseRepository.existsById(id)) {
+	    	log.warn("delete: course not found (courseId={})", id);
+	        throw new EntityNotFoundException("Course not found: id=" + id);
+	    }
+	    courseRepository.deleteById(id);
 	}
 	
 	private void applyCodePatch(Course managed, CourseSelfUpdateDto patch) {
-	    Optional.ofNullable(patch.code())
-	            .map(String::trim)
-	            .filter(code -> !code.isEmpty())
-	            .filter(code -> isDifferentIgnoreCase(code, managed.getCode()))
-	            .ifPresent(code -> {
-	                assertCodeFreeInDbForSelfUpdate(patch.id(), code.toLowerCase());
-	                managed.setCode(code);
-	            });
+		Optional.ofNullable(patch.code())
+				.map(String::trim)
+				.filter(code -> !code.isEmpty())
+				.filter(code -> isDifferentIgnoreCase(code, managed.getCode()))
+				.ifPresent(code -> {
+					findExistingCode(patch.code().trim().toLowerCase()).ifPresent(existing -> {
+						log.warn("updateSelf: code conflict (courseId={}, existing='{}')", managed.getId(), existing);
+						throw new CourseSelfUpdateException(patch, "Course codes already exist: [" + existing + "]");
+					});
+
+					managed.setCode(code);
+					log.debug("updateSelf: code updated (courseId={})", managed.getId());
+				});
 	}
-	
+
 	private void applyNamePatch(Course managed, CourseSelfUpdateDto patch) {
 	    Optional.ofNullable(patch.name())
 	            .map(String::trim)
 	            .filter(name -> !name.isEmpty())
 	            .filter(name -> isDifferentIgnoreCase(name, managed.getName()))
 	            .ifPresent(name -> {
-	                assertNamesFreeInDb(List.of(name.toLowerCase()));
+					findExistingName(patch.name().trim().toLowerCase()).ifPresent(existing -> {
+						log.warn("updateSelf: name conflict (courseId={}, existing='{}')", managed.getId(), existing);
+						throw new CourseSelfUpdateException(patch, "Course names already exist: [" + existing + "]");
+					});
+	            	
 	                managed.setName(name);
+	                log.debug("updateSelf: name updated (courseId={})", managed.getId());
 	            });
 	}
-	
+
 	private void applyTeacherPatch(Course managed, CourseSelfUpdateDto patch) {
 	    Optional.ofNullable(patch.teacherId())
 	            .filter(newTeacherId -> isDifferentTeacher(managed, newTeacherId))
-	            .ifPresent(newTeacherId -> {
-	                assertTeacherExists(newTeacherId);
-	                managed.setTeacher(teacherRepository.getReferenceById(newTeacherId));
-	            });
-	}
+				.ifPresent(newTeacherId -> {
+					var teacher = teacherRepository.findById(newTeacherId).orElseThrow(() -> {
+						log.warn("updateSelf: teacher not found (teacherId={})", newTeacherId);
+						return new CourseSelfUpdateException(patch, "Teacher not found: id=" + newTeacherId);
+					});
 
-	private void attachTeacherRefs(Collection<Course> courses) {
-		courses.forEach(c -> c.setTeacher(teacherRepository.getReferenceById(c.getTeacher().getId())));
-	}
-
-	private void assertTeachersExist(Collection<Course> courses) {
-		var teacherIds = courses.stream().map(c -> c.getTeacher().getId()).collect(Collectors.toSet());
-
-		var existing = new HashSet<>(teacherRepository.findExistingIds(teacherIds));
-		var missing = teacherIds.stream().filter(id -> !existing.contains(id)).collect(Collectors.toSet());
-
-		if (!missing.isEmpty()) {
-			log.error("createAll: teachers not found: {}", missing);
-			throw new EntityNotFoundException("Teachers not found: " + missing);
-		}
+					managed.setTeacher(teacher);
+					log.debug("updateSelf: teacher updated (courseId={}, teacherId={})", managed.getId(), newTeacherId);
+				});
 	}
 	
-	private void assertTeacherExists(long teacherId) {
-	    if (!teacherRepository.existsById(teacherId)) {
-	        log.error("updateSelf: teacher not found: id={}", teacherId);
-	        throw new EntityNotFoundException("Teacher not found: id=" + teacherId);
-	    }
+	private Optional<String> findExistingCode(String codeLower) {
+	    return courseRepository.findExistingCodesIgnoreCase(Set.of(codeLower))
+	            .stream()
+	            .findFirst();
 	}
 
-	private void assertNamesFreeInDb(Collection<String> namesLower) {
-		var nameConflicts = courseRepository.findExistingNamesIgnoreCase(new HashSet<>(namesLower));
-		if (!nameConflicts.isEmpty()) {
-			log.warn("course names already exist in DB: {}", nameConflicts);
-			throw new IllegalArgumentException("Course names already exist: " + nameConflicts);
-		}
-	}
-
-	private void assertCodesFreeInDbForCreate(Collection<String> codesLower) {
-		var conflicts = courseRepository.findExistingCodesIgnoreCase(new HashSet<>(codesLower));
-		if (!conflicts.isEmpty()) {
-			log.warn("course codes already exist in DB: {}", conflicts);
-			throw new IllegalArgumentException("Course codes already exist: " + conflicts);
-		}
-	}
-	
-	private void assertCodeFreeInDbForSelfUpdate(long courseId, String codeLower) {
-	    var conflicts = courseRepository.findConflictingCodesIgnoreCase(Set.of(codeLower), List.of(courseId));
-	    if (!conflicts.isEmpty()) {
-	        log.warn("target course code already taken by other course(s): {}", conflicts);
-	        throw new IllegalArgumentException("Course codes already exist: " + conflicts);
-	    }
-	}
-	
-	private <T> void requireValidation(T patch) {
-		Optional.ofNullable(patch).orElseThrow(() -> new IllegalArgumentException("patch must not be null"));
-		validator.validate(patch);
-	}
-	
-	private Course getManagedCourse(long id) {
-	    return courseRepository.findById(id).orElseThrow(() -> {
-	        log.error("Course not found: id={}", id);
-	        return new EntityNotFoundException("Course not found: id=" + id);
-	    });
+	private Optional<String> findExistingName(String nameLower) {
+	    return courseRepository.findExistingNamesIgnoreCase(Set.of(nameLower))
+	            .stream()
+	            .findFirst();
 	}
 
 	private boolean isDifferentIgnoreCase(String newValue, String currentValue) {

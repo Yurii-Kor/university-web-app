@@ -30,6 +30,7 @@ import ua.foxminded.university.model.repository.dto.TeacherOptionView;
 import ua.foxminded.university.service.CourseService;
 import ua.foxminded.university.service.TeacherService;
 import ua.foxminded.university.service.dto.request.course.CourseCreateDto;
+import ua.foxminded.university.service.exception.course.CourseCreateException;
 import ua.foxminded.university.web.testconfig.MethodSecurityTestConfig;
 
 @WebMvcTest(controllers = CourseCreateController.class)
@@ -37,6 +38,14 @@ import ua.foxminded.university.web.testconfig.MethodSecurityTestConfig;
 class CourseCreateControllerWebMvcTest {
 
     private static final Long USER_ID = 42L;
+
+    private static final String VALID_CODE = "SEC-303";
+    private static final String VALID_NAME = "Security";
+    private static final String VALID_DESC = "Intro";
+    private static final String VALID_TEACHER_ID = "5";
+    
+    private static final CourseCreateDto VALID_FORM =
+            new CourseCreateDto("CSE-ALG-101", "Algorithms", "Intro", 5L);
 
     @Autowired
     MockMvc mockMvc;
@@ -63,98 +72,111 @@ class CourseCreateControllerWebMvcTest {
 
     @Test
     @DisplayName("GET /courses/create as TEACHER -> 302 redirect (forbidden in this app), controller not invoked")
-    void getCreateCourse_teacher_forbidden_redirects() throws Exception {
+    void getCreateCourse_teacher_forbidden() throws Exception {
         mockMvc.perform(get("/courses/create")
                         .with(user(USER_ID.toString()).roles("TEACHER")))
                 .andExpect(status().is3xxRedirection());
 
         verifyNoInteractions(courseService);
-        verify(teacherService).listTeacherOptions();    }
+    }
 
     @Test
-    @DisplayName("POST /courses/create as ADMIN ok -> redirects /courses, flash ok, calls service")
-    void postCreateCourse_admin_ok_redirectsAndSetsFlashAndCallsService() throws Exception {
-        var teachers = List.of(mock(TeacherOptionView.class));
-        when(teacherService.listTeacherOptions()).thenReturn(teachers);
-
+    @DisplayName("POST /courses/create as ADMIN ok -> redirects /courses, flash ok, calls service.create(dto)")
+    void postCreateCourse_admin_ok_redirectsAndCallsService() throws Exception {
         mockMvc.perform(post("/courses/create")
                         .with(user(USER_ID.toString()).roles("ADMIN"))
                         .with(csrf())
-                        .param("code", "CS-101")
-                        .param("name", "Algorithms")
-                        .param("description", "Intro")
-                        .param("teacherId", "5"))
+                        .flashAttr("form", VALID_FORM)
+                        .param("code", VALID_CODE)
+                        .param("name", VALID_NAME)
+                        .param("description", VALID_DESC)
+                        .param("teacherId", VALID_TEACHER_ID))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/courses"))
                 .andExpect(flash().attribute("ok", "Course created."));
 
-        verify(courseService).createAll(List.of(
-                new CourseCreateDto("CS-101", "Algorithms", "Intro", 5L)
-        ));
+        verify(courseService).create(VALID_FORM);
     }
 
     @Test
-    @DisplayName("POST /courses/create as ADMIN when validator gives violation -> 200, courses/create, field error, service not called")
+    @DisplayName("POST /courses/create as ADMIN when @Valid fails -> 200, courses/create, field error, service not called")
     void postCreateCourse_validationViolation_staysOnFormAndNoServiceCall() throws Exception {
         var teachers = List.of(mock(TeacherOptionView.class));
         when(teacherService.listTeacherOptions()).thenReturn(teachers);
-
-        @SuppressWarnings("unchecked")
-        ConstraintViolation<CourseCreateDto> violation = mock(ConstraintViolation.class);
-        Path path = mock(Path.class);
-        when(path.toString()).thenReturn("code");
-        when(violation.getPropertyPath()).thenReturn(path);
-        when(violation.getMessage()).thenReturn("must not be blank");
 
         mockMvc.perform(post("/courses/create")
                         .with(user(USER_ID.toString()).roles("ADMIN"))
                         .with(csrf())
                         .param("code", "")
-                        .param("name", "Algorithms")
-                        .param("description", "Intro")
-                        .param("teacherId", "5"))
+                        .param("name", VALID_NAME)
+                        .param("description", VALID_DESC)
+                        .param("teacherId", VALID_TEACHER_ID))
                 .andExpect(status().isOk())
                 .andExpect(view().name("courses/create"))
                 .andExpect(model().attributeHasFieldErrors("form", "code"))
                 .andExpect(model().attributeExists("teachers"));
 
-        verify(courseService, never()).createAll(any());
+        verify(courseService, never()).create(any());
     }
 
     @Test
     @DisplayName("POST /courses/create as TEACHER -> 302 redirect (forbidden), service not called")
-    void postCreateCourse_teacher_forbidden_redirects() throws Exception {
+    void postCreateCourse_teacher_forbidden() throws Exception {
         mockMvc.perform(post("/courses/create")
                         .with(user(USER_ID.toString()).roles("TEACHER"))
                         .with(csrf())
-                        .param("code", "CS-101")
-                        .param("name", "Intro"))
+                        .param("code", VALID_CODE)
+                        .param("name", VALID_NAME)
+                        .param("description", VALID_DESC)
+                        .param("teacherId", VALID_TEACHER_ID))
                 .andExpect(status().is3xxRedirection());
 
         verifyNoInteractions(courseService);
-        verify(teacherService).listTeacherOptions();    }
+    }
 
     @Test
-    @DisplayName("POST /courses/create when service throws IllegalArgumentException -> redirects /courses/create, flash err + form restored (handler)")
-    void postCreateCourse_illegalArgument_redirectsCreateAndSetsErrAndForm() throws Exception {
-        doThrow(new IllegalArgumentException("Course names already exist: [algorithms]"))
-                .when(courseService).createAll(any());
+    @DisplayName("POST /courses/create when service throws CourseCreateException -> redirects /courses/create, flash err + form restored from exception")
+    void postCreateCourse_courseCreateException_redirectsAndRestoresFormFromException() throws Exception {
+        doThrow(new CourseCreateException(VALID_FORM, "Course names already exist: [security]"))
+                .when(courseService).create(any());
 
         mockMvc.perform(post("/courses/create")
                         .with(user(USER_ID.toString()).roles("ADMIN"))
                         .with(csrf())
-                        .param("code", "CS-101")
-                        .param("name", "Algorithms")
-                        .param("description", "Intro")
-                        .param("teacherId", "5"))
+                        .flashAttr("form", VALID_FORM)
+                        .param("code", VALID_CODE)
+                        .param("name", VALID_NAME)
+                        .param("description", VALID_DESC)
+                        .param("teacherId", VALID_TEACHER_ID))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/courses/create"))
-                .andExpect(flash().attribute("err", "Course names already exist: [algorithms]"))
-                .andExpect(flash().attribute("form", new CourseCreateDto("CS-101", "Algorithms", "Intro", 5L)));
+                .andExpect(flash().attribute("err", "Course names already exist: [security]"))
+                .andExpect(flash().attribute("form", VALID_FORM));
     }
 
     @Test
-    @DisplayName("POST /courses/create when service throws ConstraintViolationException -> redirects /courses/create, flash err + form restored (handler)")
+    @DisplayName("POST /courses/create when service throws IllegalArgumentException -> redirects /courses/create, flash err + empty form")
+    void postCreateCourse_illegalArgument_redirectsCreateAndSetsErrAndForm() throws Exception {
+
+        doThrow(new IllegalArgumentException("boom"))
+                .when(courseService).create(any());
+
+        mockMvc.perform(post("/courses/create")
+                        .with(user(USER_ID.toString()).roles("ADMIN"))
+                        .with(csrf())
+                        .flashAttr("form", VALID_FORM)
+                        .param("code", VALID_FORM.code())
+                        .param("name", VALID_FORM.name())
+                        .param("description", VALID_FORM.description())
+                        .param("teacherId", VALID_FORM.teacherId().toString()))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/courses/create"))
+                .andExpect(flash().attribute("err", "boom"))
+                .andExpect(flash().attribute("form", new CourseCreateDto(null, null, null, null)));
+    }
+
+    @Test
+    @DisplayName("POST /courses/create when service throws ConstraintViolationException -> redirects /courses/create, flash err + form restored")
     void postCreateCourse_constraintViolation_redirectsCreateAndSetsErrAndForm() throws Exception {
         @SuppressWarnings("unchecked")
         ConstraintViolation<Object> violation = mock(ConstraintViolation.class);
@@ -164,75 +186,75 @@ class CourseCreateControllerWebMvcTest {
         when(violation.getMessage()).thenReturn("invalid");
 
         doThrow(new ConstraintViolationException(Set.of(violation)))
-                .when(courseService).createAll(any());
+                .when(courseService).create(any());
 
         mockMvc.perform(post("/courses/create")
                         .with(user(USER_ID.toString()).roles("ADMIN"))
                         .with(csrf())
-                        .param("code", "CS-101")
-                        .param("name", "Algorithms")
-                        .param("description", "Intro")
-                        .param("teacherId", "5"))
+                        .param("code", VALID_CODE)
+                        .param("name", VALID_NAME)
+                        .param("description", VALID_DESC)
+                        .param("teacherId", VALID_TEACHER_ID))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/courses/create"))
                 .andExpect(flash().attribute("err", "code: invalid"))
-                .andExpect(flash().attribute("form", new CourseCreateDto("CS-101", "Algorithms", "Intro", 5L)));
+                .andExpect(flash().attribute("form", new CourseCreateDto(null, null, null, null)));
     }
 
     @Test
-    @DisplayName("POST /courses/create when service throws EntityNotFoundException -> redirects /courses/create, flash err + form restored (handler)")
+    @DisplayName("POST /courses/create when service throws EntityNotFoundException -> redirects /courses/create, flash err + form restored")
     void postCreateCourse_entityNotFound_redirectsCreateAndSetsErrAndForm() throws Exception {
         doThrow(new EntityNotFoundException("Teacher not found: id=5"))
-                .when(courseService).createAll(any());
+                .when(courseService).create(any());
 
         mockMvc.perform(post("/courses/create")
                         .with(user(USER_ID.toString()).roles("ADMIN"))
                         .with(csrf())
-                        .param("code", "CS-101")
-                        .param("name", "Algorithms")
-                        .param("description", "Intro")
-                        .param("teacherId", "5"))
+                        .param("code", VALID_CODE)
+                        .param("name", VALID_NAME)
+                        .param("description", VALID_DESC)
+                        .param("teacherId", VALID_TEACHER_ID))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/courses/create"))
                 .andExpect(flash().attribute("err", "Teacher not found: id=5"))
-                .andExpect(flash().attribute("form", new CourseCreateDto("CS-101", "Algorithms", "Intro", 5L)));
+                .andExpect(flash().attribute("form", new CourseCreateDto(null, null, null, null)));
     }
 
     @Test
-    @DisplayName("POST /courses/create when service throws DataIntegrityViolationException -> redirects /courses/create, flash err fixed (handler)")
+    @DisplayName("POST /courses/create when service throws DataIntegrityViolationException -> redirects /courses/create, flash fixed err + form restored")
     void postCreateCourse_dbConflict_redirectsCreateAndSetsFixedErrAndForm() throws Exception {
         doThrow(new DataIntegrityViolationException("conflict"))
-                .when(courseService).createAll(any());
+                .when(courseService).create(any());
 
         mockMvc.perform(post("/courses/create")
                         .with(user(USER_ID.toString()).roles("ADMIN"))
                         .with(csrf())
-                        .param("code", "CS-101")
-                        .param("name", "Algorithms")
-                        .param("description", "Intro")
-                        .param("teacherId", "5"))
+                        .param("code", VALID_CODE)
+                        .param("name", VALID_NAME)
+                        .param("description", VALID_DESC)
+                        .param("teacherId", VALID_TEACHER_ID))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/courses/create"))
                 .andExpect(flash().attribute("err", "Course code or name already exists."))
-                .andExpect(flash().attribute("form", new CourseCreateDto("CS-101", "Algorithms", "Intro", 5L)));
+                .andExpect(flash().attribute("form", new CourseCreateDto(null, null, null, null)));
     }
 
     @Test
-    @DisplayName("POST /courses/create when service throws RuntimeException -> redirects /courses/create, flash generic err (handler)")
+    @DisplayName("POST /courses/create when service throws RuntimeException -> redirects /courses/create, flash generic err + form restored")
     void postCreateCourse_runtimeException_redirectsCreateAndSetsGenericErrAndForm() throws Exception {
         doThrow(new RuntimeException("boom"))
-                .when(courseService).createAll(any());
+                .when(courseService).create(any());
 
         mockMvc.perform(post("/courses/create")
                         .with(user(USER_ID.toString()).roles("ADMIN"))
                         .with(csrf())
-                        .param("code", "CS-101")
-                        .param("name", "Algorithms")
-                        .param("description", "Intro")
-                        .param("teacherId", "5"))
+                        .param("code", VALID_CODE)
+                        .param("name", VALID_NAME)
+                        .param("description", VALID_DESC)
+                        .param("teacherId", VALID_TEACHER_ID))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/courses/create"))
                 .andExpect(flash().attribute("err", "Something went wrong."))
-                .andExpect(flash().attribute("form", new CourseCreateDto("CS-101", "Algorithms", "Intro", 5L)));
+                .andExpect(flash().attribute("form", new CourseCreateDto(null, null, null, null)));
     }
 }

@@ -1,7 +1,5 @@
 package ua.foxminded.university.web.course;
 
-import java.util.List;
-
 import org.springframework.beans.propertyeditors.StringTrimmerEditor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
@@ -45,7 +43,7 @@ public class CourseCreateController {
                                RedirectAttributes ra) {
         if (br.hasErrors()) return "courses/create";
 
-        courseService.createAll(List.of(form));
+        courseService.create(form);
         ra.addFlashAttribute("ok", "Course created.");
         return "redirect:/courses";
     }

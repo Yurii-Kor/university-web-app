@@ -31,27 +31,30 @@ import ua.foxminded.university.service.AppUserService;
 import ua.foxminded.university.service.StudentService;
 import ua.foxminded.university.service.TeacherService;
 import ua.foxminded.university.service.dto.request.appuser.AppUserSelfUpdateDto;
-import ua.foxminded.university.web.util.DtoFieldNormalizer;
+import ua.foxminded.university.web.profile.page.ProfilePageModelFactory;
+import ua.foxminded.university.web.profile.page.strategy.AdminProfilePageStrategy;
+import ua.foxminded.university.web.profile.page.strategy.StudentProfilePageStrategy;
+import ua.foxminded.university.web.profile.page.strategy.TeacherProfilePageStrategy;
 import ua.foxminded.university.web.util.PrincipalHandler;
 
 @WebMvcTest(controllers = ProfileController.class)
-@Import({ ProfileExceptionHandler.class, PrincipalHandler.class })
+@Import({ 
+	ProfileExceptionHandler.class, 
+	PrincipalHandler.class,
+	ProfilePageModelFactory.class,
+	AdminProfilePageStrategy.class,
+	StudentProfilePageStrategy.class,
+	TeacherProfilePageStrategy.class
+})
 class ProfileControllerWebMvcTest {
 	
-	Long DEFAULT_ID = 42L;
+	private final static Long DEFAULT_ID = 42L;
 
-	@Autowired
-	MockMvc mockMvc;
+	@Autowired MockMvc mockMvc;
 
-	@MockitoBean
-	AppUserService appUserService;
-	@MockitoBean
-	StudentService studentService;
-	@MockitoBean
-	TeacherService teacherService;
-
-	@MockitoBean
-	DtoFieldNormalizer fieldNormalizer;
+	@MockitoBean AppUserService appUserService;
+	@MockitoBean StudentService studentService;
+	@MockitoBean TeacherService teacherService;
 
 	@Test
 	@DisplayName("GET /profile as ADMIN -> 200, profile/admin, model has AdminProfileView")
@@ -111,10 +114,6 @@ class ProfileControllerWebMvcTest {
 	@Test
 	@DisplayName("POST /profile/self/update -> redirects /profile, flash updated=true, calls service with normalized dto")
 	void postUpdateSelf_ok_redirectsAndSetsUpdatedFlashAndCallsService() throws Exception {
-		when(fieldNormalizer.normalizeEmail("a@b.com")).thenReturn("a@b.com");
-		when(fieldNormalizer.normalizeField("John")).thenReturn("John");
-		when(fieldNormalizer.normalizeField("Doe")).thenReturn("Doe");
-
 		mockMvc.perform(post("/profile/self/update").with(user(Long.toString(DEFAULT_ID)).roles("TEACHER"))
 				.with(csrf())
 				.param("email", "a@b.com")

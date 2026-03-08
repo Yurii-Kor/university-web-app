@@ -9,6 +9,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 import java.util.List;
+import java.util.Optional;
 
 import jakarta.persistence.EntityNotFoundException;
 
@@ -17,7 +18,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Import;
-import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.dao.DataAccessException;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -26,6 +27,7 @@ import ua.foxminded.university.model.repository.dto.GroupOptionView;
 import ua.foxminded.university.service.CourseService;
 import ua.foxminded.university.service.TeacherService;
 import ua.foxminded.university.service.dto.response.CourseGroupsPageView;
+import ua.foxminded.university.service.exception.course.CourseGroupsOpException;
 import ua.foxminded.university.web.testconfig.MethodSecurityTestConfig;
 
 @WebMvcTest(controllers = CourseGroupsController.class)
@@ -34,36 +36,46 @@ class CourseGroupsControllerWebMvcTest {
 
     private static final Long USER_ID = 42L;
     private static final Long COURSE_ID = 10L;
+    private static final Long GROUP_ID = 35L;
 
-    @Autowired
-    MockMvc mockMvc;
+    @Autowired MockMvc mockMvc;
     
-    @MockitoBean
-    TeacherService teacherService;
-
-    @MockitoBean
-    CourseService courseService;
+    @MockitoBean TeacherService teacherService;
+    @MockitoBean CourseService courseService;
 
     @Test
     @DisplayName("GET /courses/{courseId}/groups as ADMIN -> 200, courses/course-groups, model has page + pageTitle")
     void getPage_admin_ok_returnsViewAndModel() throws Exception {
-        long courseId = 10L;
-
-        var header = new CourseHeaderView(courseId, "CS-101", "Algorithms");
+        var header = new CourseHeaderView(COURSE_ID, "CS-101", "Algorithms");
         var assigned = List.of(new GroupOptionView(1L, "Group A"));
         var available = List.of(new GroupOptionView(2L, "Group B"));
         var page = new CourseGroupsPageView(header, assigned, available);
 
-        when(courseService.getCourseGroupsPage(courseId)).thenReturn(page);
+        when(courseService.getCourseGroupsPage(COURSE_ID)).thenReturn(page);
 
-        mockMvc.perform(get("/courses/{courseId}/groups", courseId)
+        mockMvc.perform(get("/courses/{courseId}/groups", COURSE_ID)
                         .with(user(USER_ID.toString()).roles("ADMIN")))
                 .andExpect(status().isOk())
                 .andExpect(view().name("courses/course-groups"))
                 .andExpect(model().attribute("pageTitle", "Course groups"))
                 .andExpect(model().attribute("page", sameInstance(page)));
 
-        verify(courseService).getCourseGroupsPage(courseId);
+        verify(courseService).getCourseGroupsPage(COURSE_ID);
+    }
+    
+    @Test
+    @DisplayName("GET /courses/{courseId}/groups when EntityNotFoundException -> redirect /courses, flash err")
+    void getPage_entityNotFound_redirectsToCoursesAndSetsFlashErr() throws Exception {
+        when(courseService.getCourseGroupsPage(COURSE_ID))
+                .thenThrow(new EntityNotFoundException("Course not found: id=" + COURSE_ID));
+
+        mockMvc.perform(get("/courses/{courseId}/groups", COURSE_ID)
+                        .with(user(USER_ID.toString()).roles("ADMIN")))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/courses"))
+                .andExpect(flash().attribute("err", "Course not found: id=" + COURSE_ID));
+
+        verify(courseService).getCourseGroupsPage(COURSE_ID);
     }
 
     @Test
@@ -89,111 +101,127 @@ class CourseGroupsControllerWebMvcTest {
     @Test
     @DisplayName("POST /courses/{courseId}/groups/add as ADMIN when added>0 -> redirect groups page, flash ok=Group added")
     void postAdd_admin_added_redirectsAndSetsOk() throws Exception {
-        long courseId = 10L;
-        long groupId = 7L;
+        when(courseService.addGroupToCourse(COURSE_ID, GROUP_ID)).thenReturn(Optional.of(GROUP_ID));
 
-        when(courseService.addGroupsToCourse(courseId, List.of(groupId))).thenReturn(1);
-
-        mockMvc.perform(post("/courses/{courseId}/groups/add", courseId)
+        mockMvc.perform(post("/courses/{courseId}/groups/add", COURSE_ID)
                         .with(user(USER_ID.toString()).roles("ADMIN"))
                         .with(csrf())
-                        .param("groupId", String.valueOf(groupId)))
+                        .param("groupId", GROUP_ID.toString()))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/courses/" + courseId + "/groups"))
-                .andExpect(flash().attribute("ok", "Group added."));
+                .andExpect(redirectedUrl("/courses/" + COURSE_ID + "/groups"))
+                .andExpect(flash().attribute("ok", "Group added. ID: " + GROUP_ID));
 
-        verify(courseService).addGroupsToCourse(courseId, List.of(groupId));
+        verify(courseService).addGroupToCourse(COURSE_ID, GROUP_ID);
     }
 
     @Test
     @DisplayName("POST /courses/{courseId}/groups/add as ADMIN when added=0 -> redirect groups page, flash ok=Nothing to add")
     void postAdd_admin_nothingToAdd_redirectsAndSetsOk() throws Exception {
-        long courseId = 10L;
-        long groupId = 7L;
+        when(courseService.addGroupToCourse(COURSE_ID, GROUP_ID)).thenReturn(Optional.empty());
 
-        when(courseService.addGroupsToCourse(courseId, List.of(groupId))).thenReturn(0);
-
-        mockMvc.perform(post("/courses/{courseId}/groups/add", courseId)
+        mockMvc.perform(post("/courses/{courseId}/groups/add", COURSE_ID)
                         .with(user(USER_ID.toString()).roles("ADMIN"))
                         .with(csrf())
-                        .param("groupId", String.valueOf(groupId)))
+                        .param("groupId", GROUP_ID.toString()))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/courses/" + courseId + "/groups"))
+                .andExpect(redirectedUrl("/courses/" + COURSE_ID + "/groups"))
                 .andExpect(flash().attribute("ok", "Nothing to add."));
 
-        verify(courseService).addGroupsToCourse(courseId, List.of(groupId));
+        verify(courseService).addGroupToCourse(COURSE_ID, GROUP_ID);
     }
-
+    
     @Test
-    @DisplayName("POST /courses/{courseId}/groups/remove as ADMIN when removed>0 -> redirect groups page, flash ok=Group removed")
-    void postRemove_admin_removed_redirectsAndSetsOk() throws Exception {
-        long courseId = 10L;
-        long groupId = 7L;
+    @DisplayName("POST /courses/{courseId}/groups/add when CourseGroupsOpException -> redirect back to groups, flash err")
+    void postAdd_courseGroupsOpException_redirectsToGroupsAndSetsErr() throws Exception {
+        doThrow(new CourseGroupsOpException(COURSE_ID, "StudyGroup not found: id=" + GROUP_ID))
+                .when(courseService).addGroupToCourse(COURSE_ID, GROUP_ID);
 
-        when(courseService.removeGroupsFromCourse(courseId, List.of(groupId))).thenReturn(1);
-
-        mockMvc.perform(post("/courses/{courseId}/groups/remove", courseId)
+        mockMvc.perform(post("/courses/{courseId}/groups/add", COURSE_ID)
                         .with(user(USER_ID.toString()).roles("ADMIN"))
                         .with(csrf())
-                        .param("groupId", String.valueOf(groupId)))
+                        .param("groupId", GROUP_ID.toString()))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/courses/" + courseId + "/groups"))
-                .andExpect(flash().attribute("ok", "Group removed."));
+                .andExpect(redirectedUrl("/courses/" + COURSE_ID + "/groups"))
+                .andExpect(flash().attribute("err", "StudyGroup not found: id=" + GROUP_ID));
 
-        verify(courseService).removeGroupsFromCourse(courseId, List.of(groupId));
+        verify(courseService).addGroupToCourse(COURSE_ID, GROUP_ID);
     }
-
+    
     @Test
-    @DisplayName("GET /courses/{courseId}/groups when service throws EntityNotFoundException -> redirects /courses, flash err + courseId")
-    void getPage_entityNotFound_redirectsToCoursesAndSetsFlash() throws Exception {
-        long courseId = 999L;
+    @DisplayName("POST /courses/{courseId}/groups/add when DataAccessException -> redirect /courses, flash err")
+    void postAdd_dataAccess_redirectsToCoursesAndSetsErr() throws Exception {
+        doThrow(new DataAccessException("db down") {})
+                .when(courseService).addGroupToCourse(COURSE_ID, GROUP_ID);
 
-        when(courseService.getCourseGroupsPage(courseId))
-                .thenThrow(new EntityNotFoundException("Course not found: id=" + courseId));
-
-        mockMvc.perform(get("/courses/{courseId}/groups", courseId)
-                        .with(user(USER_ID.toString()).roles("ADMIN")))
+        mockMvc.perform(post("/courses/{courseId}/groups/add", COURSE_ID)
+                        .with(user(USER_ID.toString()).roles("ADMIN"))
+                        .with(csrf())
+                        .param("groupId", GROUP_ID.toString()))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/courses"))
-                .andExpect(flash().attribute("err", "Course not found: id=" + courseId))
-                .andExpect(flash().attribute("courseId", courseId));
+                .andExpect(flash().attribute("err", "db down"));
 
-        verify(courseService).getCourseGroupsPage(courseId);
+        verify(courseService).addGroupToCourse(COURSE_ID, GROUP_ID);
+    }
+    
+    @Test
+    @DisplayName("POST /courses/{courseId}/groups/add as TEACHER -> 403, service not called")
+    void postAdd_teacher_forbidden_serviceNotCalled() throws Exception {
+        mockMvc.perform(post("/courses/{courseId}/groups/add", COURSE_ID)
+                        .with(user(USER_ID.toString()).roles("TEACHER"))
+                        .with(csrf())
+                        .param("groupId", "7"))
+                .andExpect(status().isForbidden());
+
+        verifyNoInteractions(courseService);
     }
 
     @Test
-    @DisplayName("POST /courses/{courseId}/groups/add when service throws IllegalArgumentException -> redirect groups page, flash err (advice)")
-    void postAdd_illegalArgument_redirectsWithFlashErrFromAdvice() throws Exception {
-        long courseId = 10L;
-        long groupId = 7L;
+    @DisplayName("POST /courses/{courseId}/groups/remove as ADMIN when removed -> redirect back, flash ok=Group removed. ID: X")
+    void postRemove_admin_removed_redirectsAndSetsOk() throws Exception {
+        when(courseService.removeGroupFromCourse(COURSE_ID, GROUP_ID)).thenReturn(Optional.of(GROUP_ID));
 
-        when(courseService.addGroupsToCourse(courseId, List.of(groupId)))
-                .thenThrow(new IllegalArgumentException("StudyGroups not found: [7]"));
-
-        mockMvc.perform(post("/courses/{courseId}/groups/add", courseId)
+        mockMvc.perform(post("/courses/{courseId}/groups/remove", COURSE_ID)
                         .with(user(USER_ID.toString()).roles("ADMIN"))
                         .with(csrf())
-                        .param("groupId", String.valueOf(groupId)))
+                        .param("groupId", GROUP_ID.toString()))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/courses/" + courseId + "/groups"))
-                .andExpect(flash().attribute("err", "StudyGroups not found: [7]"));
+                .andExpect(redirectedUrl("/courses/" + COURSE_ID + "/groups"))
+                .andExpect(flash().attribute("ok", "Group removed. ID: " + GROUP_ID));
+
+        verify(courseService).removeGroupFromCourse(COURSE_ID, GROUP_ID);
+    }
+    
+    @Test
+    @DisplayName("POST /courses/{courseId}/groups/remove as ADMIN when nothing to remove -> redirect back, flash ok=Nothing to remove.")
+    void postRemove_admin_nothingToRemove_redirectsAndSetsOk() throws Exception {
+        when(courseService.removeGroupFromCourse(COURSE_ID, GROUP_ID)).thenReturn(Optional.empty());
+
+        mockMvc.perform(post("/courses/{courseId}/groups/remove", COURSE_ID)
+                        .with(user(USER_ID.toString()).roles("ADMIN"))
+                        .with(csrf())
+                        .param("groupId", GROUP_ID.toString()))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/courses/" + COURSE_ID + "/groups"))
+                .andExpect(flash().attribute("ok", "Nothing to remove."));
+
+        verify(courseService).removeGroupFromCourse(COURSE_ID, GROUP_ID);
     }
 
     @Test
-    @DisplayName("POST /courses/{courseId}/groups/remove when DataAccessException -> redirect groups page, flash err=message (advice known)")
-    void postRemove_dataAccess_redirectsWithFlashErrFromAdvice() throws Exception {
-        long courseId = 10L;
-        long groupId = 7L;
+    @DisplayName("POST /courses/{courseId}/groups/remove when IllegalArgumentException -> redirect /courses, flash err")
+    void postRemove_illegalArgument_redirectsToCoursesAndSetsErr() throws Exception {
+        doThrow(new IllegalArgumentException("boom"))
+                .when(courseService).removeGroupFromCourse(COURSE_ID, GROUP_ID);
 
-        when(courseService.removeGroupsFromCourse(courseId, List.of(groupId)))
-                .thenThrow(new DataIntegrityViolationException("db conflict"));
-
-        mockMvc.perform(post("/courses/{courseId}/groups/remove", courseId)
+        mockMvc.perform(post("/courses/{courseId}/groups/remove", COURSE_ID)
                         .with(user(USER_ID.toString()).roles("ADMIN"))
                         .with(csrf())
-                        .param("groupId", String.valueOf(groupId)))
+                        .param("groupId", GROUP_ID.toString()))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/courses/" + courseId + "/groups"))
-                .andExpect(flash().attribute("err", "db conflict"));
+                .andExpect(redirectedUrl("/courses"))
+                .andExpect(flash().attribute("err", "boom"));
+
+        verify(courseService).removeGroupFromCourse(COURSE_ID, GROUP_ID);
     }
 }

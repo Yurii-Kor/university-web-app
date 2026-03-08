@@ -1,16 +1,12 @@
 package ua.foxminded.university.web.course;
 
-import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
-import org.springframework.dao.DataAccessException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import ua.foxminded.university.service.CourseService;
-
-import java.util.List;
 
 @Controller
 @RequestMapping("/courses/{courseId}/groups")
@@ -21,22 +17,10 @@ public class CourseGroupsController {
     private final CourseService courseService;
 
     @GetMapping
-    public String page(@PathVariable Long courseId,
-                       Model model,
-                       RedirectAttributes ra) {
-
+    public String page(@PathVariable long courseId, Model model) {
         model.addAttribute("pageTitle", "Course groups");
-
-        try {
-            model.addAttribute("page", courseService.getCourseGroupsPage(courseId));
-            return "courses/course-groups";
-        } catch (EntityNotFoundException | IllegalArgumentException | DataAccessException ex) {
-
-            ra.addFlashAttribute("err", safeMessage(ex));
-            ra.addFlashAttribute("courseId", courseId);
-            ra.addFlashAttribute("courseOp", "groups");
-            return "redirect:/courses";
-        }
+        model.addAttribute("page", courseService.getCourseGroupsPage(courseId));
+        return "courses/course-groups";
     }
 
     @PostMapping("/add")
@@ -44,8 +28,9 @@ public class CourseGroupsController {
                       @RequestParam("groupId") Long groupId,
                       RedirectAttributes ra) {
 
-        int added = courseService.addGroupsToCourse(courseId, List.of(groupId));
-        ra.addFlashAttribute("ok", added > 0 ? "Group added." : "Nothing to add.");
+    	var added = courseService.addGroupToCourse(courseId, groupId);
+    	
+		ra.addFlashAttribute("ok", added.isEmpty() ? "Nothing to add." : "Group added. ID: " + added.get());
         return "redirect:/courses/" + courseId + "/groups";
     }
 
@@ -54,13 +39,9 @@ public class CourseGroupsController {
                          @RequestParam("groupId") Long groupId,
                          RedirectAttributes ra) {
 
-        int removed = courseService.removeGroupsFromCourse(courseId, List.of(groupId));
-        ra.addFlashAttribute("ok", removed > 0 ? "Group removed." : "Nothing to remove.");
+    	var removed = courseService.removeGroupFromCourse(courseId, groupId);
+    	
+		ra.addFlashAttribute("ok", removed.isEmpty() ? "Nothing to remove." : "Group removed. ID: " + removed.get());
         return "redirect:/courses/" + courseId + "/groups";
-    }
-    
-    private String safeMessage(Exception ex) {
-        String msg = ex.getMessage();
-        return (msg == null || msg.isBlank()) ? "Operation failed." : msg;
     }
 }

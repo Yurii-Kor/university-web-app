@@ -39,17 +39,18 @@
       </div>
     </div>
 
-	<div class="ou-alert ou-alert--success"
-	     th:if="${ok != null and (courseId == null or courseOp == 'delete')}"
-	     th:text="${ok}">
-	  Done.
-	</div>
-	
-	<div class="ou-alert ou-alert--error"
-	     th:if="${err != null and (courseId == null or courseOp == 'delete')}"
-	     th:text="${err}">
-	  Something went wrong.
-	</div>
+    <!-- Global messages (only when courseId is not set) -->
+    <div class="ou-alert ou-alert--success"
+         th:if="${ok != null and courseId == null}"
+         th:text="${ok}">
+      Done.
+    </div>
+
+    <div class="ou-alert ou-alert--error"
+         th:if="${err != null and courseId == null}"
+         th:text="${err}">
+      Something went wrong.
+    </div>
 
     <div class="courses-grid" th:if="${!#lists.isEmpty(courses)}">
       <article class="ou-card course-card"
@@ -103,9 +104,19 @@
           </th:block>
         </dl>
 
-        <th:block th:if="${isTarget and (courseOp == null or courseOp == 'unknown') and (ok != null or err != null)}">
-          <div class="ou-alert ou-alert--success" th:if="${ok != null}" th:text="${ok}">Done.</div>
-          <div class="ou-alert ou-alert--error" th:if="${err != null}" th:text="${err}">Something went wrong.</div>
+        <!-- Per-course message (shown only for the targeted card) -->
+        <th:block th:if="${isTarget and (ok != null or err != null)}">
+          <div class="ou-alert ou-alert--success"
+               th:if="${ok != null}"
+               th:text="${ok}">
+            Done.
+          </div>
+
+          <div class="ou-alert ou-alert--error"
+               th:if="${err != null}"
+               th:text="${err}">
+            Something went wrong.
+          </div>
         </th:block>
 
         <div class="course-desc-wrap">
@@ -152,11 +163,6 @@
                 </button>
               </div>
 
-              <th:block th:if="${isTarget and courseOp == 'description' and (ok != null or err != null)}">
-                <div class="ou-alert ou-alert--success" th:if="${ok != null}" th:text="${ok}">Done.</div>
-                <div class="ou-alert ou-alert--error" th:if="${err != null}" th:text="${err}">Something went wrong.</div>
-              </th:block>
-
             </div>
           </details>
 
@@ -194,42 +200,13 @@
               </button>
             </div>
 
-            <th:block th:if="${isTarget and courseOp == 'description' and (ok != null or err != null)}">
-              <div class="ou-alert ou-alert--success" th:if="${ok != null}" th:text="${ok}">Done.</div>
-              <div class="ou-alert ou-alert--error" th:if="${err != null}" th:text="${err}">Something went wrong.</div>
-            </th:block>
-
           </div>
         </div>
 
         <div class="course-actions" sec:authorize="hasRole('ADMIN')">
-
           <div class="course-actions__row">
             <th:block th:replace="~{fragments/course-actions :: courseAdminActions(${c})}"></th:block>
           </div>
-
-          <th:block th:if="${isTarget and (courseOp == 'self' or courseOp == 'delete') and (ok != null or err != null)}">
-            <div class="course-actions__messages">
-              <div class="ou-alert ou-alert--success"
-                   th:if="${courseOp == 'self' and ok != null}"
-                   th:text="${ok}">
-                Done.
-              </div>
-
-              <div class="ou-alert ou-alert--error"
-                   th:if="${courseOp == 'self' and err != null}"
-                   th:text="${err}">
-                Something went wrong.
-              </div>
-
-              <div class="ou-alert ou-alert--error"
-                   th:if="${courseOp == 'delete' and err != null}"
-                   th:text="${err}">
-                Something went wrong.
-              </div>
-            </div>
-          </th:block>
-
         </div>
 
       </article>
