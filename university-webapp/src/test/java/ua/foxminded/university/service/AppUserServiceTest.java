@@ -4,9 +4,7 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
 
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.ConstraintViolationException;
@@ -26,6 +24,7 @@ import ua.foxminded.university.security.config.PasswordEncoderConfig;
 import ua.foxminded.university.service.dto.request.appuser.AppUserCreateDto;
 import ua.foxminded.university.service.dto.request.appuser.AppUserPasswordChangeDto;
 import ua.foxminded.university.service.dto.request.appuser.AppUserSelfUpdateDto;
+import ua.foxminded.university.service.exception.appuser.AdminCreateException;
 import ua.foxminded.university.service.util.DtoMapper;
 import ua.foxminded.university.service.util.DuplicateGuard;
 import ua.foxminded.university.service.util.validation.EntityValidatior;
@@ -110,16 +109,15 @@ class AppUserServiceTest {
 
 	@AfterEach
 	void cleanup() {
-		Optional.ofNullable(tempAdmin).ifPresent(user -> appUserService.deleteAdminsByIds(List.of(tempAdmin.getId())));
+		Optional.ofNullable(tempAdmin)
+				.filter(user -> !appUserService.findByIds(List.of(user.getId())).isEmpty())
+				.ifPresent(user -> appUserService.deleteAdmin(user.getId()));
 	}
 
 	@Test
-	@DisplayName("createAdmins: happy path — creates enabled ADMIN with encoded password")
+	@DisplayName("createAdmin: happy path — creates enabled ADMIN with encoded password")
 	void createAdmins_happyPath_success() {
-		var createdAll = appUserService.createAdmins(List.of(newAdminDto(DEFAULT_EMAIL)));
-
-		assertEquals(ONE_USER, createdAll.size());
-		tempAdmin = createdAll.getFirst();
+		tempAdmin = appUserService.createAdmin(newAdminDto(DEFAULT_EMAIL));
 
 		assertNotNull(tempAdmin.getId());
 		assertEquals(DEFAULT_EMAIL, tempAdmin.getEmail());
@@ -130,74 +128,62 @@ class AppUserServiceTest {
 	}
 
 	@Test
-	@DisplayName("deleteAdminsByIds: guard — can't delete last admin")
-	void deleteAdminsByIds_lastAdmin_guard_fails() {
-		assertThrows(IllegalStateException.class, () -> appUserService.deleteAdminsByIds(List.of(testAdmin.getId())));
-	}
-
-	@Test
-	@DisplayName("createAdmins: null/empty -> empty list")
-	void createAdmins_nullOrEmpty_returnsEmpty() {
-		assertTrue(appUserService.createAdmins(null).isEmpty());
-		assertTrue(appUserService.createAdmins(List.of()).isEmpty());
-	}
-
-	@Test
-	@DisplayName("createAdmins: null email -> ConstraintViolationException")
-	void createAdmins_nullEmail_fails() {
+	@DisplayName("createAdmin: null email -> ConstraintViolationException")
+	void createAdmin_nullEmail_fails() {
 		var bad = new AppUserCreateDto(null, PWD, "Alice", "Admin");
-		assertThrows(ConstraintViolationException.class, () -> appUserService.createAdmins(List.of(bad)));
+		assertThrows(ConstraintViolationException.class, () -> appUserService.createAdmin(bad));
 	}
 
 	@Test
-	@DisplayName("createAdmins: null password -> ConstraintViolationException")
-	void createAdmins_nullPassword_fails() {
+	@DisplayName("createAdmin: null password -> ConstraintViolationException")
+	void createAdmin_nullPassword_fails() {
 		var bad = new AppUserCreateDto(DEFAULT_EMAIL, null, "Alice", "Admin");
-		assertThrows(ConstraintViolationException.class, () -> appUserService.createAdmins(List.of(bad)));
+		assertThrows(ConstraintViolationException.class, () -> appUserService.createAdmin(bad));
 	}
 
 	@Test
-	@DisplayName("createAdmins: duplicate emails in one batch (case-insensitive) -> IllegalArgumentException")
-	void createAdmins_duplicateEmailsInOneBatch_fails() {
-		var dupLower = newAdminDto(DEFAULT_EMAIL);
-		var dupUpper = newAdminDto(DEFAULT_EMAIL.toUpperCase());
-		assertThrows(IllegalArgumentException.class, () -> appUserService.createAdmins(List.of(dupLower, dupUpper)));
-	}
-
-	@Test
-	@DisplayName("createAdmins: duplicate email of created user -> IllegalArgumentException")
-	void createAdmins_duplicateAcrossCalls_fails() {
-		var dup = newAdminDto(testAdmin.getEmail());
-		assertThrows(IllegalArgumentException.class, () -> appUserService.createAdmins(List.of(dup)));
+	@DisplayName("createAdmin: duplicate email ignoring case -> AdminCreateException")
+	void createAdmin_duplicateEmailIgnoreCase_fails() {
+		var dup = newAdminDto(TEST_ADMIN_EMAIL.toUpperCase());
+		assertThrows(AdminCreateException.class, () -> appUserService.createAdmin(dup));
 	}
 	
 	@Test
-	@DisplayName("listAdmins: returns only admins and contains existing ADMIN")
-	void listAdmins_onlyAdmins_containsTestAdmin() {
-	    var rows = appUserService.listAdmins();
+	@DisplayName("createAdmin: dto is null -> IllegalArgumentException")
+	void createAdmin_nullDto_fails() {
+		assertThrows(IllegalArgumentException.class, () -> appUserService.createAdmin(null));
+	}
+	
+	@Test
+	@DisplayName("listAdmins: returns admin rows only")
+	void listAdmins_returnsAdminsOnly() {
+		tempAdmin = appUserService.createAdmin(newAdminDto(DEFAULT_EMAIL));
 
-	    assertNotNull(rows);
-	    assertFalse(rows.isEmpty(), "Must contain at least one admin (seeded in @BeforeAll)");
+		var admins = appUserService.listAdminsForView(tempAdmin.getId());
 
-	    var me = rows.stream()
-	            .filter(r -> Objects.equals(r.id(), testAdmin.getId()))
-	            .findFirst()
-	            .orElseThrow(() -> new AssertionError("Expected testAdmin to be present in listAdmins()"));
+		assertNotNull(admins);
+		assertEquals(2, admins.size(), "must contain seeded admin and created admin");
 
-	    assertEquals(testAdmin.getEmail(), me.email());
-	    assertEquals(testAdmin.getFirstName(), me.firstName());
-	    assertEquals(testAdmin.getLastName(), me.lastName());
-	    assertEquals(testAdmin.isEnabled(), me.enabled());
-	    assertNotNull(me.createdAt(), "createdAt must be populated by DB");
+		var adminEmails = admins.stream()
+				.map(admin -> admin.email())
+				.toList();
 
-	    assertTrue(rows.stream().noneMatch(r -> Objects.equals(r.id(), userStudent.getId())),
-	            "Non-admin users must not appear in admin rows");
+		assertTrue(adminEmails.contains(TEST_ADMIN_EMAIL));
+		assertTrue(adminEmails.contains(DEFAULT_EMAIL));
+		assertFalse(adminEmails.contains(TAKEN_EMAIL), "student email must not appear in admin rows");
+	}
+	
+	@Test
+	@DisplayName("getAdminProfileView: student id -> EntityNotFoundException")
+	void getAdminProfileView_studentId_fails() {
+		assertThrows(EntityNotFoundException.class,
+				() -> appUserService.getAdminProfileView(userStudent.getId()));
 	}
 
 	@Test
 	@DisplayName("updateProfileFields: happy path — email + first/last name updated")
 	void updateProfileFields_happyPath_success() {
-		tempAdmin = appUserService.createAdmins(List.of(newAdminDto(DEFAULT_EMAIL))).getFirst();
+		tempAdmin = appUserService.createAdmin(newAdminDto(DEFAULT_EMAIL));
 		appUserService.updateProfileFields(
 				patchProfileDto(tempAdmin.getId(), UPDATED_EMAIL, UPDATED_FIRST_NAME, UPDATED_LAST_NAME));
 
@@ -226,6 +212,14 @@ class AppUserServiceTest {
 	void updateProfileFields_nullArgs_fails() {
 		assertThrows(IllegalArgumentException.class, () -> appUserService.updateProfileFields(null));
 	}
+	
+	@Test
+	@DisplayName("updateProfileFields: null id -> ConstraintViolationException")
+	void updateProfileFields_nullId_fails() {
+		assertThrows(ConstraintViolationException.class,
+				() -> appUserService.updateProfileFields(
+						patchProfileDto(null, UPDATED_EMAIL, UPDATED_FIRST_NAME, UPDATED_LAST_NAME)));
+	}
 
 	@Test
 	@DisplayName("updateProfileFields: user not found -> EntityNotFoundException")
@@ -242,49 +236,41 @@ class AppUserServiceTest {
 	}
 
 	@Test
-	@DisplayName("enableUsersByIds: contains missing id -> EntityNotFoundException")
-	void enableUsersByIds_containsMissingId_fails() {
-		assertThrows(EntityNotFoundException.class, () -> appUserService.enableUsersByIds(List.of(MISSING_ID)));
+	@DisplayName("enableUserByIds: contains missing id -> EntityNotFoundException")
+	void enableUserByIds_containsMissingId_fails() {
+		assertThrows(EntityNotFoundException.class, () -> appUserService.enableUserByIds(MISSING_ID));
 	}
 
 	@Test
-	@DisplayName("disableUsersByIds: can disable non-admin user")
-	void disableUsersByIds_student_ok() {
-		appUserService.disableUsersByIds(List.of(userStudent.getId()));
+	@DisplayName("disableUserByIds: can disable non-admin user")
+	void disableUserByIds_student_ok() {
+		appUserService.disableUserByIds(userStudent.getId());
 
 		var reloaded = appUserService.findByIds(List.of(userStudent.getId())).getFirst();
 		assertFalse(reloaded.isEnabled(), "Student must become disabled");
 	}
 
 	@Test
-	@DisplayName("disableUsersByIds: can enable non-admin user")
-	void enableUsersByIds_student_ok() {
-		appUserService.enableUsersByIds(List.of(userStudent.getId()));
+	@DisplayName("disableUserByIds: can enable non-admin user")
+	void enableUserByIds_student_ok() {
+		appUserService.enableUserByIds(userStudent.getId());
 
 		var reloaded = appUserService.findByIds(List.of(userStudent.getId())).getFirst();
 		assertTrue(reloaded.isEnabled(), "Student must become disabled");
 	}
 
 	@Test
-	@DisplayName("enableUsersByIds: null/empty/only-null -> returns 0")
-	void enableUsersByIds_nullEmptyOnlyNull_returnsZero() {
-		assertEquals(0, appUserService.enableUsersByIds(null));
-		assertEquals(0, appUserService.enableUsersByIds(List.of()));
-		assertEquals(0, appUserService.enableUsersByIds(Arrays.asList(null, null)));
-	}
-
-	@Test
-	@DisplayName("disableUsersByIds: guard — cannot disable the last enabled admin")
-	void disableUsersByIds_lastEnabledAdmin_guard_fails() {
+	@DisplayName("disableUserByIds: guard — cannot disable the last enabled admin")
+	void disableUserByIds_lastEnabledAdmin_guard_fails() {
 		assertThrows(IllegalStateException.class,
-				() -> appUserService.disableUsersByIds(List.of(testAdmin.getId())),
+				() -> appUserService.disableUserByIds(testAdmin.getId()),
 				"must fail when trying to disable the last enabled admin");
 	}
 
 	@Test
-	@DisplayName("disableUsersByIds: contains missing id -> EntityNotFoundException")
-	void disableUsersByIds_containsMissingId_fails() {
-		assertThrows(EntityNotFoundException.class, () -> appUserService.disableUsersByIds(List.of(MISSING_ID)));
+	@DisplayName("disableUserByIds: contains missing id -> EntityNotFoundException")
+	void disableUserByIds_containsMissingId_fails() {
+		assertThrows(EntityNotFoundException.class, () -> appUserService.disableUserByIds(MISSING_ID));
 	}
 
 	@Test
@@ -312,6 +298,19 @@ class AppUserServiceTest {
 		// newPassword=null
 		assertThrows(ConstraintViolationException.class,
 				() -> appUserService.changePasswordSelf(changePasswordDto(testAdmin.getId(), PWD, null)));
+	}
+	
+	@Test
+	@DisplayName("changePasswordSelf: new password same as current -> IllegalArgumentException")
+	void changePasswordSelf_samePassword_fails() {
+		assertThrows(IllegalArgumentException.class,
+				() -> appUserService.changePasswordSelf(changePasswordDto(testAdmin.getId(), PWD, PWD)));
+	}
+	
+	@Test
+	@DisplayName("changePasswordSelf: dto is null -> IllegalArgumentException")
+	void changePasswordSelf_nullDto_fails() {
+		assertThrows(IllegalArgumentException.class, () -> appUserService.changePasswordSelf(null));
 	}
 
 	@Test
@@ -347,34 +346,6 @@ class AppUserServiceTest {
 	}
 
 	@Test
-	@DisplayName("deleteAdminsByIds: happy path — delete + notFound")
-	void deleteAdminsByIds_happyPath_success() {
-		var createdAll = appUserService.createAdmins(List.of(newAdminDto(DEFAULT_EMAIL)));
-		var created = createdAll.getFirst();
-
-		var del = appUserService.deleteAdminsByIds(List.of(created.getId(), MISSING_ID));
-
-		assertEquals(Set.of(created.getId()), del.deletedIds());
-		assertEquals(Set.of(MISSING_ID), del.notFoundIds());
-	}
-
-	@Test
-	@DisplayName("deleteAdminsByIds: null/empty -> empty result")
-	void deleteAdminsByIds_nullOrEmpty_returnsEmpty() {
-		var nullArg = appUserService.deleteAdminsByIds(null);
-		var emptyListArg = appUserService.deleteAdminsByIds(List.of());
-		assertTrue(nullArg.deletedIds().isEmpty() && nullArg.notFoundIds().isEmpty());
-		assertTrue(emptyListArg.deletedIds().isEmpty() && emptyListArg.notFoundIds().isEmpty());
-	}
-
-	@Test
-	@DisplayName("deleteAdminsByIds: not admin id present -> IllegalStateException")
-	void deleteAdminsByIds_containsNonAdmin_fails() {
-		assertThrows(IllegalStateException.class,
-				() -> appUserService.deleteAdminsByIds(List.of(userStudent.getId(), testAdmin.getId())));
-	}
-
-	@Test
 	@DisplayName("getAdminProfileView: happy path — returns AdminProfileView for existing ADMIN")
 	void getAdminProfileView_happyPath_success() {
 		var view = appUserService.getAdminProfileView(testAdmin.getId());
@@ -391,4 +362,23 @@ class AppUserServiceTest {
 	void getAdminProfileView_missingId_fails() {
 		assertThrows(EntityNotFoundException.class, () -> appUserService.getAdminProfileView(MISSING_ID));
 	}
+	
+	@Test
+	@DisplayName("delete: non-admin user -> IllegalStateException")
+	void delete_student_guard_fails() {
+	    assertThrows(IllegalStateException.class, () -> appUserService.deleteAdmin(userStudent.getId()));
+	}
+	
+	@Test
+	@DisplayName("delete: guard — can't delete last admin")
+	void delete_lastAdmin_guard_fails() {
+		assertThrows(IllegalStateException.class, () -> appUserService.deleteAdmin(testAdmin.getId()));
+	}
+	
+	@Test
+	@DisplayName("delete: missing id -> EntityNotFoundException")
+	void delete_missingId_fails() {
+		assertThrows(EntityNotFoundException.class, () -> appUserService.deleteAdmin(MISSING_ID));
+	}
+
 }

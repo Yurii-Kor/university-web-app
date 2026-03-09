@@ -1,9 +1,7 @@
 package ua.foxminded.university.web.admin;
 
-import java.util.Comparator;
-import java.util.List;
-
 import org.springframework.beans.propertyeditors.StringTrimmerEditor;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Controller;
@@ -15,7 +13,6 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import ua.foxminded.university.model.repository.dto.AdminRowView;
 import ua.foxminded.university.service.AppUserService;
 import ua.foxminded.university.web.admin.dto.AdminCreateForm;
 import ua.foxminded.university.web.admin.dto.AdminCreateFormMapper;
@@ -25,6 +22,7 @@ import ua.foxminded.university.web.util.PrincipalHandler;
 
 @Controller
 @RequestMapping("/admin")
+@PreAuthorize("hasRole('ADMIN')")
 @RequiredArgsConstructor
 public class AdminManagementController {
 
@@ -45,7 +43,7 @@ public class AdminManagementController {
     @GetMapping
     public String adminsPage(@AuthenticationPrincipal UserDetails principal, Model model) {
         var selfId = principalHandler.parseUserId(principal);
-        var admins = sortAdminsForView(appUserService.listAdmins(), selfId);
+        var admins = appUserService.listAdminsForView(selfId);
 
         model.addAttribute("admins", admins);
         model.addAttribute("selfId", selfId);
@@ -68,7 +66,7 @@ public class AdminManagementController {
         }
 
         var dto = mapper.toCreateDto(form);
-        appUserService.createAdmins(List.of(dto));
+        appUserService.createAdmin(dto);
 
         ra.addFlashAttribute("created", true);
         return "redirect:/admin";
@@ -82,7 +80,7 @@ public class AdminManagementController {
         var selfId = principalHandler.parseUserId(principal);
         assertNotSelf(id, selfId);
 
-        appUserService.enableUsersByIds(List.of(id));
+        appUserService.enableUserByIds(id);
 
         ra.addFlashAttribute("ok", "Admin enabled.");
         return "redirect:/admin";
@@ -96,7 +94,7 @@ public class AdminManagementController {
         var selfId = principalHandler.parseUserId(principal);
         assertNotSelf(id, selfId);
 
-        appUserService.disableUsersByIds(List.of(id));
+        appUserService.disableUserByIds(id);
 
         ra.addFlashAttribute("ok", "Admin disabled.");
         return "redirect:/admin";
@@ -110,15 +108,7 @@ public class AdminManagementController {
         var selfId = principalHandler.parseUserId(principal);
         assertNotSelf(id, selfId);
 
-        var result = appUserService.deleteAdminsByIds(List.of(id));
-
-        if (result.deletedIds().contains(id)) {
-            ra.addFlashAttribute("ok", "Admin deleted.");
-        } else if (result.notFoundIds().contains(id)) {
-            ra.addFlashAttribute("err", "Admin not found.");
-        } else {
-            ra.addFlashAttribute("ok", "Nothing to delete.");
-        }
+        appUserService.deleteAdmin(id);
 
         return "redirect:/admin";
     }
@@ -127,14 +117,5 @@ public class AdminManagementController {
         if (targetId == selfId) {
             throw new IllegalStateException("You cannot modify your own admin account here.");
         }
-    }
-
-    private List<AdminRowView> sortAdminsForView(List<AdminRowView> admins, long selfId) {
-        return admins.stream()
-                .sorted(Comparator
-                        .comparingInt((AdminRowView a) -> a.id() != null && a.id() == selfId ? 0 : 1)
-                        .thenComparingInt(a -> a.enabled() ? 0 : 1)
-                        .thenComparing(AdminRowView::id, Comparator.nullsLast(Long::compareTo)))
-                .toList();
     }
 }

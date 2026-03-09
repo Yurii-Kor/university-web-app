@@ -38,7 +38,7 @@ public class CourseService {
 	private final TeacherRepository teacherRepository;
 	private final StudyGroupRepository groupRepository;
 	private final EntityValidatior validator;
-	private final DtoMapper dtoMapper;
+	private final DtoMapper mapper;
 	
 	@Transactional(value = TxType.REQUIRES_NEW)
 	public Course create(CourseCreateDto draft) {
@@ -62,7 +62,7 @@ public class CourseService {
 			return new CourseCreateException(draft, "Teacher not found: id=" + draft.teacherId());
 		});
 
-		var course = dtoMapper.toCourseEntity(draft).orElseThrow(() -> {
+		var course = mapper.toCourseEntity(draft).orElseThrow(() -> {
 			log.warn("create: mapper produced null Course (code='{}', name='{}')", draft.code(), draft.name());
 			return new IllegalArgumentException("Mapper produced null Course");
 		});
@@ -105,8 +105,10 @@ public class CourseService {
 	
 	@Transactional(value = TxType.SUPPORTS)
 	public CourseGroupsView getCourseGroupsView(long courseId) {
-	    var header = courseRepository.findCourseHeaderById(courseId)
-	            .orElseThrow(() -> new EntityNotFoundException("Course not found: id=" + courseId));
+		var header = courseRepository.findCourseHeaderById(courseId).orElseThrow(() -> {
+			log.warn("getCourseGroupsPage: course not found (courseId={})", courseId);
+			return new EntityNotFoundException("Course not found: id=" + courseId);
+		});
 
 	    List<GroupOptionView> assigned = groupRepository.findAssignedGroupOptions(courseId);
 	    List<GroupOptionView> available = groupRepository.findAvailableGroupOptions(courseId);

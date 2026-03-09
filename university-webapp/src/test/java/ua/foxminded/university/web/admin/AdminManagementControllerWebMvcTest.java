@@ -11,7 +11,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import java.time.OffsetDateTime;
 import java.util.List;
-import java.util.Set;
 
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.ConstraintViolation;
@@ -29,7 +28,7 @@ import ua.foxminded.university.model.repository.dto.AdminRowView;
 import ua.foxminded.university.service.AppUserService;
 import ua.foxminded.university.service.TeacherService;
 import ua.foxminded.university.service.dto.request.appuser.AppUserCreateDto;
-import ua.foxminded.university.service.dto.response.DeleteResult;
+import ua.foxminded.university.service.exception.appuser.AdminCreateException;
 import ua.foxminded.university.web.admin.dto.AdminCreateForm;
 import ua.foxminded.university.web.admin.dto.AdminCreateFormMapper;
 import ua.foxminded.university.web.admin.validation.AdminCreateFormValidator;
@@ -55,15 +54,16 @@ class AdminManagementControllerWebMvcTest {
     AdminCreateFormMapper mapper;
 
     @Test
-    @DisplayName("GET /admin -> 200, admin/admins, model has sorted admins and selfId")
-    void getAdmins_ok_returnsViewAndSortedModel() throws Exception {
+    @DisplayName("GET /admin -> 200, admin/admins, model has admins from service and selfId")
+    void getAdmins_ok_returnsViewAndModel() throws Exception {
         var now = OffsetDateTime.parse("2025-01-01T12:00Z");
 
         var selfEnabled = new AdminRowView(SELF_ID, "self@ex.com", "Self", "Admin", now, true);
         var otherEnabled = new AdminRowView(10L, "a@ex.com", "A", "Admin", now.minusDays(1), true);
         var otherDisabled = new AdminRowView(11L, "b@ex.com", "B", "Admin", now.minusDays(2), false);
 
-        when(appUserService.listAdmins()).thenReturn(List.of(otherDisabled, selfEnabled, otherEnabled));
+        when(appUserService.listAdminsForView(SELF_ID))
+                .thenReturn(List.of(selfEnabled, otherEnabled, otherDisabled));
 
         mockMvc.perform(get("/admin").with(user(Long.toString(SELF_ID)).roles("ADMIN")))
                 .andExpect(status().isOk())
@@ -104,7 +104,7 @@ class AdminManagementControllerWebMvcTest {
                 .andExpect(redirectedUrl("/admin"))
                 .andExpect(flash().attribute("created", true));
 
-        verify(appUserService).createAdmins(List.of(dto));
+        verify(appUserService).createAdmin(dto);
     }
 
     @Test
@@ -126,17 +126,17 @@ class AdminManagementControllerWebMvcTest {
                 .andExpect(view().name("admin/create"))
                 .andExpect(model().attributeHasFieldErrors("form", "confirmPassword"));
 
-        verify(appUserService, never()).createAdmins(any());
+        verify(appUserService, never()).createAdmin(any());
     }
 
     @Test
-    @DisplayName("POST /admin/create when service throws IllegalArgumentException -> redirects /admin/create, flash err=message")
-    void postCreateAdmin_illegalArgument_redirectsCreateAndSetsErrFlash() throws Exception {
+    @DisplayName("POST /admin/create when service throws AdminCreateException -> redirects /admin/create, flash err=message")
+    void postCreateAdmin_adminCreateException_redirectsCreateAndSetsErrFlash() throws Exception {
         var dto = new AppUserCreateDto("taken@ex.com", "Abcd1234!", "Alice", "Admin");
 
         when(mapper.toCreateDto(any(AdminCreateForm.class))).thenReturn(dto);
-        doThrow(new IllegalArgumentException("Emails already exist: [taken@ex.com]"))
-                .when(appUserService).createAdmins(any());
+        doThrow(new AdminCreateException(dto, "Email already exists: taken@ex.com"))
+                .when(appUserService).createAdmin(any());
 
         mockMvc.perform(post("/admin/create")
                         .with(user(Long.toString(SELF_ID)).roles("ADMIN"))
@@ -148,7 +148,7 @@ class AdminManagementControllerWebMvcTest {
                         .param("confirmPassword", "Abcd1234!"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/admin/create"))
-                .andExpect(flash().attribute("err", "Emails already exist: [taken@ex.com]"));
+                .andExpect(flash().attribute("err", "Email already exists: taken@ex.com"));
     }
 
     @Test
@@ -163,7 +163,7 @@ class AdminManagementControllerWebMvcTest {
                 .andExpect(redirectedUrl("/admin"))
                 .andExpect(flash().attribute("ok", "Admin enabled."));
 
-        verify(appUserService).enableUsersByIds(List.of(targetId));
+        verify(appUserService).enableUserByIds(targetId);
     }
 
     @Test
@@ -176,7 +176,7 @@ class AdminManagementControllerWebMvcTest {
                 .andExpect(redirectedUrl("/admin"))
                 .andExpect(flash().attribute("err", "You cannot modify your own admin account here."));
 
-        verify(appUserService, never()).enableUsersByIds(any());
+        verify(appUserService, never()).enableUserByIds(any());
     }
 
     @Test
@@ -191,39 +191,21 @@ class AdminManagementControllerWebMvcTest {
                 .andExpect(redirectedUrl("/admin"))
                 .andExpect(flash().attribute("ok", "Admin disabled."));
 
-        verify(appUserService).disableUsersByIds(List.of(targetId));
+        verify(appUserService).disableUserByIds(targetId);
     }
 
     @Test
-    @DisplayName("POST /admin/{id}/delete when deleted -> redirects /admin, flash ok=Admin deleted.")
-    void postDeleteAdmin_deleted_setsOkFlash() throws Exception {
+    @DisplayName("POST /admin/{id}/delete when deleted -> redirects /admin and calls service")
+    void postDeleteAdmin_deleted_redirectsAndCallsService() throws Exception {
         var targetId = 200L;
 
-        when(appUserService.deleteAdminsByIds(List.of(targetId)))
-                .thenReturn(new DeleteResult(Set.of(targetId), Set.of()));
-
         mockMvc.perform(post("/admin/{id}/delete", targetId)
                         .with(user(Long.toString(SELF_ID)).roles("ADMIN"))
                         .with(csrf()))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/admin"))
-                .andExpect(flash().attribute("ok", "Admin deleted."));
-    }
+                .andExpect(redirectedUrl("/admin"));
 
-    @Test
-    @DisplayName("POST /admin/{id}/delete when not found -> redirects /admin, flash err=Admin not found.")
-    void postDeleteAdmin_notFound_setsErrFlash() throws Exception {
-        var targetId = 201L;
-
-        when(appUserService.deleteAdminsByIds(List.of(targetId)))
-                .thenReturn(new DeleteResult(Set.of(), Set.of(targetId)));
-
-        mockMvc.perform(post("/admin/{id}/delete", targetId)
-                        .with(user(Long.toString(SELF_ID)).roles("ADMIN"))
-                        .with(csrf()))
-                .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/admin"))
-                .andExpect(flash().attribute("err", "Admin not found."));
+        verify(appUserService).deleteAdmin(targetId);
     }
 
     @Test
@@ -232,7 +214,7 @@ class AdminManagementControllerWebMvcTest {
         var targetId = 202L;
 
         doThrow(new EntityNotFoundException("Users not found: [" + targetId + "]"))
-                .when(appUserService).deleteAdminsByIds(List.of(targetId));
+                .when(appUserService).deleteAdmin(targetId);
 
         mockMvc.perform(post("/admin/{id}/delete", targetId)
                         .with(user(Long.toString(SELF_ID)).roles("ADMIN"))
@@ -248,7 +230,6 @@ class AdminManagementControllerWebMvcTest {
         var dto = new AppUserCreateDto("bad", "Abcd1234!", "Alice", "Admin");
         when(mapper.toCreateDto(any(AdminCreateForm.class))).thenReturn(dto);
 
-        @SuppressWarnings("unchecked")
         ConstraintViolation<AppUserCreateDto> violation = mock(ConstraintViolation.class);
         Path path = mock(Path.class);
 
@@ -268,6 +249,6 @@ class AdminManagementControllerWebMvcTest {
                 .andExpect(view().name("admin/create"))
                 .andExpect(model().attributeHasFieldErrors("form", "email"));
 
-        verify(appUserService, never()).createAdmins(any());
+        verify(appUserService, never()).createAdmin(any());
     }
 }

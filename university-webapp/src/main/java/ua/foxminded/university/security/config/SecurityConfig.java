@@ -11,7 +11,6 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 
-import ua.foxminded.university.model.domain.enums.UserRole;
 import ua.foxminded.university.security.web.LoginAuthEntryPoint;
 import ua.foxminded.university.security.web.LoginFailureHandler;
 import ua.foxminded.university.security.web.LogoutToLoginSuccessHandler;
@@ -22,10 +21,6 @@ import ua.foxminded.university.security.web.ProfileAccessDeniedHandler;
 public class SecurityConfig {
 	
 	private static final String SESSION_NAME ="JSESSIONID";
-	
-	private static final String ADMIN = UserRole.ADMIN.name();
-	private static final String TEACHER = UserRole.TEACHER.name();
-	private static final String STUDENT = UserRole.STUDENT.name();
 
 	@Bean
 	AuthenticationProvider authenticationProvider(UserDetailsService uds, PasswordEncoder encoder) {
@@ -48,8 +43,6 @@ public class SecurityConfig {
 				.authorizeHttpRequests(reg -> reg.requestMatchers("/css/**", "/js/**", "/images/**", "/favicon.ico").permitAll()
 						.requestMatchers("/").permitAll()
 						.requestMatchers("/login").anonymous()
-						.requestMatchers("/admin/**", "/admin").hasRole(ADMIN)
-						.requestMatchers("/schedule/**", "/schedule").hasAnyRole(TEACHER, STUDENT)
 						.anyRequest().authenticated())
 
 				.formLogin(form -> form.loginPage("/login")
