@@ -35,9 +35,17 @@ import ua.foxminded.university.testutil.TestDataInitializer;
 @ActiveProfiles("test")
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-@Import({ TestcontainersConfiguration.class, AppUserService.class, ValidatorConfig.class, EntityValidatior.class,
-		PasswordPolicy.class, PasswordEncoderConfig.class, TestDataInitializer.class, DtoMapper.class,
-		DuplicateGuard.class })
+@Import({ 
+	TestcontainersConfiguration.class, 
+	AppUserService.class, 
+	ValidatorConfig.class, 
+	EntityValidatior.class,
+	PasswordPolicy.class, 
+	PasswordEncoderConfig.class, 
+	TestDataInitializer.class, 
+	DtoMapper.class,
+	DuplicateGuard.class 
+})
 class AppUserServiceTest {
 
 	private static final String DEFAULT_EMAIL = "admin@example.com";
@@ -380,5 +388,4 @@ class AppUserServiceTest {
 	void delete_missingId_fails() {
 		assertThrows(EntityNotFoundException.class, () -> appUserService.deleteAdmin(MISSING_ID));
 	}
-
 }

@@ -8,6 +8,5 @@ public record CourseCardView(
 	    Long teacherId,
 	    String teacherEmail,
 	    String teacherFirstName,
-	    String teacherLastName,
-	    long groupsCount
+	    String teacherLastName
 	) {}

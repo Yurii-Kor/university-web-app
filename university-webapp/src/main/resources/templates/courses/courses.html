@@ -73,11 +73,6 @@
             </div>
           </div>
 
-          <span class="ou-badge ou-badge--success"
-                sec:authorize="hasAnyRole('ADMIN','TEACHER')"
-                th:text="${c.groupsCount} + (c.groupsCount == 1 ? ' group' : ' groups')">
-            0 groups
-          </span>
         </div>
 
         <dl class="course-kv">

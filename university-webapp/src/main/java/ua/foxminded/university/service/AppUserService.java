@@ -6,7 +6,6 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
@@ -51,10 +50,10 @@ public class AppUserService {
 			throw new IllegalArgumentException("draft must not be null");
 		});
 		
-		findExistingEmail(draft.email().toLowerCase()).ifPresent(existing -> {
-			log.warn("create: email already exists in DB: {}", draft.email());
-			throw new AdminCreateException(draft, "Email already exists: " + draft.email());
-		});
+		if (usersRepository.existsByEmailIgnoreCase(draft.email())) {
+	        log.warn("createAdmin: email already exists in DB: {}", draft.email());
+	        throw new AdminCreateException(draft, "Email already exists: " + draft.email());
+	    }
 		
 		var admin = mapper.toAppUserEntity(draft).orElseThrow(() -> {
 			log.warn("create: mapper produced null App User (email = '{}' )", draft.email());
@@ -175,10 +174,10 @@ public class AppUserService {
 			return new EntityNotFoundException("User not found: id=" + id);
 		});
 		
-		Optional.of(managed.getRole().equals(UserRole.ADMIN)).orElseThrow(() -> {
-			log.warn("delete: non-admin delete attempt (userId={}, role={})", id, managed.getRole());
+		if (!UserRole.ADMIN.equals(managed.getRole())) {
+	        log.warn("deleteAdmin: non-admin delete attempt (userId={}, role={})", id, managed.getRole());
 	        throw new IllegalStateException("Only admin users can be deleted here");
-		});
+	    }
 
 		var isLastAdmin = usersRepository.countByRole(UserRole.ADMIN) <= ONE_ADMIN;
 		if (isLastAdmin) {
@@ -193,10 +192,10 @@ public class AppUserService {
 	    Optional.ofNullable(newEmail)
 	            .filter(email -> !Objects.equals(email, user.getEmail()))
 	            .ifPresent(email -> {
-	            	findExistingEmail(newEmail.toLowerCase()).ifPresent(existing -> {
-	        			log.warn("create: email already exists in DB: {}", newEmail);
-	        			throw new IllegalArgumentException("Email already exists: " + newEmail);
-	        		});
+	            	if (usersRepository.existsByEmailIgnoreCase(email)) {
+	                    log.warn("updateProfileFields: email already exists in DB: {}", email);
+	                    throw new IllegalArgumentException("Email already exists: " + email);
+	                }
 	                user.setEmail(email);
 	            });
 	}
@@ -213,9 +212,5 @@ public class AppUserService {
 	            .ifPresent(user::setLastName);
 	}
 	
-	private Optional<String> findExistingEmail(String email) {
-	    return usersRepository.findExistingEmailsIgnoreCase(Set.of(email))
-	            .stream()
-	            .findFirst();
-	}
+	
 }

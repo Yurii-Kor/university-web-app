@@ -13,11 +13,10 @@ import ua.foxminded.university.model.repository.dto.AdminProfileView;
 import ua.foxminded.university.model.repository.dto.AdminRowView;
 
 public interface AppUserRepository extends JpaRepository<AppUser, Long> {
+	
 	Optional<AppUser> findByEmailIgnoreCase(String email);
 
 	boolean existsByEmailIgnoreCase(String email);
-
-	boolean existsByEmailIgnoreCaseAndIdNot(String email, Long id);
 
 	long countByRole(UserRole role);
 
@@ -29,16 +28,6 @@ public interface AppUserRepository extends JpaRepository<AppUser, Long> {
 			where lower(u.email) in :emails
 		""")
 	List<String> findExistingEmailsIgnoreCase(@Param("emails") Collection<String> emails);
-
-	@Query("select u.id from AppUser u where u.id in :ids")
-	List<Long> findExistingIds(@Param("ids") Collection<Long> ids);
-
-	@Query("select u.id from AppUser u where u.id in :ids and u.role = :role and u.enabled = true")
-	List<Long> findEnabledIdsByRoleIn(@Param("ids") Collection<Long> ids, @Param("role") UserRole role);
-
-	@Modifying(clearAutomatically = true, flushAutomatically = true)
-	@Query("update AppUser u set u.enabled = :enabled where u.id in :ids")
-	int setEnabledForIds(@Param("ids") Collection<Long> ids, @Param("enabled") boolean enabled);
 	
 	@Query("""
 			select new ua.foxminded.university.model.repository.dto.AdminProfileView(

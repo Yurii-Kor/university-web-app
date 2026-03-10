@@ -42,30 +42,30 @@ public class CourseService {
 	
 	@Transactional(value = TxType.REQUIRES_NEW)
 	public Course create(CourseCreateDto draft) {
-		Optional.ofNullable(draft).ifPresentOrElse(p -> validator.validate(p), () -> {
-			log.warn("create: draft is null");
-			throw new IllegalArgumentException("draft must not be null");
-		});
-		
-		findExistingCode(draft.code().toLowerCase()).ifPresent(existing -> {
-			log.warn("create: code conflict (requestedCode='{}', existing='{}')", draft.code(), existing);
-	        throw new CourseCreateException(draft, "Course codes already exist: [" + existing + "]");
-	    });
-		
-		findExistingName(draft.name().toLowerCase()).ifPresent(existing -> {
-			log.warn("create: name conflict (requestedName='{}', existing='{}')", draft.name(), existing);
-	        throw new CourseCreateException(draft, "Course names already exist: [" + existing + "]");
+	    Optional.ofNullable(draft).ifPresentOrElse(p -> validator.validate(p), () -> {
+	        log.warn("create: draft is null");
+	        throw new IllegalArgumentException("draft must not be null");
 	    });
 
-		var teacher = teacherRepository.findById(draft.teacherId()).orElseThrow(() -> {
-			log.warn("create: teacher not found (teacherId={})", draft.teacherId());
-			return new CourseCreateException(draft, "Teacher not found: id=" + draft.teacherId());
-		});
+	    if (courseRepository.existsByCodeIgnoreCase(draft.code())) {
+	        log.warn("create: code conflict (requestedCode='{}')", draft.code());
+	        throw new CourseCreateException(draft, "Course code already exists: " + draft.code());
+	    }
 
-		var course = mapper.toCourseEntity(draft).orElseThrow(() -> {
-			log.warn("create: mapper produced null Course (code='{}', name='{}')", draft.code(), draft.name());
-			return new IllegalArgumentException("Mapper produced null Course");
-		});
+	    if (courseRepository.existsByNameIgnoreCase(draft.name())) {
+	        log.warn("create: name conflict (requestedName='{}')", draft.name());
+	        throw new CourseCreateException(draft, "Course name already exists: " + draft.name());
+	    }
+
+	    var teacher = teacherRepository.findById(draft.teacherId()).orElseThrow(() -> {
+	        log.warn("create: teacher not found (teacherId={})", draft.teacherId());
+	        return new CourseCreateException(draft, "Teacher not found: id=" + draft.teacherId());
+	    });
+
+	    var course = mapper.toCourseEntity(draft).orElseThrow(() -> {
+	        log.warn("create: mapper produced null Course (code='{}', name='{}')", draft.code(), draft.name());
+	        return new IllegalArgumentException("Mapper produced null Course");
+	    });
 
 	    course.setTeacher(teacher);
 
@@ -210,19 +210,19 @@ public class CourseService {
 	}
 	
 	private void applyCodePatch(Course managed, CourseSelfUpdateDto patch) {
-		Optional.ofNullable(patch.code())
-				.map(String::trim)
-				.filter(code -> !code.isEmpty())
-				.filter(code -> isDifferentIgnoreCase(code, managed.getCode()))
-				.ifPresent(code -> {
-					findExistingCode(patch.code().trim().toLowerCase()).ifPresent(existing -> {
-						log.warn("updateSelf: code conflict (courseId={}, existing='{}')", managed.getId(), existing);
-						throw new CourseSelfUpdateException(patch, "Course codes already exist: [" + existing + "]");
-					});
+	    Optional.ofNullable(patch.code())
+	            .map(String::trim)
+	            .filter(code -> !code.isEmpty())
+	            .filter(code -> isDifferentIgnoreCase(code, managed.getCode()))
+	            .ifPresent(code -> {
+	                if (courseRepository.existsByCodeIgnoreCase(code)) {
+	                    log.warn("updateSelf: code conflict (courseId={}, requestedCode='{}')", managed.getId(), code);
+	                    throw new CourseSelfUpdateException(patch, "Course code already exists: " + code);
+	                }
 
-					managed.setCode(code);
-					log.debug("updateSelf: code updated (courseId={})", managed.getId());
-				});
+	                managed.setCode(code);
+	                log.debug("updateSelf: code updated (courseId={})", managed.getId());
+	            });
 	}
 
 	private void applyNamePatch(Course managed, CourseSelfUpdateDto patch) {
@@ -231,11 +231,11 @@ public class CourseService {
 	            .filter(name -> !name.isEmpty())
 	            .filter(name -> isDifferentIgnoreCase(name, managed.getName()))
 	            .ifPresent(name -> {
-					findExistingName(patch.name().trim().toLowerCase()).ifPresent(existing -> {
-						log.warn("updateSelf: name conflict (courseId={}, existing='{}')", managed.getId(), existing);
-						throw new CourseSelfUpdateException(patch, "Course names already exist: [" + existing + "]");
-					});
-	            	
+	                if (courseRepository.existsByNameIgnoreCase(name)) {
+	                    log.warn("updateSelf: name conflict (courseId={}, requestedName='{}')", managed.getId(), name);
+	                    throw new CourseSelfUpdateException(patch, "Course name already exists: " + name);
+	                }
+
 	                managed.setName(name);
 	                log.debug("updateSelf: name updated (courseId={})", managed.getId());
 	            });
@@ -253,18 +253,6 @@ public class CourseService {
 					managed.setTeacher(teacher);
 					log.debug("updateSelf: teacher updated (courseId={}, teacherId={})", managed.getId(), newTeacherId);
 				});
-	}
-	
-	private Optional<String> findExistingCode(String codeLower) {
-	    return courseRepository.findExistingCodesIgnoreCase(Set.of(codeLower))
-	            .stream()
-	            .findFirst();
-	}
-
-	private Optional<String> findExistingName(String nameLower) {
-	    return courseRepository.findExistingNamesIgnoreCase(Set.of(nameLower))
-	            .stream()
-	            .findFirst();
 	}
 
 	private boolean isDifferentIgnoreCase(String newValue, String currentValue) {
