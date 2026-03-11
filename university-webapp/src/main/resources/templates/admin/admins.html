@@ -27,88 +27,51 @@
           + Create admin
         </a>
       </div>
-      
+
       <div class="ou-alert ou-alert--success" th:if="${created == true}">
         Admin account has been created.
       </div>
-      
-      <div class="ou-alert ou-alert--success" th:if="${ok != null}" th:text="${ok}">
-		Done.
-	  </div>
-      
-      <div class="ou-alert ou-alert--error" th:if="${err != null}" th:text="${err}">
-		Something went wrong.
-	  </div>
+
+      <div class="ou-alert ou-alert--success"
+           th:if="${ok != null}"
+           th:text="${ok}">
+        Done.
+      </div>
+
+      <div class="ou-alert ou-alert--error"
+           th:if="${err != null}"
+           th:text="${err}">
+        Something went wrong.
+      </div>
 
       <div class="ou-alert ou-alert--warn" th:if="${#lists.isEmpty(admins)}">
         No admins found.
       </div>
 
       <div class="admins-grid" th:if="${!#lists.isEmpty(admins)}">
-        <article class="ou-card admin-card"
-                 th:each="a : ${admins}"
-                 th:attr="data-id=${a.id}">
-
-          <div class="admin-card__head">
-            <div class="admin-card__who">
-              <div class="admin-card__email">
-                <span th:text="${a.email}">admin@mail.com</span>
-                <span class="admin-card__you" th:if="${a.id == selfId}">(you)</span>
-              </div>
-
-              <div class="admin-card__name">
-                <span th:text="${a.firstName}">First</span>
-                <span th:text="${a.lastName}">Last</span>
-              </div>
-            </div>
-
-            <span class="ou-badge"
-                  th:classappend="${a.enabled} ? ' ou-badge--success' : ' ou-badge--warn'"
-                  th:text="${a.enabled} ? 'ACTIVE' : 'BLOCKED'">
-              ACTIVE
-            </span>
-          </div>
-
-          <dl class="admin-kv">
-            <dt>ID</dt>
-            <dd th:text="${a.id}">1</dd>
-
-            <dt>Created</dt>
-            <dd th:text="${#temporals.format(a.createdAt, 'yyyy-MM-dd HH:mm')}">
-              2025-01-01 12:00
-            </dd>
-          </dl>
-
-          <div class="admin-actions" th:if="${a.id != selfId}">
-
-            <form class="ou-inline-form"
-                  th:action="${a.enabled}
-                           ? @{/admin/{id}/disable(id=${a.id})}
-                           : @{/admin/{id}/enable(id=${a.id})}"
-                  method="post">
-              <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
-              <button type="submit"
-                      class="ou-btn ou-btn--ghost"
-                      th:text="${a.enabled} ? 'Disable' : 'Enable'">
-                Disable
-              </button>
-            </form>
-
-            <form class="ou-inline-form"
-                  th:action="@{/admin/{id}/delete(id=${a.id})}"
-                  method="post">
-              <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
-              <button type="submit"
-                      class="ou-btn ou-btn--danger"
-                      onclick="return confirm('Delete this admin?');">
-                Delete
-              </button>
-            </form>
-
-          </div>
-
-        </article>
+        <th:block th:each="a : ${admins}">
+          <th:block th:replace="~{admin/fragments/admin-card :: adminCard(${a}, ${selfId}, ${currentPage})}"></th:block>
+        </th:block>
       </div>
+
+      <nav class="admins-pagination" th:if="${totalPages > 1}">
+        <a class="ou-btn ou-btn--ghost"
+           th:if="${hasPrevious}"
+           th:href="@{/admin(page=${currentPage - 1})}">
+          ← Previous
+        </a>
+
+        <span class="admins-pagination__info"
+              th:text="|Page ${currentPage + 1} of ${totalPages}|">
+          Page 1 of 1
+        </span>
+
+        <a class="ou-btn ou-btn--ghost"
+           th:if="${hasNext}"
+           th:href="@{/admin(page=${currentPage + 1})}">
+          Next →
+        </a>
+      </nav>
 
     </section>
   </main>

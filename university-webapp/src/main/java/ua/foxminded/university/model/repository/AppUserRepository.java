@@ -4,6 +4,8 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.*;
 import org.springframework.data.repository.query.Param;
 
@@ -42,19 +44,27 @@ public interface AppUserRepository extends JpaRepository<AppUser, Long> {
 		""")
 	Optional<AdminProfileView> findAdminProfileViewById(@Param("id") Long id);
 	
-	@Query("""
-		    select new ua.foxminded.university.model.repository.dto.AdminRowView(
-		        u.id,
-		        u.email,
-		        u.firstName,
-		        u.lastName,
-		        u.createdAt,
-		        u.enabled
-		    )
-		    from AppUser u
-		    where u.role = ua.foxminded.university.model.domain.enums.UserRole.ADMIN
-		      order by u.createdAt desc
-		""")
-	List<AdminRowView> findAdminRows();
+	@Query(value = """
+	        select new ua.foxminded.university.model.repository.dto.AdminRowView(
+	            u.id,
+	            u.email,
+	            u.firstName,
+	            u.lastName,
+	            u.createdAt,
+	            u.enabled
+	        )
+	        from AppUser u
+	        where u.role = ua.foxminded.university.model.domain.enums.UserRole.ADMIN
+	        order by
+	            case when u.id = :selfId then 0 else 1 end,
+	            case when u.enabled = true then 0 else 1 end,
+	            u.id asc
+	        """,
+	       countQuery = """
+	        select count(u)
+	        from AppUser u
+	        where u.role = ua.foxminded.university.model.domain.enums.UserRole.ADMIN
+	        """)
+	Page<AdminRowView> findAdminRowsForView(@Param("selfId") Long selfId, Pageable pageable);
 
 }

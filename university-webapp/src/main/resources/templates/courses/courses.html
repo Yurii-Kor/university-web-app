@@ -4,7 +4,7 @@
       xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
 <head>
   <meta charset="utf-8" />
-  <title th:text="${pageTitle}">Courses</title>
+  <title th:text="${page.pageTitle}">Courses</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <link rel="icon" th:href="@{/favicon.ico}" href="/favicon.ico" />
   <link rel="stylesheet" th:href="@{/css/app.css}" href="/css/app.css" />
@@ -19,27 +19,26 @@
 
     <div class="courses-toolbar">
       <div>
-        <h1 class="ou-card__title" th:text="${pageTitle}">Courses</h1>
-        <p class="courses-subtitle" th:text="${pageSubtitle}">...</p>
+        <h1 class="ou-card__title" th:text="${page.pageTitle}">Courses</h1>
+        <p class="courses-subtitle" th:text="${page.pageSubtitle}">...</p>
       </div>
 
       <div class="courses-toolbar__actions">
         <button type="button"
                 class="ou-btn ou-btn--ghost"
                 id="toggleDescriptions"
-                th:if="${!#lists.isEmpty(courses)}">
+                th:if="${!#lists.isEmpty(page.courses)}">
           Show descriptions
         </button>
 
         <a class="ou-btn ou-btn--ghost"
-           sec:authorize="hasRole('ADMIN')"
+           th:if="${page.showCreateButton}"
            th:href="@{/courses/create}">
           + Create course
         </a>
       </div>
     </div>
 
-    <!-- Global messages (only when courseId is not set) -->
     <div class="ou-alert ou-alert--success"
          th:if="${ok != null and courseId == null}"
          th:text="${ok}">
@@ -52,160 +51,50 @@
       Something went wrong.
     </div>
 
-    <div class="courses-grid" th:if="${!#lists.isEmpty(courses)}">
-      <article class="ou-card course-card"
-               th:each="c : ${courses}"
-               th:attr="data-id=${c.id}"
-               th:with="
-                 hasDesc=${c.description != null and !c.description.isBlank()},
-                 hasEmail=${c.teacherEmail != null and !c.teacherEmail.isBlank()},
-                 isTarget=${courseId != null and courseId == c.id}
-               ">
-
-        <div class="course-card__head">
-          <div class="course-card__who">
-            <div class="course-card__code">
-              <span th:text="${c.code}">CS-101</span>
-            </div>
-
-            <div class="course-card__name">
-              <span th:text="${c.name}">Course name</span>
-            </div>
-          </div>
-
-        </div>
-
-        <dl class="course-kv">
-          <dt>ID</dt>
-          <dd th:text="${c.id}">1</dd>
-
-          <th:block sec:authorize="hasAnyRole('ADMIN','STUDENT')">
-            <dt>Teacher</dt>
-            <dd>
-              <div class="course-teacher">
-                <span class="course-teacher__name"
-                      th:text="${c.teacherFirstName + ' ' + c.teacherLastName}">
-                  Teacher Name
-                </span>
-
-                <a class="course-teacher__email"
-                   th:if="${hasEmail}"
-                   th:href="|mailto:${c.teacherEmail}|"
-                   th:text="${c.teacherEmail}">
-                  teacher@example.com
-                </a>
-              </div>
-            </dd>
-          </th:block>
-        </dl>
-
-        <!-- Per-course message (shown only for the targeted card) -->
-        <th:block th:if="${isTarget and (ok != null or err != null)}">
-          <div class="ou-alert ou-alert--success"
-               th:if="${ok != null}"
-               th:text="${ok}">
-            Done.
-          </div>
-
-          <div class="ou-alert ou-alert--error"
-               th:if="${err != null}"
-               th:text="${err}">
-            Something went wrong.
-          </div>
-        </th:block>
-
-        <div class="course-desc-wrap">
-
-          <details class="course-desc" th:if="${hasDesc}">
-            <summary class="course-desc__summary">Description</summary>
-
-            <div class="course-desc__body">
-
-              <div class="course-desc__text"
-                   data-desc-view
-                   th:text="${c.description}">
-                —
-              </div>
-
-              <form class="course-desc__edit"
-                    data-desc-form
-                    method="post"
-                    th:action="@{/courses/description/update}"
-                    style="display:none">
-
-                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
-                <input type="hidden" name="id" th:value="${c.id}" />
-
-                <textarea class="ou-input ou-input--textarea"
-                          name="description"
-                          rows="6"
-                          maxlength="10000"
-                          th:text="${c.description}"></textarea>
-
-                <div class="course-desc__edit-actions"
-                     sec:authorize="hasAnyRole('ADMIN','TEACHER')">
-                  <button type="submit" class="ou-btn ou-btn--primary" data-desc-save>OK</button>
-                  <button type="button" class="ou-btn ou-btn--ghost" data-desc-cancel>Cancel</button>
-                </div>
-              </form>
-
-              <div class="course-desc__actions"
-                   sec:authorize="hasAnyRole('ADMIN','TEACHER')">
-                <button type="button"
-                        class="ou-btn ou-btn--ghost"
-                        data-desc-edit>
-                  Update
-                </button>
-              </div>
-
-            </div>
-          </details>
-
-          <div class="course-desc course-desc--empty" th:unless="${hasDesc}">
-
-            <div class="course-desc__text" data-desc-view>—</div>
-
-            <form class="course-desc__edit"
-                  data-desc-form
-                  method="post"
-                  th:action="@{/courses/description/update}"
-                  style="display:none">
-
-              <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
-              <input type="hidden" name="id" th:value="${c.id}" />
-
-              <textarea class="ou-input ou-input--textarea"
-                        name="description"
-                        rows="6"
-                        maxlength="10000"></textarea>
-
-              <div class="course-desc__edit-actions"
-                   sec:authorize="hasAnyRole('ADMIN','TEACHER')">
-                <button type="submit" class="ou-btn ou-btn--primary" data-desc-save>OK</button>
-                <button type="button" class="ou-btn ou-btn--ghost" data-desc-cancel>Cancel</button>
-              </div>
-            </form>
-
-            <div class="course-desc__actions"
-                 sec:authorize="hasAnyRole('ADMIN','TEACHER')">
-              <button type="button"
-                      class="ou-btn ou-btn--ghost"
-                      data-desc-edit>
-                Add description
-              </button>
-            </div>
-
-          </div>
-        </div>
-
-        <div class="course-actions" sec:authorize="hasRole('ADMIN')">
-          <div class="course-actions__row">
-            <th:block th:replace="~{fragments/course-actions :: courseAdminActions(${c})}"></th:block>
-          </div>
-        </div>
-
-      </article>
+    <div class="courses-grid" th:if="${!#lists.isEmpty(page.courses)}">
+      <th:block th:each="c : ${page.courses}">
+        <th:block th:replace="~{courses/fragments/course-card :: courseCard(
+            ${c},
+            ${courseId},
+            ${ok},
+            ${err},
+            ${page.showTeacherInfo},
+            ${page.allowDescriptionEdit},
+            ${page.showAdminActions},
+            ${page.currentPage}
+        )}"></th:block>
+      </th:block>
     </div>
+
+    <div class="ou-alert ou-alert--warn" th:if="${#lists.isEmpty(page.courses)}">
+      No courses found.
+    </div>
+
+    <nav class="courses-pager"
+         th:if="${page.totalPages > 1}"
+         aria-label="Courses pages">
+
+      <a class="ou-btn ou-btn--ghost"
+         th:if="${page.hasPrevious}"
+         th:href="@{/courses(page=${page.currentPage - 1})}">
+        ← Previous
+      </a>
+
+      <th:block th:each="p : ${#numbers.sequence(0, page.totalPages - 1)}">
+        <a class="ou-btn"
+           th:classappend="${p == page.currentPage} ? '' : ' ou-btn--ghost'"
+           th:href="@{/courses(page=${p})}"
+           th:text="${p + 1}">
+          1
+        </a>
+      </th:block>
+
+      <a class="ou-btn ou-btn--ghost"
+         th:if="${page.hasNext}"
+         th:href="@{/courses(page=${page.currentPage + 1})}">
+        Next →
+      </a>
+    </nav>
 
   </section>
 </main>

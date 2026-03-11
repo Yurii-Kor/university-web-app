@@ -10,6 +10,7 @@ import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
 
@@ -266,12 +267,12 @@ class CourseServiceTest {
     @Test
     @DisplayName("listCourseCardsForAdmin: returns all course cards")
     void listCourseCardsForAdmin_returnsAll() {
-        var cards = courseService.listCourseCardsForAdmin();
+        var cardsPage = courseService.listCourseCardsForAdmin(PageRequest.of(0, 10));
 
-        assertNotNull(cards);
-        assertFalse(cards.isEmpty(), "admin list must not be empty");
+        assertNotNull(cardsPage);
+        assertFalse(cardsPage.isEmpty(), "admin list must not be empty");
 
-        var ids = cards.stream().map(c -> c.id()).toList();
+        var ids = cardsPage.getContent().stream().map(c -> c.id()).toList();
 
         assertTrue(ids.contains(courseOperationSys.getId()), "must contain seeded OS course");
         assertTrue(ids.contains(courseSecurity.getId()), "must contain seeded Security course");
@@ -280,14 +281,14 @@ class CourseServiceTest {
     @Test
     @DisplayName("listCourseCardsForTeacher: returns only teacher courses")
     void listCourseCardsForTeacher_existingTeacher_returnsOnlyOwnCourses() {
-		tempCourse = courseService.create(newCreateDto(TO_CREATE_CODE, TO_CREATE_NAME, null, otherTeacher.getId()));
+        tempCourse = courseService.create(newCreateDto(TO_CREATE_CODE, TO_CREATE_NAME, null, otherTeacher.getId()));
 
-        var cards = courseService.listCourseCardsForTeacher(testTeacher.getId());
+        var cardsPage = courseService.listCourseCardsForTeacher(testTeacher.getId(), PageRequest.of(0, 10));
 
-        assertNotNull(cards);
-        assertFalse(cards.isEmpty());
+        assertNotNull(cardsPage);
+        assertFalse(cardsPage.isEmpty());
 
-        var ids = cards.stream().map(c -> c.id()).toList();
+        var ids = cardsPage.getContent().stream().map(c -> c.id()).toList();
 
         assertTrue(ids.contains(courseOperationSys.getId()), "must contain OS course of testTeacher");
         assertTrue(ids.contains(courseSecurity.getId()), "must contain Security course of testTeacher");
@@ -297,21 +298,21 @@ class CourseServiceTest {
     @Test
     @DisplayName("listCourseCardsForTeacher: non-existing teacher id -> empty list")
     void listCourseCardsForTeacher_notFound_returnsEmpty() {
-        var cards = courseService.listCourseCardsForTeacher(NON_EXISTENT_ID);
+        var cardsPage = courseService.listCourseCardsForTeacher(NON_EXISTENT_ID, PageRequest.of(0, 10));
 
-        assertNotNull(cards);
-        assertTrue(cards.isEmpty(), "non-existing teacher must return empty list");
+        assertNotNull(cardsPage);
+        assertTrue(cardsPage.isEmpty(), "non-existing teacher must return empty list");
     }
     
     @Test
     @DisplayName("listCourseCardsForStudent: returns courses available for student's group")
     void listCourseCardsForStudent_existingStudent_returnsGroupCourses() {
-        var cards = courseService.listCourseCardsForStudent(studentInG1.getId());
+        var cardsPage = courseService.listCourseCardsForStudent(studentInG1.getId(), PageRequest.of(0, 10));
 
-        assertNotNull(cards);
-        assertFalse(cards.isEmpty());
+        assertNotNull(cardsPage);
+        assertFalse(cardsPage.isEmpty());
 
-        var ids = cards.stream().map(c -> c.id()).toList();
+        var ids = cardsPage.getContent().stream().map(c -> c.id()).toList();
 
         assertTrue(ids.contains(courseOperationSys.getId()), "student in g1 must see OS course");
         assertTrue(ids.contains(courseSecurity.getId()), "student in g1 must see Security course");
@@ -320,10 +321,10 @@ class CourseServiceTest {
     @Test
     @DisplayName("listCourseCardsForStudent: non-existing student id -> empty list")
     void listCourseCardsForStudent_notFound_returnsEmpty() {
-        var cards = courseService.listCourseCardsForStudent(NON_EXISTENT_ID);
+        var cardsPage = courseService.listCourseCardsForStudent(NON_EXISTENT_ID, PageRequest.of(0, 10));
 
-        assertNotNull(cards);
-        assertTrue(cards.isEmpty(), "non-existing student must return empty list");
+        assertNotNull(cardsPage);
+        assertTrue(cardsPage.isEmpty(), "non-existing student must return empty list");
     }
     
     @Test

@@ -6,6 +6,8 @@ import jakarta.transaction.Transactional.TxType;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import ua.foxminded.university.model.domain.Course;
@@ -89,18 +91,18 @@ public class CourseService {
 	}
 	
 	@Transactional(value = TxType.SUPPORTS)
-	public List<CourseCardView> listCourseCardsForAdmin() {
-	    return courseRepository.findCourseCardsAll();
+	public Page<CourseCardView> listCourseCardsForAdmin(Pageable pageable) {
+	    return courseRepository.findCourseCardsAll(pageable);
 	}
 
 	@Transactional(value = TxType.SUPPORTS)
-	public List<CourseCardView> listCourseCardsForTeacher(long teacherId) {		
-		return courseRepository.findCourseCardsByTeacherId(teacherId);
+	public Page<CourseCardView> listCourseCardsForTeacher(long teacherId, Pageable pageable) {
+	    return courseRepository.findCourseCardsByTeacherId(teacherId, pageable);
 	}
-	
+
 	@Transactional(value = TxType.SUPPORTS)
-	public List<CourseCardView> listCourseCardsForStudent(long studentId) {
-	    return courseRepository.findCourseCardsByStudentId(studentId);
+	public Page<CourseCardView> listCourseCardsForStudent(long studentId, Pageable pageable) {
+	    return courseRepository.findCourseCardsByStudentId(studentId, pageable);
 	}
 	
 	@Transactional(value = TxType.SUPPORTS)

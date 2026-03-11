@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en"
+      xmlns:th="http://www.thymeleaf.org">
+<body>
+
+<th:block th:fragment="courseDescription(c, hasDesc, allowDescriptionEdit, currentPage)">
+
+  <details class="course-desc" th:if="${hasDesc}">
+    <summary class="course-desc__summary">Description</summary>
+
+    <div class="course-desc__body">
+
+      <div class="course-desc__text"
+           data-desc-view
+           th:text="${c.description}">
+        —
+      </div>
+
+      <form class="course-desc__edit"
+            data-desc-form
+            method="post"
+            th:if="${allowDescriptionEdit}"
+            th:action="@{/courses/description/update}"
+            style="display:none">
+
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
+        <input type="hidden" name="id" th:value="${c.id}" />
+        <input type="hidden" name="page" th:value="${currentPage}" />
+
+        <textarea class="ou-input ou-input--textarea"
+                  name="description"
+                  rows="6"
+                  maxlength="10000"
+                  th:text="${c.description}"></textarea>
+
+        <div class="course-desc__edit-actions">
+          <button type="submit" class="ou-btn ou-btn--primary" data-desc-save>OK</button>
+          <button type="button" class="ou-btn ou-btn--ghost" data-desc-cancel>Cancel</button>
+        </div>
+      </form>
+
+      <div class="course-desc__actions" th:if="${allowDescriptionEdit}">
+        <button type="button"
+                class="ou-btn ou-btn--ghost"
+                data-desc-edit>
+          Update
+        </button>
+      </div>
+
+    </div>
+  </details>
+
+  <div class="course-desc course-desc--empty" th:unless="${hasDesc}">
+
+    <div class="course-desc__text" data-desc-view>—</div>
+
+    <form class="course-desc__edit"
+          data-desc-form
+          method="post"
+          th:if="${allowDescriptionEdit}"
+          th:action="@{/courses/description/update}"
+          style="display:none">
+
+      <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
+      <input type="hidden" name="id" th:value="${c.id}" />
+      <input type="hidden" name="page" th:value="${currentPage}" />
+
+      <textarea class="ou-input ou-input--textarea"
+                name="description"
+                rows="6"
+                maxlength="10000"></textarea>
+
+      <div class="course-desc__edit-actions">
+        <button type="submit" class="ou-btn ou-btn--primary" data-desc-save>OK</button>
+        <button type="button" class="ou-btn ou-btn--ghost" data-desc-cancel>Cancel</button>
+      </div>
+    </form>
+
+    <div class="course-desc__actions" th:if="${allowDescriptionEdit}">
+      <button type="button"
+              class="ou-btn ou-btn--ghost"
+              data-desc-edit>
+        Add description
+      </button>
+    </div>
+
+  </div>
+
+</th:block>
+
+</body>
+</html>

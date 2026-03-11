@@ -22,7 +22,7 @@
     		<div class="profile-card-inner">
       			<h1 id="profile-title" class="ou-card__title">Teacher profile</h1>
       			
-      			<div th:replace="~{fragments/profile-notices :: profileNotices(${profileMsg})}"></div>
+      			<div th:replace="~{profile/fragments/profile-notices :: profileNotices(${profileMsg})}"></div>
 
       			<dl class="kv" aria-label="Account details">
         			<dt class="kv-key">Email</dt>
@@ -48,7 +48,7 @@
         			Role: <strong>TEACHER</strong>
       			</p>
       			
-      			<div th:replace="~{fragments/profile-edit :: selfEdit(
+      			<div th:replace="~{profile/fragments/profile-edit :: selfEdit(
                 	${profile},
                 	${hasError},
                 	${hasUpdated},

@@ -1,10 +1,13 @@
 package ua.foxminded.university.web.course.page.strategy;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
 import lombok.RequiredArgsConstructor;
+import ua.foxminded.university.model.repository.dto.CourseCardView;
 import ua.foxminded.university.service.CourseService;
-import ua.foxminded.university.web.course.page.CoursesPageModel;
+import ua.foxminded.university.web.course.page.CoursesPageMode;
 import ua.foxminded.university.web.course.page.CoursesPageStrategy;
 
 @Component
@@ -13,14 +16,13 @@ public class TeacherCoursesPageStrategy implements CoursesPageStrategy {
 
     private final CourseService courseService;
 
-    @Override public String roleKey() { return "teacher"; }
+    @Override
+    public CoursesPageMode mode() {
+        return CoursesPageMode.TEACHER;
+    }
 
     @Override
-    public CoursesPageModel build(long userId) {
-        return new CoursesPageModel(
-                "My courses",
-                "Courses you teach.",
-                courseService.listCourseCardsForTeacher(userId)
-        );
+    public Page<CourseCardView> loadCourses(long userId, Pageable pageable) {
+        return courseService.listCourseCardsForTeacher(userId, pageable);
     }
 }

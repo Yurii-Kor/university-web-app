@@ -17,7 +17,6 @@ import ua.foxminded.university.service.dto.request.course.CourseSelfUpdateDto;
 import ua.foxminded.university.web.bind.TrimToNullUppercaseEditor;
 import ua.foxminded.university.web.course.page.CoursesPageModelFactory;
 
-
 @Controller
 @RequestMapping("/courses")
 @RequiredArgsConstructor
@@ -27,16 +26,16 @@ public class CoursesManagementController {
     private final CoursesPageModelFactory pageFactory;
 
     @GetMapping
-    public String coursesPage(@AuthenticationPrincipal UserDetails principal, Model model) {
-        var page = pageFactory.build(principal);
+    public String coursesPage(@AuthenticationPrincipal UserDetails principal,
+                              @RequestParam(name = "page", defaultValue = "0") int pageNumber,
+                              Model model) {
 
-        model.addAttribute("pageTitle", page.pageTitle());
-        model.addAttribute("pageSubtitle", page.pageSubtitle());
-        model.addAttribute("courses", page.courses());
+        var page = pageFactory.build(principal, pageNumber);
+        model.addAttribute("page", page);
 
         return "courses/courses";
     }
-    
+
     @InitBinder
     void initBinder(WebDataBinder binder) {
         binder.registerCustomEditor(String.class, new StringTrimmerEditor(true));
@@ -47,6 +46,7 @@ public class CoursesManagementController {
     @PostMapping("/description/update")
     @PreAuthorize("hasAnyRole('ADMIN','TEACHER')")
     public String updateDescription(@ModelAttribute("patch") CourseDescriptionUpdateDto patch,
+                                    @RequestParam(name = "page", defaultValue = "0") int pageNumber,
                                     RedirectAttributes ra) {
 
         courseService.updateDescription(patch);
@@ -54,12 +54,13 @@ public class CoursesManagementController {
         ra.addFlashAttribute("ok", "Description updated.");
         ra.addFlashAttribute("courseId", patch.id());
 
-        return "redirect:/courses";
+        return "redirect:/courses?page=" + normalizePage(pageNumber);
     }
 
     @PostMapping("/self/update")
     @PreAuthorize("hasRole('ADMIN')")
-    public String updateSelf(@ModelAttribute CourseSelfUpdateDto  patch,
+    public String updateSelf(@ModelAttribute CourseSelfUpdateDto patch,
+                             @RequestParam(name = "page", defaultValue = "0") int pageNumber,
                              RedirectAttributes ra) {
 
         courseService.updateSelf(patch);
@@ -67,17 +68,22 @@ public class CoursesManagementController {
         ra.addFlashAttribute("ok", "Course updated.");
         ra.addFlashAttribute("courseId", patch.id());
 
-        return "redirect:/courses";
+        return "redirect:/courses?page=" + normalizePage(pageNumber);
     }
 
     @PostMapping("/{id}/delete")
     @PreAuthorize("hasRole('ADMIN')")
     public String deleteCourse(@PathVariable("id") Long id,
+                               @RequestParam(name = "page", defaultValue = "0") int pageNumber,
                                RedirectAttributes ra) {
 
         courseService.delete(id);
         ra.addFlashAttribute("ok", "Course deleted.");
 
-        return "redirect:/courses";
+        return "redirect:/courses?page=" + normalizePage(pageNumber);
+    }
+
+    private int normalizePage(int pageNumber) {
+        return Math.max(pageNumber, 0);
     }
 }

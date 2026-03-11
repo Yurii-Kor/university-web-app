@@ -1,6 +1,7 @@
 package ua.foxminded.university.web.admin;
 
 import org.springframework.beans.propertyeditors.StringTrimmerEditor;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -13,18 +14,20 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import ua.foxminded.university.service.AppUserService;
 import ua.foxminded.university.web.admin.dto.AdminCreateForm;
 import ua.foxminded.university.web.admin.dto.AdminCreateFormMapper;
 import ua.foxminded.university.web.admin.validation.AdminCreateFormValidator;
 import ua.foxminded.university.web.bind.TrimToNullLowercaseEditor;
 import ua.foxminded.university.web.util.PrincipalHandler;
+import ua.foxminded.university.service.AppUserService;
 
 @Controller
 @RequestMapping("/admin")
 @PreAuthorize("hasRole('ADMIN')")
 @RequiredArgsConstructor
 public class AdminManagementController {
+
+    private static final int ADMINS_PER_PAGE = 6;
 
     private final AppUserService appUserService;
     private final PrincipalHandler principalHandler;
@@ -41,12 +44,20 @@ public class AdminManagementController {
     }
 
     @GetMapping
-    public String adminsPage(@AuthenticationPrincipal UserDetails principal, Model model) {
-        var selfId = principalHandler.parseUserId(principal);
-        var admins = appUserService.listAdminsForView(selfId);
+    public String adminsPage(@AuthenticationPrincipal UserDetails principal,
+                             @RequestParam(name = "page", defaultValue = "0") int pageNumber,
+                             Model model) {
 
-        model.addAttribute("admins", admins);
+        var safePage = Math.max(pageNumber, 0);
+        var selfId = principalHandler.parseUserId(principal);
+        var adminsPage = appUserService.listAdminsForView(selfId, PageRequest.of(safePage, ADMINS_PER_PAGE));
+
+        model.addAttribute("admins", adminsPage.getContent());
         model.addAttribute("selfId", selfId);
+        model.addAttribute("currentPage", adminsPage.getNumber());
+        model.addAttribute("totalPages", adminsPage.getTotalPages());
+        model.addAttribute("hasPrevious", adminsPage.hasPrevious());
+        model.addAttribute("hasNext", adminsPage.hasNext());
 
         return "admin/admins";
     }
@@ -75,6 +86,7 @@ public class AdminManagementController {
     @PostMapping("/{id}/enable")
     public String enableAdmin(@AuthenticationPrincipal UserDetails principal,
                               @PathVariable("id") long id,
+                              @RequestParam(name = "page", defaultValue = "0") int pageNumber,
                               RedirectAttributes ra) {
 
         var selfId = principalHandler.parseUserId(principal);
@@ -83,12 +95,13 @@ public class AdminManagementController {
         appUserService.enableUserByIds(id);
 
         ra.addFlashAttribute("ok", "Admin enabled.");
-        return "redirect:/admin";
+        return "redirect:/admin?page=" + Math.max(pageNumber, 0);
     }
 
     @PostMapping("/{id}/disable")
     public String disableAdmin(@AuthenticationPrincipal UserDetails principal,
                                @PathVariable("id") long id,
+                               @RequestParam(name = "page", defaultValue = "0") int pageNumber,
                                RedirectAttributes ra) {
 
         var selfId = principalHandler.parseUserId(principal);
@@ -97,12 +110,13 @@ public class AdminManagementController {
         appUserService.disableUserByIds(id);
 
         ra.addFlashAttribute("ok", "Admin disabled.");
-        return "redirect:/admin";
+        return "redirect:/admin?page=" + Math.max(pageNumber, 0);
     }
 
     @PostMapping("/{id}/delete")
     public String deleteAdmin(@AuthenticationPrincipal UserDetails principal,
                               @PathVariable("id") long id,
+                              @RequestParam(name = "page", defaultValue = "0") int pageNumber,
                               RedirectAttributes ra) {
 
         var selfId = principalHandler.parseUserId(principal);
@@ -110,7 +124,8 @@ public class AdminManagementController {
 
         appUserService.deleteAdmin(id);
 
-        return "redirect:/admin";
+        ra.addFlashAttribute("ok", "Admin deleted.");
+        return "redirect:/admin?page=" + Math.max(pageNumber, 0);
     }
 
     private void assertNotSelf(long targetId, long selfId) {

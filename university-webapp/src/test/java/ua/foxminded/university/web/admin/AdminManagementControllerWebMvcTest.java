@@ -2,6 +2,7 @@ package ua.foxminded.university.web.admin;
 
 import static org.hamcrest.Matchers.contains;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.*;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
@@ -21,6 +22,9 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -36,14 +40,19 @@ import ua.foxminded.university.web.util.ExceptionMessageReader;
 import ua.foxminded.university.web.util.PrincipalHandler;
 
 @WebMvcTest(controllers = AdminManagementController.class)
-@Import({ AdminExceptionHandler.class, PrincipalHandler.class, AdminCreateFormValidator.class, ExceptionMessageReader.class })
+@Import({
+    AdminExceptionHandler.class,
+    PrincipalHandler.class,
+    AdminCreateFormValidator.class,
+    ExceptionMessageReader.class
+})
 class AdminManagementControllerWebMvcTest {
 
     private static final Long SELF_ID = 42L;
 
     @Autowired
     MockMvc mockMvc;
-    
+
     @MockitoBean
     TeacherService teacherService;
 
@@ -54,7 +63,7 @@ class AdminManagementControllerWebMvcTest {
     AdminCreateFormMapper mapper;
 
     @Test
-    @DisplayName("GET /admin -> 200, admin/admins, model has admins from service and selfId")
+    @DisplayName("GET /admin -> 200, admin/admins, model has paged admins and selfId")
     void getAdmins_ok_returnsViewAndModel() throws Exception {
         var now = OffsetDateTime.parse("2025-01-01T12:00Z");
 
@@ -62,8 +71,13 @@ class AdminManagementControllerWebMvcTest {
         var otherEnabled = new AdminRowView(10L, "a@ex.com", "A", "Admin", now.minusDays(1), true);
         var otherDisabled = new AdminRowView(11L, "b@ex.com", "B", "Admin", now.minusDays(2), false);
 
-        when(appUserService.listAdminsForView(SELF_ID))
-                .thenReturn(List.of(selfEnabled, otherEnabled, otherDisabled));
+        var adminsPage = new PageImpl<>(
+                List.of(selfEnabled, otherEnabled, otherDisabled),
+                PageRequest.of(0, 6),
+                7
+        );
+
+        when(appUserService.listAdminsForView(eq(SELF_ID), any(Pageable.class))).thenReturn(adminsPage);
 
         mockMvc.perform(get("/admin").with(user(Long.toString(SELF_ID)).roles("ADMIN")))
                 .andExpect(status().isOk())
@@ -73,7 +87,13 @@ class AdminManagementControllerWebMvcTest {
                         selfEnabled,
                         otherEnabled,
                         otherDisabled
-                )));
+                )))
+                .andExpect(model().attribute("currentPage", 0))
+                .andExpect(model().attribute("totalPages", 2))
+                .andExpect(model().attribute("hasPrevious", false))
+                .andExpect(model().attribute("hasNext", true));
+
+        verify(appUserService).listAdminsForView(eq(SELF_ID), argThat(p -> p.getPageNumber() == 0));
     }
 
     @Test
@@ -152,26 +172,28 @@ class AdminManagementControllerWebMvcTest {
     }
 
     @Test
-    @DisplayName("POST /admin/{id}/enable ok -> redirects /admin, flash ok, calls service")
+    @DisplayName("POST /admin/{id}/enable ok -> redirects /admin?page=1, flash ok, calls service")
     void postEnableAdmin_ok_redirectsAndCallsService() throws Exception {
         var targetId = 100L;
 
         mockMvc.perform(post("/admin/{id}/enable", targetId)
                         .with(user(Long.toString(SELF_ID)).roles("ADMIN"))
-                        .with(csrf()))
+                        .with(csrf())
+                        .param("page", "1"))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/admin"))
+                .andExpect(redirectedUrl("/admin?page=1"))
                 .andExpect(flash().attribute("ok", "Admin enabled."));
 
         verify(appUserService).enableUserByIds(targetId);
     }
 
     @Test
-    @DisplayName("POST /admin/{id}/enable self -> redirects /admin, flash err (AdminExceptionHandler)")
+    @DisplayName("POST /admin/{id}/enable self -> redirects /admin, flash err")
     void postEnableAdmin_self_redirectsAdminAndSetsErr() throws Exception {
         mockMvc.perform(post("/admin/{id}/enable", SELF_ID)
                         .with(user(Long.toString(SELF_ID)).roles("ADMIN"))
-                        .with(csrf()))
+                        .with(csrf())
+                        .param("page", "1"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/admin"))
                 .andExpect(flash().attribute("err", "You cannot modify your own admin account here."));
@@ -180,30 +202,33 @@ class AdminManagementControllerWebMvcTest {
     }
 
     @Test
-    @DisplayName("POST /admin/{id}/disable ok -> redirects /admin, flash ok, calls service")
+    @DisplayName("POST /admin/{id}/disable ok -> redirects /admin?page=2, flash ok, calls service")
     void postDisableAdmin_ok_redirectsAndCallsService() throws Exception {
         var targetId = 101L;
 
         mockMvc.perform(post("/admin/{id}/disable", targetId)
                         .with(user(Long.toString(SELF_ID)).roles("ADMIN"))
-                        .with(csrf()))
+                        .with(csrf())
+                        .param("page", "2"))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/admin"))
+                .andExpect(redirectedUrl("/admin?page=2"))
                 .andExpect(flash().attribute("ok", "Admin disabled."));
 
         verify(appUserService).disableUserByIds(targetId);
     }
 
     @Test
-    @DisplayName("POST /admin/{id}/delete when deleted -> redirects /admin and calls service")
+    @DisplayName("POST /admin/{id}/delete when deleted -> redirects /admin?page=3, flash ok and calls service")
     void postDeleteAdmin_deleted_redirectsAndCallsService() throws Exception {
         var targetId = 200L;
 
         mockMvc.perform(post("/admin/{id}/delete", targetId)
                         .with(user(Long.toString(SELF_ID)).roles("ADMIN"))
-                        .with(csrf()))
+                        .with(csrf())
+                        .param("page", "3"))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/admin"));
+                .andExpect(redirectedUrl("/admin?page=3"))
+                .andExpect(flash().attribute("ok", "Admin deleted."));
 
         verify(appUserService).deleteAdmin(targetId);
     }
@@ -218,7 +243,8 @@ class AdminManagementControllerWebMvcTest {
 
         mockMvc.perform(post("/admin/{id}/delete", targetId)
                         .with(user(Long.toString(SELF_ID)).roles("ADMIN"))
-                        .with(csrf()))
+                        .with(csrf())
+                        .param("page", "3"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/admin"))
                 .andExpect(flash().attribute("err", "Users not found: [" + targetId + "]"));

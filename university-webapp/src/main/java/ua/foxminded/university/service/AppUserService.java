@@ -2,7 +2,6 @@ package ua.foxminded.university.service;
 
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
@@ -10,6 +9,8 @@ import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import jakarta.persistence.EntityNotFoundException;
@@ -91,16 +92,9 @@ public class AppUserService {
 	}
 	
 	@Transactional(value = TxType.SUPPORTS)
-	public List<AdminRowView> listAdminsForView(long selfId) {
-		return usersRepository.findAdminRows()
-	            .stream()
-	            .sorted(Comparator
-	                    .comparingInt((AdminRowView a) -> a.id() != null && a.id() == selfId ? 0 : 1)
-	                    .thenComparingInt(a -> a.enabled() ? 0 : 1)
-	                    .thenComparing(AdminRowView::id, Comparator.nullsLast(Long::compareTo)))
-	            .toList();
+	public Page<AdminRowView> listAdminsForView(long selfId, Pageable pageable) {
+	    return usersRepository.findAdminRowsForView(selfId, pageable);
 	}
-
 
 	@Transactional(value = TxType.REQUIRES_NEW)
 	public void changePasswordSelf(AppUserPasswordChangeDto patch) {
@@ -210,7 +204,5 @@ public class AppUserService {
 	    Optional.ofNullable(newLastName)
 	            .filter(last -> !Objects.equals(last, user.getLastName()))
 	            .ifPresent(user::setLastName);
-	}
-	
-	
+	}	
 }

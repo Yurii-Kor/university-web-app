@@ -13,6 +13,7 @@ import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
 
@@ -163,22 +164,25 @@ class AppUserServiceTest {
 	}
 	
 	@Test
-	@DisplayName("listAdmins: returns admin rows only")
+	@DisplayName("listAdmins: returns paged admin rows only")
 	void listAdmins_returnsAdminsOnly() {
-		tempAdmin = appUserService.createAdmin(newAdminDto(DEFAULT_EMAIL));
+	    tempAdmin = appUserService.createAdmin(newAdminDto(DEFAULT_EMAIL));
 
-		var admins = appUserService.listAdminsForView(tempAdmin.getId());
+	    var adminsPage = appUserService.listAdminsForView(tempAdmin.getId(), PageRequest.of(0, 10));
+	    var admins = adminsPage.getContent();
 
-		assertNotNull(admins);
-		assertEquals(2, admins.size(), "must contain seeded admin and created admin");
+	    assertNotNull(adminsPage);
+	    assertNotNull(admins);
+	    assertEquals(2, adminsPage.getTotalElements(), "must contain seeded admin and created admin");
+	    assertEquals(1, adminsPage.getTotalPages(), "must fit into one page");
 
-		var adminEmails = admins.stream()
-				.map(admin -> admin.email())
-				.toList();
+	    var adminEmails = admins.stream()
+	            .map(admin -> admin.email())
+	            .toList();
 
-		assertTrue(adminEmails.contains(TEST_ADMIN_EMAIL));
-		assertTrue(adminEmails.contains(DEFAULT_EMAIL));
-		assertFalse(adminEmails.contains(TAKEN_EMAIL), "student email must not appear in admin rows");
+	    assertTrue(adminEmails.contains(TEST_ADMIN_EMAIL));
+	    assertTrue(adminEmails.contains(DEFAULT_EMAIL));
+	    assertFalse(adminEmails.contains(TAKEN_EMAIL), "student email must not appear in admin rows");
 	}
 	
 	@Test
