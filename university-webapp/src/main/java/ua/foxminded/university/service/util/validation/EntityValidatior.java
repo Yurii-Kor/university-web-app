@@ -30,7 +30,9 @@ public class EntityValidatior {
     }
 
     public <T> void validate(T target) {
-        var singletonOrEmpty = Optional.ofNullable(target).map(List::of).orElseGet(Collections::emptyList);
+		var singletonOrEmpty = Optional.ofNullable(target)
+				.map(List::of)
+				.orElseThrow(() -> new IllegalArgumentException("target must not be null"));
         validateAll(singletonOrEmpty);
     }
 

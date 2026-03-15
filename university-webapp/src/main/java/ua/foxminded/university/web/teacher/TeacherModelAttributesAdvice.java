@@ -8,13 +8,8 @@ import org.springframework.web.bind.annotation.ModelAttribute;
 import lombok.RequiredArgsConstructor;
 import ua.foxminded.university.model.repository.dto.TeacherOptionView;
 import ua.foxminded.university.service.TeacherService;
-import ua.foxminded.university.web.course.CourseCreateController;
-import ua.foxminded.university.web.course.CoursesManagementController;
 
-@ControllerAdvice(assignableTypes = {
-        CourseCreateController.class,
-        CoursesManagementController.class
-})
+@ControllerAdvice()
 @RequiredArgsConstructor
 public class TeacherModelAttributesAdvice {
 

@@ -44,30 +44,20 @@ public class CourseService {
 	
 	@Transactional(value = TxType.REQUIRES_NEW)
 	public Course create(CourseCreateDto draft) {
-	    Optional.ofNullable(draft).ifPresentOrElse(p -> validator.validate(p), () -> {
-	        log.warn("create: draft is null");
-	        throw new IllegalArgumentException("draft must not be null");
-	    });
+		validator.validate(draft);
 
-	    if (courseRepository.existsByCodeIgnoreCase(draft.code())) {
-	        log.warn("create: code conflict (requestedCode='{}')", draft.code());
-	        throw new CourseCreateException(draft, "Course code already exists: " + draft.code());
-	    }
+		if (courseRepository.existsByCodeIgnoreCase(draft.code())) {
+			throw new CourseCreateException(draft, "Course code already exists: " + draft.code());
+		}
 
-	    if (courseRepository.existsByNameIgnoreCase(draft.name())) {
-	        log.warn("create: name conflict (requestedName='{}')", draft.name());
-	        throw new CourseCreateException(draft, "Course name already exists: " + draft.name());
-	    }
+		if (courseRepository.existsByNameIgnoreCase(draft.name())) {
+			throw new CourseCreateException(draft, "Course name already exists: " + draft.name());
+		}
 
-	    var teacher = teacherRepository.findById(draft.teacherId()).orElseThrow(() -> {
-	        log.warn("create: teacher not found (teacherId={})", draft.teacherId());
-	        return new CourseCreateException(draft, "Teacher not found: id=" + draft.teacherId());
-	    });
+		var teacher = teacherRepository.findById(draft.teacherId())
+				.orElseThrow(() -> new CourseCreateException(draft, "Teacher not found: id=" + draft.teacherId()));
 
-	    var course = mapper.toCourseEntity(draft).orElseThrow(() -> {
-	        log.warn("create: mapper produced null Course (code='{}', name='{}')", draft.code(), draft.name());
-	        return new IllegalArgumentException("Mapper produced null Course");
-	    });
+	    var course = mapper.toCourseEntity(draft);
 
 	    course.setTeacher(teacher);
 
@@ -107,10 +97,8 @@ public class CourseService {
 	
 	@Transactional(value = TxType.SUPPORTS)
 	public CourseGroupsView getCourseGroupsView(long courseId) {
-		var header = courseRepository.findCourseHeaderById(courseId).orElseThrow(() -> {
-			log.warn("getCourseGroupsPage: course not found (courseId={})", courseId);
-			return new EntityNotFoundException("Course not found: id=" + courseId);
-		});
+		var header = courseRepository.findCourseHeaderById(courseId)
+				.orElseThrow(() -> new EntityNotFoundException("Course not found: id=" + courseId));
 
 	    List<GroupOptionView> assigned = groupRepository.findAssignedGroupOptions(courseId);
 	    List<GroupOptionView> available = groupRepository.findAvailableGroupOptions(courseId);
@@ -120,15 +108,10 @@ public class CourseService {
 
 	@Transactional(value = TxType.REQUIRES_NEW)
 	public Course updateSelf(CourseSelfUpdateDto patch) {
-		Optional.ofNullable(patch).ifPresentOrElse(p -> validator.validateWithId(p, p.id()), () -> {
-			log.warn("updateSelf: patch is null");
-			throw new IllegalArgumentException("patch must not be null");
-		});
+		validator.validateWithId(patch, patch.id());
 		
-		var managed = courseRepository.findById(patch.id()).orElseThrow(() -> {
-			log.warn("updateSelf: course not found (courseId={})", patch.id());
-			return new EntityNotFoundException("Course not found: id=" + patch.id());
-		});
+		var managed = courseRepository.findById(patch.id())
+				.orElseThrow(() -> new EntityNotFoundException("Course not found: id=" + patch.id()));
 
 	    applyCodePatch(managed, patch);
 	    applyNamePatch(managed, patch);
@@ -140,15 +123,10 @@ public class CourseService {
 	
 	@Transactional(value = TxType.REQUIRES_NEW)
 	public Course updateDescription(CourseDescriptionUpdateDto patch) {
-		Optional.ofNullable(patch).ifPresentOrElse(p -> validator.validateWithId(p, p.id()), () -> {
-			log.warn("updateDescription: patch is null");
-			throw new IllegalArgumentException("patch must not be null");
-		});
+		validator.validateWithId(patch, patch.id());
 		
-		var managed = courseRepository.findById(patch.id()).orElseThrow(() -> {
-			log.warn("updateDescription: course not found (courseId={})", patch.id());
-			return new EntityNotFoundException("Course not found: id=" + patch.id());
-		});
+		var managed = courseRepository.findById(patch.id())
+				.orElseThrow(() -> new EntityNotFoundException("Course not found: id=" + patch.id()));
 		
 		Optional.ofNullable(patch.description())
 				.map(String::trim)
@@ -160,10 +138,8 @@ public class CourseService {
 	
 	@Transactional(TxType.REQUIRES_NEW)
 	public Optional<Long> addGroupToCourse(long courseId, long groupId) {
-		var course = courseRepository.findById(courseId).orElseThrow(() -> {
-			log.warn("addGroupToCourse: course not found (courseId={})", courseId);
-			return new EntityNotFoundException("Course not found: id=" + courseId);
-		});
+		var course = courseRepository.findById(courseId)
+				.orElseThrow(() -> new EntityNotFoundException("Course not found: id=" + courseId));
 		
 		var groups = Optional.ofNullable(course.getGroups()).orElseGet(() -> {
 	        course.setGroups(new LinkedHashSet<>());
@@ -184,10 +160,8 @@ public class CourseService {
 	
 	@Transactional(TxType.REQUIRES_NEW)
 	public Optional<Long> removeGroupFromCourse(long courseId, long groupId) {
-		var course = courseRepository.findById(courseId).orElseThrow(() -> {
-			log.warn("removeGroupFromCourse: course not found (courseId={})", courseId);
-			return new EntityNotFoundException("Course not found: id=" + courseId);
-		});
+		var course = courseRepository.findById(courseId)
+				.orElseThrow(() -> new EntityNotFoundException("Course not found: id=" + courseId));
 		
 		var groups = Optional.ofNullable(course.getGroups()).orElseGet(Collections::emptySet);
 		var already = groups.stream().map(StudyGroup::getId).filter(Objects::nonNull).collect(Collectors.toSet());
@@ -218,7 +192,6 @@ public class CourseService {
 	            .filter(code -> isDifferentIgnoreCase(code, managed.getCode()))
 	            .ifPresent(code -> {
 	                if (courseRepository.existsByCodeIgnoreCase(code)) {
-	                    log.warn("updateSelf: code conflict (courseId={}, requestedCode='{}')", managed.getId(), code);
 	                    throw new CourseSelfUpdateException(patch, "Course code already exists: " + code);
 	                }
 
@@ -234,7 +207,6 @@ public class CourseService {
 	            .filter(name -> isDifferentIgnoreCase(name, managed.getName()))
 	            .ifPresent(name -> {
 	                if (courseRepository.existsByNameIgnoreCase(name)) {
-	                    log.warn("updateSelf: name conflict (courseId={}, requestedName='{}')", managed.getId(), name);
 	                    throw new CourseSelfUpdateException(patch, "Course name already exists: " + name);
 	                }
 
@@ -248,7 +220,6 @@ public class CourseService {
 	            .filter(newTeacherId -> isDifferentTeacher(managed, newTeacherId))
 				.ifPresent(newTeacherId -> {
 					var teacher = teacherRepository.findById(newTeacherId).orElseThrow(() -> {
-						log.warn("updateSelf: teacher not found (teacherId={})", newTeacherId);
 						return new CourseSelfUpdateException(patch, "Teacher not found: id=" + newTeacherId);
 					});
 

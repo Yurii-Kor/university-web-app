@@ -46,20 +46,13 @@ public class AppUserService {
 	
 	@Transactional(value = TxType.REQUIRES_NEW)
 	public AppUser createAdmin(AppUserCreateDto draft) {
-		Optional.ofNullable(draft).ifPresentOrElse(p -> validator.validate(p), () -> {
-			log.warn("create: draft is null");
-			throw new IllegalArgumentException("draft must not be null");
-		});
+		validator.validate(draft);
 		
 		if (usersRepository.existsByEmailIgnoreCase(draft.email())) {
-	        log.warn("createAdmin: email already exists in DB: {}", draft.email());
 	        throw new AdminCreateException(draft, "Email already exists: " + draft.email());
 	    }
 		
-		var admin = mapper.toAppUserEntity(draft).orElseThrow(() -> {
-			log.warn("create: mapper produced null App User (email = '{}' )", draft.email());
-			return new AdminCreateException(draft, "Mapper produced null Course");
-		});
+		var admin = mapper.toAppUserEntity(draft);
 		
 		admin.setPassword(passwordPolicy.encodePassword(admin.getPassword()));
 		admin.setRole(UserRole.ADMIN);
@@ -85,10 +78,8 @@ public class AppUserService {
 	
 	@Transactional(value = TxType.SUPPORTS)
 	public AdminProfileView getAdminProfileView(long id) {
-		return usersRepository.findAdminProfileViewById(id).orElseThrow(() -> {
-			log.warn("getAdminProfileView: admin not found (userId={})", id);
-			return new EntityNotFoundException("Admin user not found: id=" + id);
-		});
+		return usersRepository.findAdminProfileViewById(id)
+				.orElseThrow(() -> new EntityNotFoundException("Admin user not found: id=" + id));
 	}
 	
 	@Transactional(value = TxType.SUPPORTS)
@@ -98,15 +89,10 @@ public class AppUserService {
 
 	@Transactional(value = TxType.REQUIRES_NEW)
 	public void changePasswordSelf(AppUserPasswordChangeDto patch) {
-		Optional.ofNullable(patch).ifPresentOrElse(p -> validator.validateWithId(p, p.id()), () -> {
-			log.warn("changePassword: patch is null");
-			throw new IllegalArgumentException("patch must not be null");
-		});
+		validator.validate(patch);
 
-		var managed = usersRepository.findById(patch.id()).orElseThrow(() -> {
-			log.warn("changePasswordSelf: user not found (userId={})", patch.id());
-			return new EntityNotFoundException("User not found: id=" + patch.id());
-		});
+		var managed = usersRepository.findById(patch.id())
+				.orElseThrow(() -> new EntityNotFoundException("User not found: id=" + patch.id()));
 
 		passwordPolicy.assertCurrentMatches(patch.currentPassword(), managed.getPassword());
 		passwordPolicy.assertNewDifferentFromCurrent(patch.currentPassword(), patch.newPassword());
@@ -117,15 +103,10 @@ public class AppUserService {
 
 	@Transactional(TxType.REQUIRES_NEW)
 	public void updateProfileFields(AppUserSelfUpdateDto patch) {
-		Optional.ofNullable(patch).ifPresentOrElse(p -> validator.validateWithId(p, p.id()), () -> {
-			log.warn("changePassword: patch is null");
-			throw new IllegalArgumentException("patch must not be null");
-		});
+		validator.validate(patch);
 
-		var managed = usersRepository.findById(patch.id()).orElseThrow(() -> {
-			log.warn("changePasswordSelf: user not found (userId={})", patch.id());
-			return new EntityNotFoundException("User not found: id=" + patch.id());
-		});
+		var managed = usersRepository.findById(patch.id())
+				.orElseThrow(() -> new EntityNotFoundException("User not found: id=" + patch.id()));
 
 	    applyEmailPatch(managed, patch.email());
 	    applyFirstNamePatch(managed, patch.firstName());
@@ -136,25 +117,20 @@ public class AppUserService {
 	
 	@Transactional(value = TxType.REQUIRES_NEW)
 	public void enableUserByIds(Long id) {
-		var managed = usersRepository.findById(id).orElseThrow(() -> {
-			log.warn("enableUserByIds: user not found (userId={})", id);
-			return new EntityNotFoundException("User not found: id=" + id);
-		});
+		var managed = usersRepository.findById(id)
+				.orElseThrow(() -> new EntityNotFoundException("User not found: id=" + id));
 		
 		managed.setEnabled(true);
 	}
 
 	@Transactional(value = TxType.REQUIRES_NEW)
 	public void disableUserByIds(long id) {
-		var managed = usersRepository.findById(id).orElseThrow(() -> {
-			log.warn("enableUserByIds: user not found (userId={})", id);
-			return new EntityNotFoundException("User not found: id=" + id);
-		});
+		var managed = usersRepository.findById(id)
+				.orElseThrow(() -> new EntityNotFoundException("User not found: id=" + id));
 		
 		var isManagedAdmin = managed.getRole().equals(UserRole.ADMIN);
 		var isLastEnabledAdmin = usersRepository.countByRoleAndEnabled(UserRole.ADMIN, true) <= ONE_ADMIN;
 		if (isManagedAdmin && isLastEnabledAdmin) {
-			log.warn("disableUserByIds: attempt to disable the last enabled admin(s)");
 			throw new IllegalStateException("Cannot disable the last enabled admin user");
 		}
 		
@@ -163,19 +139,15 @@ public class AppUserService {
 	
 	@Transactional(value = TxType.REQUIRES_NEW)
 	public void deleteAdmin(long id) {
-		var managed = usersRepository.findById(id).orElseThrow(() -> {
-			log.warn("enableUserByIds: user not found (userId={})", id);
-			return new EntityNotFoundException("User not found: id=" + id);
-		});
+		var managed = usersRepository.findById(id)
+				.orElseThrow(() -> new EntityNotFoundException("User not found: id=" + id));
 		
 		if (!UserRole.ADMIN.equals(managed.getRole())) {
-	        log.warn("deleteAdmin: non-admin delete attempt (userId={}, role={})", id, managed.getRole());
 	        throw new IllegalStateException("Only admin users can be deleted here");
 	    }
 
 		var isLastAdmin = usersRepository.countByRole(UserRole.ADMIN) <= ONE_ADMIN;
 		if (isLastAdmin) {
-			log.warn("deleteAdminsByIds: attempt to delete the last admin(s)");
 			throw new IllegalStateException("Cannot delete the last admin user");
 		}
 		
@@ -187,7 +159,6 @@ public class AppUserService {
 	            .filter(email -> !Objects.equals(email, user.getEmail()))
 	            .ifPresent(email -> {
 	            	if (usersRepository.existsByEmailIgnoreCase(email)) {
-	                    log.warn("updateProfileFields: email already exists in DB: {}", email);
 	                    throw new IllegalArgumentException("Email already exists: " + email);
 	                }
 	                user.setEmail(email);

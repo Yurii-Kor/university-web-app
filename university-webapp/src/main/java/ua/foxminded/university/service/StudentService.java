@@ -46,7 +46,6 @@ public class StudentService {
 
 	@Transactional(value = TxType.REQUIRES_NEW)
 	public List<Student> createAll(Collection<StudentCreateDto> drafts) {
-		drafts = Optional.ofNullable(drafts).orElseGet(List::of).stream().filter(Objects::nonNull).toList();
 		validator.validateAll(drafts);
 
 		var toPersist = dtoMapper.toStudentEntities(drafts);

@@ -51,9 +51,6 @@ public class LessonService {
 
 	@Transactional(value = TxType.REQUIRES_NEW)
 	public Lesson create(LessonCreateDto  draft) {
-		draft = Optional.ofNullable(draft)
-                .orElseThrow(() -> new IllegalArgumentException("lesson draft must not be null"));
-
 		validator.validate(draft);
 
 		var entry = mapper.toLessonEntity(draft)
@@ -74,8 +71,8 @@ public class LessonService {
 	}
 
 	@Transactional(value = TxType.REQUIRES_NEW)
-	public Lesson updateSelf(LessonSelfUpdateDto dto) {
-	    var patch = requireValidatedPatch(dto);
+	public Lesson updateSelf(LessonSelfUpdateDto patch) {
+		validator.validate(patch);
 
 	    var teacherId = Optional.ofNullable(patch.teacherId())
 	            .orElseThrow(() -> new IllegalArgumentException("teacherId must not be null"));
@@ -330,14 +327,6 @@ public class LessonService {
 			log.error("time range check failed: endTime {} is not after startTime {} (id={})", et, st, e.getId());
 			throw new IllegalStateException("End time must be strictly after start time");
 		}
-	}
-	
-	private LessonSelfUpdateDto requireValidatedPatch(LessonSelfUpdateDto dto) {
-	    var patch = Optional.ofNullable(dto)
-	            .orElseThrow(() -> new IllegalArgumentException("lesson patch must not be null"));
-
-	    validator.validate(patch);
-	    return patch;
 	}
 
 	private Lesson getManagedLesson(long lessonId) {

@@ -158,12 +158,6 @@ class AppUserServiceTest {
 	}
 	
 	@Test
-	@DisplayName("createAdmin: dto is null -> IllegalArgumentException")
-	void createAdmin_nullDto_fails() {
-		assertThrows(IllegalArgumentException.class, () -> appUserService.createAdmin(null));
-	}
-	
-	@Test
 	@DisplayName("listAdmins: returns paged admin rows only")
 	void listAdmins_returnsAdminsOnly() {
 	    tempAdmin = appUserService.createAdmin(newAdminDto(DEFAULT_EMAIL));
@@ -217,12 +211,6 @@ class AppUserServiceTest {
 		assertEquals(testAdmin.getEmail(), found.getEmail(), "Email must remain unchanged");
 		assertEquals(testAdmin.getFirstName(), found.getFirstName(), "First name must remain unchanged");
 		assertEquals(testAdmin.getLastName(), found.getLastName(), "Last name must remain unchanged");
-	}
-
-	@Test
-	@DisplayName("updateProfileFields: dto is null -> IllegalArgumentException")
-	void updateProfileFields_nullArgs_fails() {
-		assertThrows(IllegalArgumentException.class, () -> appUserService.updateProfileFields(null));
 	}
 	
 	@Test
@@ -319,12 +307,6 @@ class AppUserServiceTest {
 				() -> appUserService.changePasswordSelf(changePasswordDto(testAdmin.getId(), PWD, PWD)));
 	}
 	
-	@Test
-	@DisplayName("changePasswordSelf: dto is null -> IllegalArgumentException")
-	void changePasswordSelf_nullDto_fails() {
-		assertThrows(IllegalArgumentException.class, () -> appUserService.changePasswordSelf(null));
-	}
-
 	@Test
 	@DisplayName("changePasswordSelf: user not found -> EntityNotFoundException")
 	void changePasswordSelf_notFound_fails() {

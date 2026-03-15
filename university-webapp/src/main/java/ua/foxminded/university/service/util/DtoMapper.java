@@ -22,25 +22,14 @@ import ua.foxminded.university.service.dto.request.teacher.TeacherCreateDto;
 @Component
 public class DtoMapper {
 
-	public List<Course> toCourseEntities(Collection<CourseCreateDto> drafts) {
-		return Optional.ofNullable(drafts)
-				.orElseGet(List::of)
-				.stream()
-				.filter(Objects::nonNull)
-				.map(this::toCourseEntity)
-				.flatMap(Optional::stream)
-				.toList();
-	}
-
-	public Optional<Course> toCourseEntity(CourseCreateDto dto) {
-		return Optional.ofNullable(dto)
-				.map(d -> Course.builder()
-						.id(null)
-						.code(d.code())
-						.name(d.name())
-						.description(d.description())
-						.teacher(Teacher.builder().id(d.teacherId()).build())
-						.build());
+	public Course toCourseEntity(CourseCreateDto dto) {
+	    return Course.builder()
+	            .id(null)
+	            .code(dto.code())
+	            .name(dto.name())
+	            .description(dto.description())
+	            .teacher(Teacher.builder().id(dto.teacherId()).build())
+	            .build();
 	}
 
 	public List<StudyGroup> mapGroupsToEntities(Collection<StudyGroupCreateDto> drafts) {
@@ -121,26 +110,15 @@ public class DtoMapper {
 				.build();
 	}
 
-	public List<AppUser> toAppUserEntities(Collection<AppUserCreateDto> drafts) {
-        return Optional.ofNullable(drafts)
-                .orElseGet(List::of)
-                .stream()
-                .filter(Objects::nonNull)
-                .map(this::toAppUserEntity)
-                .flatMap(Optional::stream)
-                .toList();
-    }
-
-    public Optional<AppUser> toAppUserEntity(AppUserCreateDto dto) {
-        return Optional.ofNullable(dto)
-                .map(d -> AppUser.builder()
-                        .id(null)
-                        .email(d.email())
-                        .password(d.newPassword())
-                        .firstName(d.firstName())
-                        .lastName(d.lastName())
-                        .enabled(true)
-                        .build());
+    public AppUser toAppUserEntity(AppUserCreateDto dto) {
+        return AppUser.builder()
+                .id(null)
+                .email(dto.email())
+                .password(dto.newPassword())
+                .firstName(dto.firstName())
+                .lastName(dto.lastName())
+                .enabled(true)
+                .build();
     }
 
 	public Optional<Lesson> toLessonEntity(LessonCreateDto dto) {
