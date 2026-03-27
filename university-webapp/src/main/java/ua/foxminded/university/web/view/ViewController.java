@@ -9,11 +9,6 @@ import org.springframework.web.bind.annotation.GetMapping;
 @RequiredArgsConstructor
 public class ViewController {   
 
-   @GetMapping("/groups")
-    public String groups() {
-        return "views/groups";
-    }
-
     @GetMapping("/students")
     public String students() {
         return "views/students";

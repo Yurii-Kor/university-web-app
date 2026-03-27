@@ -16,7 +16,7 @@ import ua.foxminded.university.model.repository.CourseRepository;
 import ua.foxminded.university.model.repository.StudyGroupRepository;
 import ua.foxminded.university.model.repository.TeacherRepository;
 import ua.foxminded.university.model.repository.dto.CourseCardView;
-import ua.foxminded.university.model.repository.dto.GroupOptionView;
+import ua.foxminded.university.model.repository.dto.GroupView;
 import ua.foxminded.university.service.dto.request.course.CourseCreateDto;
 import ua.foxminded.university.service.dto.request.course.CourseDescriptionUpdateDto;
 import ua.foxminded.university.service.dto.request.course.CourseSelfUpdateDto;
@@ -100,8 +100,8 @@ public class CourseService {
 		var header = courseRepository.findCourseHeaderById(courseId)
 				.orElseThrow(() -> new EntityNotFoundException("Course not found: id=" + courseId));
 
-	    List<GroupOptionView> assigned = groupRepository.findAssignedGroupOptions(courseId);
-	    List<GroupOptionView> available = groupRepository.findAvailableGroupOptions(courseId);
+	    List<GroupView> assigned = groupRepository.findAssignedGroupOptions(courseId);
+	    List<GroupView> available = groupRepository.findAvailableGroupOptions(courseId);
 
 	    return new CourseGroupsView(header, assigned, available);
 	}

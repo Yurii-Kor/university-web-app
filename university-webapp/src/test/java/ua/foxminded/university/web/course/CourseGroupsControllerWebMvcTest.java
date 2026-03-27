@@ -23,7 +23,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import ua.foxminded.university.model.repository.dto.CourseHeaderView;
-import ua.foxminded.university.model.repository.dto.GroupOptionView;
+import ua.foxminded.university.model.repository.dto.GroupView;
 import ua.foxminded.university.service.CourseService;
 import ua.foxminded.university.service.TeacherService;
 import ua.foxminded.university.service.dto.response.CourseGroupsView;
@@ -48,8 +48,8 @@ class CourseGroupsControllerWebMvcTest {
     @DisplayName("GET /courses/{courseId}/groups as ADMIN -> 200, courses/course-groups, model has page + pageTitle")
     void getPage_admin_ok_returnsViewAndModel() throws Exception {
         var header = new CourseHeaderView(COURSE_ID, "CS-101", "Algorithms");
-        var assigned = List.of(new GroupOptionView(1L, "Group A"));
-        var available = List.of(new GroupOptionView(2L, "Group B"));
+        var assigned = List.of(new GroupView(1L, "Group A"));
+        var available = List.of(new GroupView(2L, "Group B"));
         var page = new CourseGroupsView(header, assigned, available);
 
         when(courseService.getCourseGroupsView(COURSE_ID)).thenReturn(page);

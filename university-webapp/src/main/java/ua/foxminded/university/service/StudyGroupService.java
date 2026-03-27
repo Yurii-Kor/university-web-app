@@ -10,10 +10,13 @@ import jakarta.transaction.Transactional.TxType;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import ua.foxminded.university.model.domain.StudyGroup;
 import ua.foxminded.university.model.repository.StudyGroupRepository;
+import ua.foxminded.university.model.repository.dto.GroupView;
 import ua.foxminded.university.model.repository.dto.IdCountAgg;
 import ua.foxminded.university.service.dto.request.studygroup.StudyGroupCreateDto;
 import ua.foxminded.university.service.dto.request.studygroup.StudyGroupRenameDto;
@@ -68,6 +71,11 @@ public class StudyGroupService {
 			return List.of();
 		}
 		return groupRepository.findAllById(distinct);
+	}
+	
+	@Transactional(value = TxType.SUPPORTS)
+	public Page<GroupView> listGroupCardsForAdmin(Pageable pageable) {
+	    return groupRepository.findGroupCardsAll(pageable);
 	}
 
 	@Transactional(value = TxType.REQUIRES_NEW)

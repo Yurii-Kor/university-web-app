@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+  <meta charset="utf-8" />
+  <title>Groups</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="icon" th:href="@{/favicon.ico}" href="/favicon.ico" />
+  <link rel="stylesheet" th:href="@{/css/app.css}" href="/css/app.css" />
+  <link rel="stylesheet" th:href="@{/css/pages/groups.css}" href="/css/pages/groups.css" />
+</head>
+
+<body class="ou-page groups-page">
+  <div th:replace="~{fragments/header :: ouHeader('groups')}"></div>
+
+  <main class="groups-main">
+    <section class="ou-card" aria-label="Groups management">
+
+      <div class="groups-toolbar">
+        <div>
+          <h1 class="ou-card__title">Groups</h1>
+          <p class="groups-subtitle">List of all study groups in the system.</p>
+        </div>
+
+        <a class="ou-btn ou-btn--ghost" th:href="@{/groups/create}">
+          + Create group
+        </a>
+      </div>
+
+      <div class="ou-alert ou-alert--success"
+           th:if="${ok != null}"
+           th:text="${ok}">
+        Done.
+      </div>
+
+      <div class="ou-alert ou-alert--error"
+           th:if="${err != null}"
+           th:text="${err}">
+        Something went wrong.
+      </div>
+
+      <div class="ou-alert ou-alert--warn" th:if="${#lists.isEmpty(groups)}">
+        No groups found.
+      </div>
+
+      <div class="groups-grid" th:if="${!#lists.isEmpty(groups)}">
+        <th:block th:each="g : ${groups}">
+          <th:block th:replace="~{groups/fragments/group-card :: groupCard(${g})}"></th:block>
+        </th:block>
+      </div>
+
+      <nav class="groups-pagination" th:if="${totalPages > 1}">
+        <a class="ou-btn ou-btn--ghost"
+           th:if="${hasPrevious}"
+           th:href="@{/groups(page=${currentPage - 1})}">
+          ← Previous
+        </a>
+
+        <span class="groups-pagination__info"
+              th:text="|Page ${currentPage + 1} of ${totalPages}|">
+          Page 1 of 1
+        </span>
+
+        <a class="ou-btn ou-btn--ghost"
+           th:if="${hasNext}"
+           th:href="@{/groups(page=${currentPage + 1})}">
+          Next →
+        </a>
+      </nav>
+
+    </section>
+  </main>
+</body>
+</html>
