@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+  <meta charset="utf-8" />
+  <title>Students</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="icon" th:href="@{/favicon.ico}" href="/favicon.ico" />
+  <link rel="stylesheet" th:href="@{/css/app.css}" href="/css/app.css" />
+  <link rel="stylesheet" th:href="@{/css/pages/students.css}" href="/css/pages/students.css" />
+</head>
+
+<body class="ou-page students-page">
+  <div th:replace="~{fragments/header :: ouHeader('students')}"></div>
+
+  <main class="students-main">
+    <section class="ou-card" aria-label="Students management">
+
+      <div class="students-toolbar">
+        <div>
+          <h1 class="ou-card__title">Students</h1>
+          <p class="students-subtitle">List of all student accounts in the system.</p>
+        </div>
+
+        <a class="ou-btn ou-btn--ghost" th:href="@{/students/create}">
+          + Create student
+        </a>
+      </div>
+
+      <div class="ou-alert ou-alert--success"
+           th:if="${ok != null}"
+           th:text="${ok}">
+        Done.
+      </div>
+
+      <div class="ou-alert ou-alert--error"
+           th:if="${err != null}"
+           th:text="${err}">
+        Something went wrong.
+      </div>
+
+      <div class="ou-alert ou-alert--warn" th:if="${#lists.isEmpty(students)}">
+        No students found.
+      </div>
+
+      <div class="students-grid" th:if="${!#lists.isEmpty(students)}">
+        <th:block th:each="s : ${students}">
+          <th:block th:replace="~{students/fragments/student-card :: studentCard(${s})}"></th:block>
+        </th:block>
+      </div>
+
+      <nav class="students-pagination" th:if="${totalPages > 1}">
+        <a class="ou-btn ou-btn--ghost"
+           th:if="${hasPrevious}"
+           th:href="@{/students(page=${currentPage - 1})}">
+          ← Previous
+        </a>
+
+        <span class="students-pagination__info"
+              th:text="|Page ${currentPage + 1} of ${totalPages}|">
+          Page 1 of 1
+        </span>
+
+        <a class="ou-btn ou-btn--ghost"
+           th:if="${hasNext}"
+           th:href="@{/students(page=${currentPage + 1})}">
+          Next →
+        </a>
+      </nav>
+
+    </section>
+  </main>
+</body>
+</html>

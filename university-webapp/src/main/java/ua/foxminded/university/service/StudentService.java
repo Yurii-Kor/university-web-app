@@ -7,6 +7,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
 import jakarta.transaction.Transactional.TxType;
@@ -18,6 +20,7 @@ import ua.foxminded.university.model.repository.AppUserRepository;
 import ua.foxminded.university.model.repository.StudentRepository;
 import ua.foxminded.university.model.repository.StudyGroupRepository;
 import ua.foxminded.university.model.repository.dto.StudentProfileView;
+import ua.foxminded.university.model.repository.dto.StudentCardView;
 import ua.foxminded.university.security.PasswordPolicy;
 import ua.foxminded.university.service.dto.request.student.StudentCreateDto;
 import ua.foxminded.university.service.dto.response.DeleteResult;
@@ -87,6 +90,11 @@ public class StudentService {
 		}
 
 		return studentRepository.findAllById(distinct);
+	}
+	
+	@Transactional(value = TxType.SUPPORTS)
+	public Page<StudentCardView> listStudentCardsForAdmin(Pageable pageable) {
+	    return studentRepository.findStudentCardsAll(pageable);
 	}
 	
 	@Transactional(value = TxType.SUPPORTS)

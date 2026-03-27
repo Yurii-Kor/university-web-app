@@ -1,5 +1,8 @@
 package ua.foxminded.university.model.repository;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import ua.foxminded.university.model.repository.dto.StudentCardView;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -36,9 +39,30 @@ public interface StudentRepository extends JpaRepository<Student, Long> {
 			join s.user u
 			join s.group g
 			where s.id = :id
-			""")
+		""")
 	Optional<StudentProfileView> findStudentProfileViewById(@Param("id") Long id);
 	
 	@Query("select s.group.id from Student s where s.id = :studentId")
 	Optional<Long> findGroupIdByStudentId(@Param("studentId") Long studentId);
+	
+    @Query(value = """
+                select new ua.foxminded.university.model.repository.dto.StudentCardView(
+                    s.id,
+                    u.email,
+                    u.firstName,
+                    u.lastName,
+                    u.enabled,
+                    u.createdAt,
+                    s.enrollmentYear,
+                    g.name
+                )
+                from Student s
+                join s.user u
+                join s.group g
+                order by lower(u.lastName), lower(u.firstName), lower(u.email)
+            """, countQuery = """
+                select count(s)
+                from Student s
+            """)
+    Page<StudentCardView> findStudentCardsAll(Pageable pageable);
 }
