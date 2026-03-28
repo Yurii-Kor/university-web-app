@@ -51,7 +51,7 @@
                   name="teacherId">
             <option value="" selected>— Keep current teacher —</option>
 
-            <option th:each="t : ${teachers}"
+            <option th:each="t : ${all_teachers}"
                     th:value="${t.id}"
                     th:text="${t.firstName + ' ' + t.lastName + (t.email != null ? ' (' + t.email + ')' : '')}">
               Teacher Name

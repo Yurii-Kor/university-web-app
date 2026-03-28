@@ -113,7 +113,7 @@
                     th:field="*{teacherId}">
               <option value="" disabled th:selected="*{teacherId} == null">— Select teacher —</option>
 
-              <option th:each="t : ${teachers}"
+              <option th:each="t : ${all_teachers}"
 			          th:value="${t.id}"
 			          th:text="${t.firstName + ' ' + t.lastName + (t.email != null ? ' (' + t.email + ')' : '')}">
 			 </option>

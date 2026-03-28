@@ -6,6 +6,8 @@ import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
@@ -15,6 +17,7 @@ import ua.foxminded.university.model.domain.AppUser;
 import ua.foxminded.university.model.domain.Teacher;
 import ua.foxminded.university.model.repository.AppUserRepository;
 import ua.foxminded.university.model.repository.TeacherRepository;
+import ua.foxminded.university.model.repository.dto.TeacherCardView;
 import ua.foxminded.university.model.repository.dto.IdCountAgg;
 import ua.foxminded.university.model.repository.dto.TeacherOptionView;
 import ua.foxminded.university.model.repository.dto.TeacherProfileView;
@@ -82,6 +85,11 @@ public class TeacherService {
 		}
 
 		return teacherRepository.findAllById(distinct);
+	}
+	
+	@Transactional(value = TxType.SUPPORTS)
+	public Page<TeacherCardView> listTeacherCardsForAdmin(Pageable pageable) {
+	    return teacherRepository.findTeacherCardsAll(pageable);
 	}
 	
 	@Transactional(value = TxType.SUPPORTS)

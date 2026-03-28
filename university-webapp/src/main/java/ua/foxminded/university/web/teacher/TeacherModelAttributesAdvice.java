@@ -15,7 +15,7 @@ public class TeacherModelAttributesAdvice {
 
     private final TeacherService teacherService;
 
-    @ModelAttribute("teachers")
+    @ModelAttribute("all_teachers")
     public List<TeacherOptionView> teachers() {
         return teacherService.listTeacherOptions();
     }

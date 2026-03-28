@@ -68,7 +68,7 @@ class CourseCreateControllerWebMvcTest {
                 .andExpect(status().isOk())
                 .andExpect(view().name("courses/create"))
                 .andExpect(model().attributeExists("form"))
-                .andExpect(model().attribute("teachers", sameInstance(teachers)));
+                .andExpect(model().attribute("all_teachers", sameInstance(teachers)));
     }
 
     @Test
@@ -115,7 +115,7 @@ class CourseCreateControllerWebMvcTest {
                 .andExpect(status().isOk())
                 .andExpect(view().name("courses/create"))
                 .andExpect(model().attributeHasFieldErrors("form", "code"))
-                .andExpect(model().attributeExists("teachers"));
+                .andExpect(model().attributeExists("all_teachers"));
 
         verify(courseService, never()).create(any());
     }
