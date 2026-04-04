@@ -4,19 +4,21 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.*;
 import org.springframework.data.repository.query.Param;
 
 import ua.foxminded.university.model.domain.AppUser;
 import ua.foxminded.university.model.domain.enums.UserRole;
 import ua.foxminded.university.model.repository.dto.AdminProfileView;
+import ua.foxminded.university.model.repository.dto.AdminRowView;
 
 public interface AppUserRepository extends JpaRepository<AppUser, Long> {
+	
 	Optional<AppUser> findByEmailIgnoreCase(String email);
 
 	boolean existsByEmailIgnoreCase(String email);
-
-	boolean existsByEmailIgnoreCaseAndIdNot(String email, Long id);
 
 	long countByRole(UserRole role);
 
@@ -26,18 +28,8 @@ public interface AppUserRepository extends JpaRepository<AppUser, Long> {
 			select lower(u.email)
 			from AppUser u
 			where lower(u.email) in :emails
-			""")
+		""")
 	List<String> findExistingEmailsIgnoreCase(@Param("emails") Collection<String> emails);
-
-	@Query("select u.id from AppUser u where u.id in :ids")
-	List<Long> findExistingIds(@Param("ids") Collection<Long> ids);
-
-	@Query("select u.id from AppUser u where u.id in :ids and u.role = :role and u.enabled = true")
-	List<Long> findEnabledIdsByRoleIn(@Param("ids") Collection<Long> ids, @Param("role") UserRole role);
-
-	@Modifying(clearAutomatically = true, flushAutomatically = true)
-	@Query("update AppUser u set u.enabled = :enabled where u.id in :ids")
-	int setEnabledForIds(@Param("ids") Collection<Long> ids, @Param("enabled") boolean enabled);
 	
 	@Query("""
 			select new ua.foxminded.university.model.repository.dto.AdminProfileView(
@@ -49,6 +41,30 @@ public interface AppUserRepository extends JpaRepository<AppUser, Long> {
 			from AppUser u
 			where u.id = :id
 			  and u.role = ua.foxminded.university.model.domain.enums.UserRole.ADMIN
-			""")
+		""")
 	Optional<AdminProfileView> findAdminProfileViewById(@Param("id") Long id);
+	
+	@Query(value = """
+	        select new ua.foxminded.university.model.repository.dto.AdminRowView(
+	            u.id,
+	            u.email,
+	            u.firstName,
+	            u.lastName,
+	            u.createdAt,
+	            u.enabled
+	        )
+	        from AppUser u
+	        where u.role = ua.foxminded.university.model.domain.enums.UserRole.ADMIN
+	        order by
+	            case when u.id = :selfId then 0 else 1 end,
+	            case when u.enabled = true then 0 else 1 end,
+	            u.id asc
+	        """,
+	       countQuery = """
+	        select count(u)
+	        from AppUser u
+	        where u.role = ua.foxminded.university.model.domain.enums.UserRole.ADMIN
+	        """)
+	Page<AdminRowView> findAdminRowsForView(@Param("selfId") Long selfId, Pageable pageable);
+
 }

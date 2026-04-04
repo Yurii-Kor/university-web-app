@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+  <meta charset="utf-8" />
+  <title>Course groups</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="icon" th:href="@{/favicon.ico}" href="/favicon.ico" />
+  <link rel="stylesheet" th:href="@{/css/app.css}" href="/css/app.css" />
+  <link rel="stylesheet" th:href="@{/css/pages/dual-list.css}" href="/css/pages/dual-list.css" />
+</head>
+
+<body class="ou-page ou-dual-page course-groups-page">
+<div th:replace="~{fragments/header :: ouHeader('courses')}"></div>
+
+<main class="ou-dual-main">
+  <section class="ou-card ou-dual-shell" aria-label="Course groups">
+
+    <div class="ou-dual-toolbar">
+      <div>
+        <h1 class="ou-card__title">Course groups</h1>
+        <p class="ou-dual-subtitle">Assign / remove groups for the selected course.</p>
+      </div>
+
+      <div class="ou-dual-toolbar__actions">
+        <a class="ou-btn ou-btn--ghost" th:href="@{/courses}">← Back to courses</a>
+      </div>
+    </div>
+
+    <div class="ou-alert ou-alert--success" th:if="${ok != null}" th:text="${ok}">Done.</div>
+    <div class="ou-alert ou-alert--error" th:if="${err != null}" th:text="${err}">Something went wrong.</div>
+
+    <div class="ou-alert ou-alert--warn" th:if="${page == null}">
+      Course data is not available.
+    </div>
+
+    <div class="ou-dual-header" th:if="${page != null}">
+      <div class="ou-dual-header__meta">
+        <div class="ou-dual-header__code" th:text="${page.course.code}">CS-101</div>
+        <div class="ou-dual-header__name" th:text="${page.course.name}">Algorithms</div>
+      </div>
+
+      <dl class="ou-dual-header__kv">
+        <dt>ID</dt>
+        <dd th:text="${page.course.id}">1</dd>
+      </dl>
+    </div>
+
+    <div class="ou-dual-grid" th:if="${page != null}">
+
+      <section class="ou-dual-col" aria-label="Assigned groups">
+        <div class="ou-dual-col__head" th:with="n=${#lists.size(page.assigned)}">
+          <h2 class="ou-dual-col__title">Assigned</h2>
+
+          <span class="ou-badge ou-badge--success"
+                th:text="|${n} ${n == 1 ? 'group' : 'groups'}|">
+            0 groups
+          </span>
+        </div>
+
+        <div class="ou-alert ou-alert--warn" th:if="${#lists.isEmpty(page.assigned)}">
+          No assigned groups.
+        </div>
+
+        <div class="ou-dual-list" th:if="${!#lists.isEmpty(page.assigned)}">
+          <article class="ou-card ou-dual-item"
+                   th:each="g : ${page.assigned}"
+                   th:attr="data-id=${g.id}">
+
+            <div class="ou-dual-item__main">
+              <div class="ou-dual-item__title" th:text="${g.name}">Group name</div>
+              <div class="ou-dual-item__meta">
+                <span>ID:</span> <span th:text="${g.id}">10</span>
+              </div>
+            </div>
+
+            <div class="ou-dual-item__actions" sec:authorize="hasRole('ADMIN')">
+              <form class="ou-inline-form"
+                    method="post"
+                    th:action="@{/courses/{courseId}/groups/remove(courseId=${page.course.id})}">
+                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
+                <input type="hidden" name="groupId" th:value="${g.id}" />
+                <button type="submit"
+                        class="ou-btn ou-btn--danger"
+                        onclick="return confirm('Remove this group from the course?');">
+                  Remove
+                </button>
+              </form>
+            </div>
+
+          </article>
+        </div>
+      </section>
+
+      <section class="ou-dual-col" aria-label="Available groups">
+        <div class="ou-dual-col__head" th:with="n=${#lists.size(page.available)}">
+          <h2 class="ou-dual-col__title">Available</h2>
+
+          <span class="ou-badge ou-badge--warn"
+                th:text="|${n} ${n == 1 ? 'group' : 'groups'}|">
+            0 groups
+          </span>
+        </div>
+
+        <div class="ou-alert ou-alert--warn" th:if="${#lists.isEmpty(page.available)}">
+          No available groups.
+        </div>
+
+        <div class="ou-dual-list" th:if="${!#lists.isEmpty(page.available)}">
+          <article class="ou-card ou-dual-item"
+                   th:each="g : ${page.available}"
+                   th:attr="data-id=${g.id}">
+
+            <div class="ou-dual-item__main">
+              <div class="ou-dual-item__title" th:text="${g.name}">Group name</div>
+              <div class="ou-dual-item__meta">
+                <span>ID:</span> <span th:text="${g.id}">11</span>
+              </div>
+            </div>
+
+            <div class="ou-dual-item__actions" sec:authorize="hasRole('ADMIN')">
+              <form class="ou-inline-form"
+                    method="post"
+                    th:action="@{/courses/{courseId}/groups/add(courseId=${page.course.id})}">
+                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
+                <input type="hidden" name="groupId" th:value="${g.id}" />
+                <button type="submit" class="ou-btn">
+                  Add
+                </button>
+              </form>
+            </div>
+
+          </article>
+        </div>
+      </section>
+
+    </div>
+  </section>
+</main>
+
+</body>
+</html>

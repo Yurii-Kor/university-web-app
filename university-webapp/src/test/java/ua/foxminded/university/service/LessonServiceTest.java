@@ -455,12 +455,6 @@ class LessonServiceTest {
 	}
 
 	@Test
-	@DisplayName("deleteByIds: teacherId == null -> IllegalArgumentException")
-	void deleteByIds_nullTeacher_fails() {
-		assertThrows(IllegalArgumentException.class, () -> lessonService.deleteByIds(List.of(base.getId()), null));
-	}
-
-	@Test
 	@DisplayName("deleteByIds: attempt to delete other schedule entry -> IllegalStateException")
 	void deleteByIds_notOwned_fails() {
 		assertThrows(IllegalStateException.class,

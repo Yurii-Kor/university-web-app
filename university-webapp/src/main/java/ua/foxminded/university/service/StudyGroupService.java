@@ -10,10 +10,13 @@ import jakarta.transaction.Transactional.TxType;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 import ua.foxminded.university.model.domain.StudyGroup;
 import ua.foxminded.university.model.repository.StudyGroupRepository;
+import ua.foxminded.university.model.repository.dto.GroupView;
 import ua.foxminded.university.model.repository.dto.IdCountAgg;
 import ua.foxminded.university.service.dto.request.studygroup.StudyGroupCreateDto;
 import ua.foxminded.university.service.dto.request.studygroup.StudyGroupRenameDto;
@@ -69,6 +72,11 @@ public class StudyGroupService {
 		}
 		return groupRepository.findAllById(distinct);
 	}
+	
+	@Transactional(value = TxType.SUPPORTS)
+	public Page<GroupView> listGroupCardsForAdmin(Pageable pageable) {
+	    return groupRepository.findGroupCardsAll(pageable);
+	}
 
 	@Transactional(value = TxType.REQUIRES_NEW)
 	public StudyGroup rename(StudyGroupRenameDto patch) {
@@ -97,12 +105,16 @@ public class StudyGroupService {
 
 	@Transactional(value = TxType.REQUIRES_NEW)
 	public DeleteResult deleteByIds(Collection<Long> ids) {
-		if (Optional.ofNullable(ids).map(Collection::isEmpty).orElse(true)) {
+		var distinct = Optional.ofNullable(ids)
+				.orElseGet(Collections::emptyList)
+				.stream()
+				.filter(Objects::nonNull)
+				.collect(Collectors.toSet());
+		
+		if (distinct.isEmpty()) {
 			log.warn("deleteByIds called with null/empty list");
 			return new DeleteResult(Set.of(), Set.of());
 		}
-
-		var distinct = ids.stream().filter(Objects::nonNull).collect(Collectors.toSet());
 
 		assertGroupsHaveNoStudents(distinct);
 
@@ -151,7 +163,7 @@ public class StudyGroupService {
 		}
 	}
 
-	private void assertNameFreeInDbForRename(String newName, Long selfId) {
+	private void assertNameFreeInDbForRename(String newName, long selfId) {
 		var probe = Set.of(newName.trim().toLowerCase());
 		var self = List.of(selfId);
 

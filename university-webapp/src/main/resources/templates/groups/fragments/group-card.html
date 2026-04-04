@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en"
+      xmlns:th="http://www.thymeleaf.org">
+<body>
+
+<th:block th:fragment="groupCard(g)">
+  <article class="ou-card group-card"
+           th:attr="data-id=${g.id}">
+
+    <div class="group-card__head">
+      <div class="group-card__name" th:text="${g.name}">
+        Group name
+      </div>
+    </div>
+
+    <dl class="group-kv">
+      <dt>ID</dt>
+      <dd th:text="${g.id}">1</dd>
+
+      <dt>Name</dt>
+      <dd th:text="${g.name}">AA-11</dd>
+    </dl>
+
+  </article>
+</th:block>
+
+</body>
+</html>

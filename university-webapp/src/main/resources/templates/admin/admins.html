@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+  <meta charset="utf-8" />
+  <title>Admins</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="icon" th:href="@{/favicon.ico}" href="/favicon.ico" />
+  <link rel="stylesheet" th:href="@{/css/app.css}" href="/css/app.css" />
+  <link rel="stylesheet" th:href="@{/css/pages/admins.css}" href="/css/pages/admins.css" />
+</head>
+
+<body class="ou-page admins-page">
+  <div th:replace="~{fragments/header :: ouHeader('admin')}"></div>
+
+  <main class="admins-main">
+    <section class="ou-card" aria-label="Admins management">
+
+      <div class="admins-toolbar">
+        <div>
+          <h1 class="ou-card__title">Admins</h1>
+          <p class="admins-subtitle">List of all admin accounts in the system.</p>
+        </div>
+
+        <a class="ou-btn ou-btn--ghost" th:href="@{/admin/create}">
+          + Create admin
+        </a>
+      </div>
+
+      <div class="ou-alert ou-alert--success" th:if="${created == true}">
+        Admin account has been created.
+      </div>
+
+      <div class="ou-alert ou-alert--success"
+           th:if="${ok != null}"
+           th:text="${ok}">
+        Done.
+      </div>
+
+      <div class="ou-alert ou-alert--error"
+           th:if="${err != null}"
+           th:text="${err}">
+        Something went wrong.
+      </div>
+
+      <div class="ou-alert ou-alert--warn" th:if="${#lists.isEmpty(admins)}">
+        No admins found.
+      </div>
+
+      <div class="admins-grid" th:if="${!#lists.isEmpty(admins)}">
+        <th:block th:each="a : ${admins}">
+          <th:block th:replace="~{admin/fragments/admin-card :: adminCard(${a}, ${selfId}, ${currentPage})}"></th:block>
+        </th:block>
+      </div>
+
+      <nav class="admins-pagination" th:if="${totalPages > 1}">
+        <a class="ou-btn ou-btn--ghost"
+           th:if="${hasPrevious}"
+           th:href="@{/admin(page=${currentPage - 1})}">
+          ← Previous
+        </a>
+
+        <span class="admins-pagination__info"
+              th:text="|Page ${currentPage + 1} of ${totalPages}|">
+          Page 1 of 1
+        </span>
+
+        <a class="ou-btn ou-btn--ghost"
+           th:if="${hasNext}"
+           th:href="@{/admin(page=${currentPage + 1})}">
+          Next →
+        </a>
+      </nav>
+
+    </section>
+  </main>
+</body>
+</html>

@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+  <meta charset="utf-8" />
+  <title>Teachers</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="icon" th:href="@{/favicon.ico}" href="/favicon.ico" />
+  <link rel="stylesheet" th:href="@{/css/app.css}" href="/css/app.css" />
+  <link rel="stylesheet" th:href="@{/css/pages/teachers.css}" href="/css/pages/teachers.css" />
+</head>
+
+<body class="ou-page teachers-page">
+  <div th:replace="~{fragments/header :: ouHeader('teachers')}"></div>
+
+  <main class="teachers-main">
+    <section class="ou-card" aria-label="Teachers management">
+
+      <div class="teachers-toolbar">
+        <div>
+          <h1 class="ou-card__title">Teachers</h1>
+          <p class="teachers-subtitle">List of all teacher accounts in the system.</p>
+        </div>
+
+        <a class="ou-btn ou-btn--ghost" th:href="@{/teachers/create}">
+          + Create teacher
+        </a>
+      </div>
+
+      <div class="ou-alert ou-alert--success"
+           th:if="${ok != null}"
+           th:text="${ok}">
+        Done.
+      </div>
+
+      <div class="ou-alert ou-alert--error"
+           th:if="${err != null}"
+           th:text="${err}">
+        Something went wrong.
+      </div>
+
+      <div class="ou-alert ou-alert--warn" th:if="${#lists.isEmpty(teachers)}">
+        No teachers found.
+      </div>
+
+      <div class="teachers-grid" th:if="${!#lists.isEmpty(teachers)}">
+        <th:block th:each="t : ${teachers}">
+          <th:block th:replace="~{teachers/fragments/teacher-card :: teacherCard(${t})}"></th:block>
+        </th:block>
+      </div>
+
+      <nav class="teachers-pagination" th:if="${totalPages > 1}">
+        <a class="ou-btn ou-btn--ghost"
+           th:if="${hasPrevious}"
+           th:href="@{/teachers(page=${currentPage - 1})}">
+          ← Previous
+        </a>
+
+        <span class="teachers-pagination__info"
+              th:text="|Page ${currentPage + 1} of ${totalPages}|">
+          Page 1 of 1
+        </span>
+
+        <a class="ou-btn ou-btn--ghost"
+           th:if="${hasNext}"
+           th:href="@{/teachers(page=${currentPage + 1})}">
+          Next →
+        </a>
+      </nav>
+
+    </section>
+  </main>
+</body>
+</html>

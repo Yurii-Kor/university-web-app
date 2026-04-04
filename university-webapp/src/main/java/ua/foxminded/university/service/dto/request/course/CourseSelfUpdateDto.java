@@ -7,14 +7,21 @@ public record CourseSelfUpdateDto(
 
         @NotNull
         Long id,
-        
+
+        @Size(min = COURSE_CODE_MIN, max = COURSE_CODE_MAX)
+        @Pattern(
+                regexp = COURSE_CODE_REGEX,
+                message = COURSE_CODE_MESSAGE
+        )
+        String code,
+
         @Size(max = COURSE_NAME_MAX)
         @Pattern(
-            regexp = TEXT_NOT_BLANK_WHEN_PRESENT_REGEX,
-            message = TEXT_NOT_BLANK_WHEN_PRESENT_MESSAGE
+                regexp = TEXT_NOT_BLANK_WHEN_PRESENT_REGEX,
+                message = TEXT_NOT_BLANK_WHEN_PRESENT_MESSAGE
         )
         String name,
-
-        @Size(max = DESCRIPTION_MAX)
-        String description
+        
+        @Positive
+        Long teacherId
 ) {}

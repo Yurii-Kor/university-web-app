@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en"
+      xmlns:th="http://www.thymeleaf.org">
+<body>
+
+<th:block th:fragment="studentCard(s)">
+  <article class="ou-card student-card"
+           th:attr="data-id=${s.id}">
+
+    <div class="student-card__head">
+      <div class="student-card__who">
+        <div class="student-card__email">
+          <span th:text="${s.email}">student@mail.com</span>
+        </div>
+
+        <div class="student-card__name">
+          <span th:text="${s.firstName}">First</span>
+          <span th:text="${s.lastName}">Last</span>
+        </div>
+      </div>
+
+      <span class="ou-badge"
+            th:classappend="${s.enabled} ? ' ou-badge--success' : ' ou-badge--warn'"
+            th:text="${s.enabled} ? 'ACTIVE' : 'BLOCKED'">
+        ACTIVE
+      </span>
+    </div>
+
+    <dl class="student-kv">
+      <dt>ID</dt>
+      <dd th:text="${s.id}">1</dd>
+
+      <dt>Group</dt>
+      <dd th:text="${s.groupName}">AA-11</dd>
+
+      <dt>Enrollment</dt>
+      <dd th:text="${s.enrollmentYear}">2024</dd>
+
+      <dt>Created</dt>
+      <dd th:text="${#temporals.format(s.createdAt, 'yyyy-MM-dd HH:mm')}">
+        2025-01-01 12:00
+      </dd>
+    </dl>
+
+  </article>
+</th:block>
+
+</body>
+</html>

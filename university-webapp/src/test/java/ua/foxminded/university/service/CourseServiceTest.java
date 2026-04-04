@@ -10,439 +10,591 @@ import org.junit.jupiter.api.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
 
 import ua.foxminded.university.TestcontainersConfiguration;
 import ua.foxminded.university.model.domain.AppUser;
 import ua.foxminded.university.model.domain.Course;
+import ua.foxminded.university.model.domain.Student;
 import ua.foxminded.university.model.domain.StudyGroup;
 import ua.foxminded.university.model.domain.Teacher;
 import ua.foxminded.university.model.domain.enums.AcademicRank;
 import ua.foxminded.university.model.domain.enums.UserRole;
 import ua.foxminded.university.service.dto.request.course.CourseCreateDto;
+import ua.foxminded.university.service.dto.request.course.CourseDescriptionUpdateDto;
 import ua.foxminded.university.service.dto.request.course.CourseSelfUpdateDto;
-import ua.foxminded.university.service.dto.request.course.CourseUpdateCodesDto;
+import ua.foxminded.university.service.exception.course.CourseCreateException;
+import ua.foxminded.university.service.exception.course.CourseSelfUpdateException;
 import ua.foxminded.university.service.util.validation.EntityValidatior;
 import ua.foxminded.university.service.util.validation.config.ValidatorConfig;
 import ua.foxminded.university.service.util.DtoMapper;
-import ua.foxminded.university.service.util.DuplicateGuard;
 import ua.foxminded.university.testutil.TestDataInitializer;
 
 @DataJpaTest
 @ActiveProfiles("test")
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-@Import({ TestcontainersConfiguration.class, CourseService.class, ValidatorConfig.class, EntityValidatior.class,
-		TestDataInitializer.class, DtoMapper.class, DuplicateGuard.class })
+@Import({
+        TestcontainersConfiguration.class,
+        CourseService.class,
+        ValidatorConfig.class,
+        EntityValidatior.class,
+        TestDataInitializer.class,
+        DtoMapper.class
+})
 class CourseServiceTest {
 
-	static final String CODE_ALG_UPPER = "CSE-ALG-101";
-	static final String CODE_SEC_UPPER = "SEC-303";
-	static final String CODE_DB_UPPER = "DB-PSQL-201";
-	static final String CODE_OS_UPPER = "CSE-OS-302";
-	static final String BAD_CODE = "bad";
-	static final String TO_DELETE_CODE = "CSE-100";
-	static final String TO_CREATE_CODE = "SEC-420";
+    static final String CODE_ALG_UPPER = "CSE-ALG-101";
+    static final String CODE_SEC_UPPER = "SEC-303";
+    static final String CODE_DB_UPPER = "DB-PSQL-201";
+    static final String CODE_OS_UPPER = "CSE-OS-302";
+    static final String BAD_CODE = "bad";
+    static final String TO_DELETE_CODE = "CSE-100";
+    static final String TO_CREATE_CODE = "SEC-420";
 
-	static final String COURSE_ALG = "Algorithms 101";
-	static final String COURSE_SECURITY = "Security";
-	static final String COURSE_SECURITY_LOWER = "security";
-	static final String COURSE_DATABASES = "Databases";
-	static final String COURSE_OS = "Operating Systems";
-	static final String COURSE_OS_LOWER = " operating systems ";
+    static final String COURSE_ALG = "Algorithms 101";
+    static final String COURSE_SECURITY = "Security";
+    static final String COURSE_SECURITY_LOWER = "security";
+    static final String COURSE_DATABASES = "Databases";
+    static final String COURSE_OS = "Operating Systems";
 
-	static final String TO_DELETE_NAME = "To Delete";
-	static final String TO_CREATE_NAME = "To Create";
+    static final String TO_DELETE_NAME = "To Delete";
+    static final String TO_CREATE_NAME = "To Create";
 
-	static final String DESC_A = "  Intro to algorithms ";
-	static final String DESC_BLANK = "   ";
+    static final String DESC_A = "  Intro to algorithms ";
+    static final String DESC_BLANK = "   ";
 
-	static final Long NON_EXISTENT_ID = 999_999L;
+    static final long NON_EXISTENT_ID = 999_999L;
 
-	static final Integer ONE_GROUP = 1;
-	static final Integer TWO_GROUPS = 2;
-	static final Integer ONE_COURSE = 1;
+    static final int ONE_GROUP = 1;
+    static final int TWO_GROUPS = 2;
+    static final int ONE_COURSE = 1;
 
-	@Autowired
-	private CourseService courseService;
-	@Autowired
-	private TestDataInitializer initializer;
+    @Autowired
+    private CourseService courseService;
 
-	private Course courseSecurity, courseOperationSys, tempCourse;
-	private Teacher testTeacher;
-	private StudyGroup g1, g2;
+    @Autowired
+    private TestDataInitializer initializer;
 
-	private CourseCreateDto newCreateDto(String code, String name, String desc, Long teacherId) {
-		return new CourseCreateDto(code, name, desc, teacherId);
+    private Course courseSecurity, courseOperationSys, tempCourse;
+    private Teacher testTeacher;
+    private Teacher otherTeacher;
+    private StudyGroup g1, g2;
+    private Student studentInG1;
+
+    private CourseCreateDto newCreateDto(String code, String name, String desc, Long teacherId) {
+        return new CourseCreateDto(code, name, desc, teacherId);
+    }
+
+    private CourseSelfUpdateDto newUpdateSelf(Long id, String code, String name) {
+        return new CourseSelfUpdateDto(id, code, name, null);
+    }
+
+    private CourseSelfUpdateDto newUpdateSelf(Long id, String code, String name, Long teacherId) {
+        return new CourseSelfUpdateDto(id, code, name, teacherId);
+    }
+
+    private CourseDescriptionUpdateDto newUpdateDescription(Long id, String description) {
+        return new CourseDescriptionUpdateDto(id, description);
+    }
+
+    @BeforeAll
+    void setup() {
+        var testUser1 = AppUser.builder()
+                .email("teacher@example.com")
+                .password("Abcd1234!")
+                .role(UserRole.TEACHER)
+                .firstName("Ada")
+                .lastName("Lovelace")
+                .enabled(true)
+                .build();
+
+        testTeacher = initializer
+                .persistAll(Teacher.builder()
+                        .user(testUser1)
+                        .academicRank(AcademicRank.PROFESSOR)
+                        .office("A-101")
+                        .build())
+                .getFirst();
+
+        var testUser2 = AppUser.builder()
+                .email("teacher2@example.com")
+                .password("Abcd1234!")
+                .role(UserRole.TEACHER)
+                .firstName("Alan")
+                .lastName("Turing")
+                .enabled(true)
+                .build();
+
+        otherTeacher = initializer
+                .persistAll(Teacher.builder()
+                        .user(testUser2)
+                        .academicRank(AcademicRank.LECTURER)
+                        .office("B-202")
+                        .build())
+                .getFirst();
+
+        g1 = initializer.persistAll(StudyGroup.builder().name("CS-201").build()).getFirst();
+        g2 = initializer.persistAll(StudyGroup.builder().name("CS-202").build()).getFirst();
+
+        courseOperationSys = initializer.persistAll(Course.builder()
+                        .code(CODE_OS_UPPER)
+                        .name(COURSE_OS)
+                        .description("")
+                        .teacher(Teacher.builder().id(testTeacher.getId()).build())
+                        .groups(new LinkedHashSet<>(Arrays.asList(
+                                StudyGroup.builder().id(g1.getId()).build(),
+                                StudyGroup.builder().id(g2.getId()).build()
+                        )))
+                        .build())
+                .getFirst();
+        
+        var studentUser = AppUser.builder()
+                .email("student@example.com")
+                .password("Abcd1234!")
+                .role(UserRole.STUDENT)
+                .firstName("Grace")
+                .lastName("Hopper")
+                .enabled(true)
+                .build();
+        
+        studentInG1 = initializer
+                .persistAll(Student.builder()
+                        .user(studentUser)
+                        .group(g1)
+                        .enrollmentYear(2024)
+                        .build())
+                .getFirst();
+    }
+
+    @BeforeEach
+    void setupCourseSecurity() {
+        courseSecurity = courseService.create(newCreateDto(CODE_SEC_UPPER, COURSE_SECURITY, "", testTeacher.getId()));
+        
+        courseService.addGroupToCourse(courseSecurity.getId(), g1.getId());
+    }
+
+    @AfterEach
+    void cleanup() {
+        Optional.ofNullable(tempCourse)
+                .map(Course::getId)
+                .ifPresent(id -> safeDelete(id));
+
+        Optional.ofNullable(courseSecurity)
+                .map(Course::getId)
+                .ifPresent(id -> safeDelete(id));
+
+        tempCourse = null;
+        courseSecurity = null;
+    }
+
+	private void safeDelete(Long id) {
+		try {
+			courseService.delete(id);
+		} catch (EntityNotFoundException ignored) {}
 	}
 
-	private CourseSelfUpdateDto newUpdateSelf(Long id, String name, String desc) {
-		return new CourseSelfUpdateDto(id, name, desc);
-	}
+    // ---------------- CREATE ----------------
 
-	private CourseUpdateCodesDto newUpdateCode(Long id, String code) {
-		return new CourseUpdateCodesDto(id, code);
-	}
+    @Test
+    @DisplayName("create: happy path — creates course with teacher and normalized name")
+    void create_happyPath_success() {
+        var dto = newCreateDto(CODE_ALG_UPPER, COURSE_ALG, DESC_A, testTeacher.getId());
 
-	@BeforeAll
-	void setup() {
-		var testUser = AppUser.builder()
-				.email("teacher@example.com")
-				.password("Abcd1234!")
-				.role(UserRole.TEACHER)
-				.firstName("Ada")
-				.lastName("Lovelace")
-				.enabled(true)
-				.build();
+        tempCourse = courseService.create(dto);
 
-		testTeacher = initializer
-				.persistAll(
-						Teacher.builder().user(testUser).academicRank(AcademicRank.PROFESSOR).office("A-101").build())
-				.get(0);
+        assertNotNull(tempCourse.getId());
+        assertEquals(CODE_ALG_UPPER, tempCourse.getCode());
+        assertEquals(COURSE_ALG.trim(), tempCourse.getName());
+        assertEquals(testTeacher.getId(), tempCourse.getTeacher().getId());
+    }
 
-		g1 = initializer.persistAll(StudyGroup.builder().name("CS-201").build()).getFirst();
-		g2 = initializer.persistAll(StudyGroup.builder().name("CS-202").build()).getFirst();
+    @Test
+    @DisplayName("create: invalid code pattern (DTO) -> ConstraintViolationException")
+    void create_badCode_fails() {
+        var bad = newCreateDto(BAD_CODE, COURSE_ALG, null, testTeacher.getId());
+        assertThrows(ConstraintViolationException.class, () -> courseService.create(bad));
+    }
 
-		courseOperationSys = initializer.persistAll(Course.builder()
-				.code(CODE_OS_UPPER)
-				.name(COURSE_OS)
-				.description("")
-				.teacher(Teacher.builder().id(testTeacher.getId()).build())
-				.groups(new LinkedHashSet<>(Arrays.asList(StudyGroup.builder().id(g1.getId()).build(),
-						StudyGroup.builder().id(g2.getId()).build())))
-				.build()).get(0);
-	}
+    @Test
+    @DisplayName("create: null teacherId in DTO -> ConstraintViolationException")
+    void create_nullTeacher_fails() {
+        var c = newCreateDto(CODE_ALG_UPPER, COURSE_SECURITY, null, null);
+        assertThrows(ConstraintViolationException.class, () -> courseService.create(c));
+    }
 
-	@BeforeEach
-	void setupCourseSecurity() {
-		courseSecurity = courseService
-				.createAll(List.of(newCreateDto(CODE_SEC_UPPER, COURSE_SECURITY, "", testTeacher.getId())))
-				.getFirst();
-	}
+    @Test
+    @DisplayName("create: code already exists in DB (case-insensitive) -> CourseCreateException")
+    void create_codeConflictInDb_fails() {
+        var c = newCreateDto(CODE_SEC_UPPER, COURSE_DATABASES, null, testTeacher.getId());
+        assertThrows(CourseCreateException.class, () -> courseService.create(c));
+    }
 
-	@AfterEach
-	void cleanup() {
-		var ids = new ArrayList<Long>();
+    @Test
+    @DisplayName("create: name already exists in DB (case-insensitive) -> CourseCreateException")
+    void create_nameConflictInDb_fails() {
+        var c = newCreateDto(CODE_DB_UPPER, COURSE_SECURITY, null, testTeacher.getId());
+        assertThrows(CourseCreateException.class, () -> courseService.create(c));
+    }
 
-		Optional.ofNullable(tempCourse).map(Course::getId).ifPresent(ids::add);
-		Optional.ofNullable(courseSecurity).map(Course::getId).ifPresent(ids::add);
+    @Test
+    @DisplayName("create: non-existing teacher id -> CourseCreateException")
+    void create_missingTeacher_fkFails() {
+        var c = newCreateDto(CODE_ALG_UPPER, COURSE_ALG, null, NON_EXISTENT_ID);
+        assertThrows(CourseCreateException.class, () -> courseService.create(c));
+    }
 
-		if (!ids.isEmpty()) {
-			courseService.deleteByIds(ids);
-		}
-	}
+    // ---------------- FIND ----------------
 
-	@Test
-	@DisplayName("createAll: happy path — creates course with teacher and normalized name")
-	void createAll_happyPath_success() {
-		var dto = newCreateDto(CODE_ALG_UPPER, COURSE_ALG, DESC_A, testTeacher.getId());
+    @Test
+    @DisplayName("findByIds: null/empty -> returns empty")
+    void findByIds_nullOrEmpty_returnsEmpty() {
+        assertTrue(courseService.findByIds(null).isEmpty());
+        assertTrue(courseService.findByIds(List.of()).isEmpty());
+    }
 
-		tempCourse = courseService.createAll(List.of(dto)).getFirst();
+    @Test
+    @DisplayName("findByIds: contains nulls and duplicates -> unique non-null results")
+    void findByIds_nullsAndDuplicates_ok() {
+        var ids = Arrays.asList(courseSecurity.getId(), null, courseSecurity.getId());
+        var res = courseService.findByIds(ids);
+        assertEquals(ONE_COURSE, res.size());
+        assertEquals(courseSecurity.getId(), res.getFirst().getId());
+    }
+    
+    @Test
+    @DisplayName("listCourseCardsForAdmin: returns all course cards")
+    void listCourseCardsForAdmin_returnsAll() {
+        var cardsPage = courseService.listCourseCardsForAdmin(PageRequest.of(0, 10));
 
-		assertNotNull(tempCourse.getId());
-		assertEquals(CODE_ALG_UPPER, tempCourse.getCode());
-		assertEquals(COURSE_ALG.trim(), tempCourse.getName());
-		assertEquals(testTeacher.getId(), tempCourse.getTeacher().getId());
-	}
+        assertNotNull(cardsPage);
+        assertFalse(cardsPage.isEmpty(), "admin list must not be empty");
 
-	@Test
-	@DisplayName("createAll: null -> returns empty")
-	void createAll_null_returnsEmpty() {
-		assertTrue(courseService.createAll(null).isEmpty());
-	}
+        var ids = cardsPage.getContent().stream().map(c -> c.id()).toList();
 
-	@Test
-	@DisplayName("createAll: empty -> returns empty")
-	void createAll_empty_returnsEmpty() {
-		assertTrue(courseService.createAll(List.of()).isEmpty());
-	}
+        assertTrue(ids.contains(courseOperationSys.getId()), "must contain seeded OS course");
+        assertTrue(ids.contains(courseSecurity.getId()), "must contain seeded Security course");
+    }
+    
+    @Test
+    @DisplayName("listCourseCardsForTeacher: returns only teacher courses")
+    void listCourseCardsForTeacher_existingTeacher_returnsOnlyOwnCourses() {
+        tempCourse = courseService.create(newCreateDto(TO_CREATE_CODE, TO_CREATE_NAME, null, otherTeacher.getId()));
 
-	@Test
-	@DisplayName("createAll: invalid code pattern (DTO) -> ConstraintViolationException")
-	void createAll_badCode_fails() {
-		var bad = newCreateDto(BAD_CODE, COURSE_ALG, null, testTeacher.getId());
-		assertThrows(ConstraintViolationException.class, () -> courseService.createAll(List.of(bad)));
-	}
+        var cardsPage = courseService.listCourseCardsForTeacher(testTeacher.getId(), PageRequest.of(0, 10));
 
-	@Test
-	@DisplayName("createAll: null teacherId in DTO -> ConstraintViolationException")
-	void createAll_nullTeacher_fails() {
-		var c = newCreateDto(CODE_ALG_UPPER, COURSE_SECURITY, null, null);
-		assertThrows(ConstraintViolationException.class, () -> courseService.createAll(List.of(c)));
-	}
+        assertNotNull(cardsPage);
+        assertFalse(cardsPage.isEmpty());
 
-	@Test
-	@DisplayName("createAll: only nulls -> returns empty list")
-	void createAll_onlyNulls_returnsEmptyList() {
-		var result = courseService.createAll(Arrays.asList(null, null));
-		assertNotNull(result, "result must not be null");
-		assertTrue(result.isEmpty(), "only-null input must result in empty list");
-	}
+        var ids = cardsPage.getContent().stream().map(c -> c.id()).toList();
 
-	@Test
-	@DisplayName("createAll: duplicate codes in request (case-insensitive) -> IllegalArgumentException")
-	void createAll_duplicateCodesInRequest_fails() {
-		var a = newCreateDto(CODE_DB_UPPER, COURSE_ALG, null, testTeacher.getId());
-		var b = newCreateDto(CODE_DB_UPPER, COURSE_SECURITY, null, testTeacher.getId());
-		assertThrows(IllegalArgumentException.class, () -> courseService.createAll(List.of(a, b)));
-	}
+        assertTrue(ids.contains(courseOperationSys.getId()), "must contain OS course of testTeacher");
+        assertTrue(ids.contains(courseSecurity.getId()), "must contain Security course of testTeacher");
+        assertFalse(ids.contains(tempCourse.getId()), "must not contain course of another teacher");
+    }
+    
+    @Test
+    @DisplayName("listCourseCardsForTeacher: non-existing teacher id -> empty list")
+    void listCourseCardsForTeacher_notFound_returnsEmpty() {
+        var cardsPage = courseService.listCourseCardsForTeacher(NON_EXISTENT_ID, PageRequest.of(0, 10));
 
-	@Test
-	@DisplayName("createAll: duplicate names in request (case-insensitive) -> IllegalArgumentException")
-	void createAll_duplicateNamesInRequest_fails() {
-		var a = newCreateDto(CODE_SEC_UPPER, COURSE_DATABASES, null, testTeacher.getId());
-		var b = newCreateDto(CODE_DB_UPPER, COURSE_DATABASES, null, testTeacher.getId());
-		assertThrows(IllegalArgumentException.class, () -> courseService.createAll(List.of(a, b)));
-	}
+        assertNotNull(cardsPage);
+        assertTrue(cardsPage.isEmpty(), "non-existing teacher must return empty list");
+    }
+    
+    @Test
+    @DisplayName("listCourseCardsForStudent: returns courses available for student's group")
+    void listCourseCardsForStudent_existingStudent_returnsGroupCourses() {
+        var cardsPage = courseService.listCourseCardsForStudent(studentInG1.getId(), PageRequest.of(0, 10));
 
-	@Test
-	@DisplayName("createAll: code already exists in DB (case-insensitive) -> IllegalArgumentException")
-	void createAll_codeConflictInDb_fails() {
-		var c = newCreateDto(CODE_SEC_UPPER, COURSE_DATABASES, null, testTeacher.getId());
-		assertThrows(IllegalArgumentException.class, () -> courseService.createAll(List.of(c)));
-	}
+        assertNotNull(cardsPage);
+        assertFalse(cardsPage.isEmpty());
 
-	@Test
-	@DisplayName("createAll: name already exists in DB (case-insensitive) -> IllegalArgumentException")
-	void createAll_nameConflictInDb_fails() {
-		var c = newCreateDto(CODE_DB_UPPER, COURSE_SECURITY, null, testTeacher.getId());
-		assertThrows(IllegalArgumentException.class, () -> courseService.createAll(List.of(c)));
-	}
+        var ids = cardsPage.getContent().stream().map(c -> c.id()).toList();
 
-	@Test
-	@DisplayName("createAll: non-existing teacher id -> EntityNotFoundException")
-	void createAll_missingTeacher_fkFails() {
-		var c = newCreateDto(CODE_ALG_UPPER, COURSE_ALG, null, NON_EXISTENT_ID);
-		assertThrows(EntityNotFoundException.class, () -> courseService.createAll(List.of(c)));
-	}
+        assertTrue(ids.contains(courseOperationSys.getId()), "student in g1 must see OS course");
+        assertTrue(ids.contains(courseSecurity.getId()), "student in g1 must see Security course");
+    }
+    
+    @Test
+    @DisplayName("listCourseCardsForStudent: non-existing student id -> empty list")
+    void listCourseCardsForStudent_notFound_returnsEmpty() {
+        var cardsPage = courseService.listCourseCardsForStudent(NON_EXISTENT_ID, PageRequest.of(0, 10));
 
-	@Test
-	@DisplayName("findByIds: null/empty -> returns empty")
-	void findByIds_nullOrEmpty_returnsEmpty() {
-		assertTrue(courseService.findByIds(null).isEmpty());
-		assertTrue(courseService.findByIds(List.of()).isEmpty());
-	}
+        assertNotNull(cardsPage);
+        assertTrue(cardsPage.isEmpty(), "non-existing student must return empty list");
+    }
+    
+    @Test
+    @DisplayName("getCourseGroupsPage: existing course id -> returns page view with header and assigned/available groups")
+    void getCourseGroupsPage_existingId_returnsPage() {
+        var page = courseService.getCourseGroupsView(courseSecurity.getId());
 
-	@Test
-	@DisplayName("findByIds: contains nulls and duplicates -> unique non-null results")
-	void findByIds_nullsAndDuplicates_ok() {
-		var ids = Arrays.asList(courseSecurity.getId(), null, courseSecurity.getId());
-		var res = courseService.findByIds(ids);
-		assertEquals(ONE_COURSE, res.size());
-		assertEquals(courseSecurity.getId(), res.getFirst().getId());
-	}
+        assertNotNull(page, "page must not be null");
+        assertNotNull(page.course(), "course header must not be null");
 
-	@Test
-	@DisplayName("updateSelf: happy path — updates name and normalizes blank description to null")
-	void updateSelf_happyPath_success() {
-		var patch = newUpdateSelf(courseSecurity.getId(), COURSE_DATABASES, DESC_BLANK);
-		courseService.updateSelf(patch);
+        assertEquals(g1.getId(), page.assigned().getFirst().id(), "assigned groups must match seeded data");
+        assertEquals(g2.getId(), page.available().getFirst().id(), "no available groups must match seeded data");
+    }
 
-		var reloaded = courseService.findByIds(List.of(courseSecurity.getId())).getFirst();
+    @Test
+    @DisplayName("getCourseGroupsPage: non-existing course id -> EntityNotFoundException")
+    void getCourseGroupsPage_notFound_fails() {
+        var ex = assertThrows(EntityNotFoundException.class,
+                () -> courseService.getCourseGroupsView(NON_EXISTENT_ID));
 
-		assertEquals(COURSE_DATABASES, reloaded.getName());
-		assertNull(reloaded.getDescription(), "Blank description must become null");
-	}
+        assertEquals("Course not found: id=" + NON_EXISTENT_ID, ex.getMessage());
+    }
 
-	@Test
-	@DisplayName("updateSelf: null id in DTO -> ConstraintViolationException")
-	void updateSelf_nullId_fails() {
-		var patch = newUpdateSelf(null, COURSE_SECURITY, null);
-		assertThrows(ConstraintViolationException.class, () -> courseService.updateSelf(patch));
-	}
+    // ---------------- UPDATE SELF ----------------
 
-	@Test
-	@DisplayName("updateSelf: non-existing id -> EntityNotFoundException")
-	void updateSelf_notFound_fails() {
-		var patch = newUpdateSelf(NON_EXISTENT_ID, COURSE_SECURITY, null);
-		assertThrows(EntityNotFoundException.class, () -> courseService.updateSelf(patch));
-	}
+    @Test
+    @DisplayName("updateSelf: happy path — updates code & name")
+    void updateSelf_happyPath_success() {
+        var patch = newUpdateSelf(courseSecurity.getId(), CODE_DB_UPPER, COURSE_DATABASES);
+        courseService.updateSelf(patch);
 
-	@Test
-	@DisplayName("updateSelf: no-op name (case-insensitive equal) -> ok and unchanged")
-	void updateSelf_noopName_ok() {
-		var patch = newUpdateSelf(courseSecurity.getId(), COURSE_SECURITY_LOWER, null);
-		var updated = courseService.updateSelf(patch);
-		assertEquals(COURSE_SECURITY, updated.getName());
-	}
+        var reloaded = courseService.findByIds(List.of(courseSecurity.getId())).getFirst();
 
-	@Test
-	@DisplayName("updateSelf: change name to existing (case-insensitive) -> IllegalArgumentException")
-	void updateSelf_changeNameToExisting_fails() {
-		var patch = newUpdateSelf(courseSecurity.getId(), courseOperationSys.getName(), null);
-		assertThrows(IllegalArgumentException.class, () -> courseService.updateSelf(patch));
-	}
+        assertEquals(CODE_DB_UPPER, reloaded.getCode());
+        assertEquals(COURSE_DATABASES, reloaded.getName());
+        assertEquals(testTeacher.getId(), reloaded.getTeacher().getId(), "teacher must stay unchanged when teacherId is null");
+    }
 
-	@Test
-	@DisplayName("updateCodes: happy path — updates code for one course")
-	void updateCodes_happyPath_success() {
-		tempCourse = courseService
-				.createAll(List.of(newCreateDto(TO_CREATE_CODE, TO_CREATE_NAME, null, testTeacher.getId())))
-				.getFirst();
+    @Test
+    @DisplayName("updateSelf: change teacher -> ok")
+    void updateSelf_changeTeacher_success() {
+        var patch = newUpdateSelf(courseSecurity.getId(), null, null, otherTeacher.getId());
 
-		var updatedCount = courseService.updateCodes(List.of(newUpdateCode(tempCourse.getId(), CODE_DB_UPPER)));
+        courseService.updateSelf(patch);
 
-		assertEquals(ONE_COURSE, updatedCount);
+        var reloaded = courseService.findByIds(List.of(courseSecurity.getId())).getFirst();
+        assertEquals(otherTeacher.getId(), reloaded.getTeacher().getId());
+        assertEquals(CODE_SEC_UPPER, reloaded.getCode(), "code must remain unchanged");
+        assertEquals(COURSE_SECURITY, reloaded.getName(), "name must remain unchanged");
+    }
 
-		var reloaded = courseService.findByIds(List.of(tempCourse.getId())).getFirst();
-		assertEquals(CODE_DB_UPPER, reloaded.getCode());
-	}
+    @Test
+    @DisplayName("updateSelf: change teacher to non-existing -> EntityNotFoundException")
+    void updateSelf_changeTeacherToMissing_fails() {
+        var patch = newUpdateSelf(courseSecurity.getId(), null, null, NON_EXISTENT_ID);
+        assertThrows(CourseSelfUpdateException.class, () -> courseService.updateSelf(patch));
+    }
 
-	@Test
-	@DisplayName("updateCodes: duplicate codes in request -> IllegalArgumentException")
-	void updateCodes_duplicateCodesInRequest_fails() {
-		var p1 = newUpdateCode(courseSecurity.getId(), CODE_DB_UPPER);
-		var p2 = newUpdateCode(courseOperationSys.getId(), CODE_DB_UPPER);
-		assertThrows(IllegalArgumentException.class, () -> courseService.updateCodes(List.of(p1, p2)));
-	}
+    @Test
+    @DisplayName("updateSelf: teacherId = 0 -> ConstraintViolationException (@Positive)")
+    void updateSelf_teacherIdZero_fails() {
+        var patch = newUpdateSelf(courseSecurity.getId(), null, null, 0L);
+        assertThrows(ConstraintViolationException.class, () -> courseService.updateSelf(patch));
+    }
 
-	@Test
-	@DisplayName("updateCodes: code conflict with DB -> IllegalArgumentException")
-	void updateCodes_codeConflictInDb_fails() {
-		var p = newUpdateCode(courseSecurity.getId(), CODE_OS_UPPER);
-		assertThrows(IllegalArgumentException.class, () -> courseService.updateCodes(List.of(p)));
-	}
+    @Test
+    @DisplayName("updateSelf: null id in DTO -> ConstraintViolationException")
+    void updateSelf_nullId_fails() {
+        var patch = newUpdateSelf(null, null, COURSE_SECURITY);
+        assertThrows(ConstraintViolationException.class, () -> courseService.updateSelf(patch));
+    }
 
-	@Test
-	@DisplayName("updateCodes: no-op code -> returns 1 and unchanged")
-	void updateCodes_noop_ok() {
-		var count = courseService.updateCodes(List.of(newUpdateCode(courseSecurity.getId(), CODE_SEC_UPPER)));
-		assertEquals(ONE_COURSE, count);
+    @Test
+    @DisplayName("updateSelf: non-existing id -> EntityNotFoundException")
+    void updateSelf_notFound_fails() {
+        var patch = newUpdateSelf(NON_EXISTENT_ID, null, COURSE_SECURITY);
+        assertThrows(EntityNotFoundException.class, () -> courseService.updateSelf(patch));
+    }
 
-		var reloaded = courseService.findByIds(List.of(courseSecurity.getId())).getFirst();
-		assertEquals(CODE_SEC_UPPER, reloaded.getCode());
-	}
+    @Test
+    @DisplayName("updateSelf: no-op code (case-insensitive equal) -> ok and unchanged")
+    void updateSelf_noopCode_ok() {
+        var patch = newUpdateSelf(courseSecurity.getId(), CODE_SEC_UPPER, null);
 
-	@Test
-	@DisplayName("updateCodes: null -> returns 0")
-	void updateCodes_null_returnsZero() {
-		assertEquals(0, courseService.updateCodes(null));
-	}
+        var updated = courseService.updateSelf(patch);
 
-	@Test
-	@DisplayName("updateCodes: empty -> returns 0")
-	void updateCodes_empty_returnsZero() {
-		assertEquals(0, courseService.updateCodes(List.of()));
-	}
+        assertEquals(CODE_SEC_UPPER, updated.getCode());
+    }
 
-	@Test
-	@DisplayName("updateCodes: null id -> ConstraintViolationException")
-	void updateCodes_nullKey_fails() {
-		var bad = newUpdateCode(null, CODE_SEC_UPPER);
-		assertThrows(ConstraintViolationException.class, () -> courseService.updateCodes(List.of(bad)));
-	}
+    @Test
+    @DisplayName("updateSelf: change code to existing in DB -> IllegalArgumentException")
+    void updateSelf_changeCodeToExisting_fails() {
+        var patch = newUpdateSelf(courseSecurity.getId(), CODE_OS_UPPER, null);
+        assertThrows(CourseSelfUpdateException.class, () -> courseService.updateSelf(patch));
+    }
 
-	@Test
-	@DisplayName("updateCodes: null code -> ConstraintViolationException")
-	void updateCodes_nullValue_fails() {
-		var bad = newUpdateCode(courseSecurity.getId(), null);
-		assertThrows(ConstraintViolationException.class, () -> courseService.updateCodes(List.of(bad)));
-	}
+    @Test
+    @DisplayName("updateSelf: bad code pattern -> ConstraintViolationException")
+    void updateSelf_badCodePattern_fails() {
+        var patch = newUpdateSelf(courseSecurity.getId(), BAD_CODE, null);
+        assertThrows(ConstraintViolationException.class, () -> courseService.updateSelf(patch));
+    }
 
-	@Test
-	@DisplayName("updateCodes: bad code pattern after normalization -> ConstraintViolationException")
-	void updateCodes_badPattern_fails() {
-		var bad = newUpdateCode(courseSecurity.getId(), BAD_CODE);
-		assertThrows(ConstraintViolationException.class, () -> courseService.updateCodes(List.of(bad)));
-	}
+    @Test
+    @DisplayName("updateSelf: no-op name (case-insensitive equal) -> ok and unchanged")
+    void updateSelf_noopName_ok() {
+        var patch = newUpdateSelf(courseSecurity.getId(), null, COURSE_SECURITY_LOWER);
+        var updated = courseService.updateSelf(patch);
+        assertEquals(COURSE_SECURITY, updated.getName());
+    }
 
-	@Test
-	@DisplayName("updateCodes: missing id with distinct code -> EntityNotFoundException")
-	void updateCodes_missingId_distinctCode_fails() {
-		var p1 = newUpdateCode(courseSecurity.getId(), CODE_SEC_UPPER);
-		var p2 = newUpdateCode(NON_EXISTENT_ID, CODE_DB_UPPER);
-		assertThrows(EntityNotFoundException.class, () -> courseService.updateCodes(List.of(p1, p2)));
-	}
+    @Test
+    @DisplayName("updateSelf: change name to existing (case-insensitive) -> IllegalArgumentException")
+    void updateSelf_changeNameToExisting_fails() {
+        var patch = newUpdateSelf(courseSecurity.getId(), null, courseOperationSys.getName());
+        assertThrows(CourseSelfUpdateException.class, () -> courseService.updateSelf(patch));
+    }
 
-	@Test
-	@DisplayName("addGroupsToCourse: happy path — adds unique groups, ignores nulls/duplicates")
-	void addGroupsToCourse_happyPath_addsUnique() {
-		courseService.addGroupsToCourse(courseSecurity.getId(),
-				Arrays.asList(g1.getId(), g1.getId(), null, g2.getId()));
+    // ---------------- UPDATE DESCRIPTION ----------------
 
-		var reloaded = courseService.findByIds(List.of(courseSecurity.getId())).getFirst();
-		var ids = reloaded.getGroups().stream().map(StudyGroup::getId).toList();
-		assertTrue(ids.containsAll(List.of(g1.getId(), g2.getId())), "course must reference both groups");
-	}
+    @Test
+    @DisplayName("updateDescription: happy path — updates description and trims")
+    void updateDescription_happyPath_success() {
+        var patch = newUpdateDescription(courseSecurity.getId(), DESC_A);
 
-	@Test
-	@DisplayName("addGroupsToCourse: courseId = null -> IllegalArgumentException")
-	void addGroupsToCourse_nullCourseId_fails() {
-		assertThrows(IllegalArgumentException.class, () -> courseService.addGroupsToCourse(null, List.of(g1.getId())));
-	}
+        courseService.updateDescription(patch);
 
-	@Test
-	@DisplayName("addGroupsToCourse: non-existing course -> EntityNotFoundException")
-	void addGroupsToCourse_courseNotFound_fails() {
-		assertThrows(EntityNotFoundException.class,
-				() -> courseService.addGroupsToCourse(NON_EXISTENT_ID, List.of(g1.getId())));
-	}
+        var reloaded = courseService.findByIds(List.of(courseSecurity.getId())).getFirst();
+        assertEquals(DESC_A.trim(), reloaded.getDescription());
+    }
 
-	@Test
-	@DisplayName("addGroupsToCourse: at least one group id does not exist -> EntityNotFoundException")
-	void addGroupsToCourse_missingGroup_fails() {
-		assertThrows(EntityNotFoundException.class,
-				() -> courseService.addGroupsToCourse(courseSecurity.getId(), List.of(NON_EXISTENT_ID)));
-	}
+    @Test
+    @DisplayName("updateDescription: blank -> normalizes to null")
+    void updateDescription_blankToNull_success() {
+        courseService.updateDescription(newUpdateDescription(courseSecurity.getId(), "Some description"));
 
-	@Test
-	@DisplayName("addGroupsToCourse: null/empty/only nulls -> returns 0 and changes nothing")
-	void addGroupsToCourse_nullOrEmpty_returnsZero() {
-		assertEquals(0, courseService.addGroupsToCourse(courseOperationSys.getId(), null));
-		assertEquals(0, courseService.addGroupsToCourse(courseOperationSys.getId(), List.of()));
-		assertEquals(0, courseService.addGroupsToCourse(courseOperationSys.getId(), Arrays.asList(null, null)));
-	}
+        courseService.updateDescription(newUpdateDescription(courseSecurity.getId(), DESC_BLANK));
 
-	@Test
-	@DisplayName("removeGroupsFromCourse: happy path — removes only attached ids, ignores nulls/missing")
-	void removeGroupsFromCourse_happyPath_removesAttached() {
-		int removed = courseService.removeGroupsFromCourse(courseOperationSys.getId(),
-				Arrays.asList(g1.getId(), NON_EXISTENT_ID, null));
+        var reloaded = courseService.findByIds(List.of(courseSecurity.getId())).getFirst();
+        assertNull(reloaded.getDescription(), "Blank description must become null");
+    }
 
-		assertEquals(ONE_GROUP, removed, "should remove exactly one attached group");
-	}
+    @Test
+    @DisplayName("updateDescription: null description -> no-op (keeps existing)")
+    void updateDescription_nullDescription_noop() {
+        courseService.updateDescription(newUpdateDescription(courseSecurity.getId(), "Existing"));
 
-	@Test
-	@DisplayName("removeGroupsFromCourse: null/empty/only nulls -> returns 0")
-	void removeGroupsFromCourse_nullOrEmpty_returnsZero() {
-		assertEquals(0, courseService.removeGroupsFromCourse(courseOperationSys.getId(), null));
-		assertEquals(0, courseService.removeGroupsFromCourse(courseOperationSys.getId(), List.of()));
-		assertEquals(0, courseService.removeGroupsFromCourse(courseOperationSys.getId(), Arrays.asList(null, null)));
-	}
+        courseService.updateDescription(newUpdateDescription(courseSecurity.getId(), null));
 
-	@Test
-	@DisplayName("removeGroupsFromCourse: null courseId -> IllegalArgumentException")
-	void removeGroupsFromCourse_nullCourseId_fails() {
-		assertThrows(IllegalArgumentException.class,
-				() -> courseService.removeGroupsFromCourse(null, List.of(g1.getId())));
-	}
+        var reloaded = courseService.findByIds(List.of(courseSecurity.getId())).getFirst();
+        assertEquals("Existing", reloaded.getDescription(), "Null description must not change existing value");
+    }
 
-	@Test
-	@DisplayName("removeGroupsFromCourse: non-existing course -> EntityNotFoundException")
-	void removeGroupsFromCourse_courseNotFound_fails() {
-		assertThrows(EntityNotFoundException.class,
-				() -> courseService.removeGroupsFromCourse(NON_EXISTENT_ID, List.of(g1.getId())));
-	}
+    @Test
+    @DisplayName("updateDescription: null id -> ConstraintViolationException")
+    void updateDescription_nullId_fails() {
+        var patch = newUpdateDescription(null, "abc");
+        assertThrows(ConstraintViolationException.class, () -> courseService.updateDescription(patch));
+    }
 
-	@Test
-	@DisplayName("deleteByIds: null/empty -> returns empty result")
-	void deleteByIds_nullOrEmpty_returnsEmpty() {
-		var r1 = courseService.deleteByIds(null);
-		var r2 = courseService.deleteByIds(List.of());
-		assertTrue(r1.deletedIds().isEmpty() && r1.notFoundIds().isEmpty());
-		assertTrue(r2.deletedIds().isEmpty() && r2.notFoundIds().isEmpty());
-	}
+    @Test
+    @DisplayName("updateDescription: non-existing id -> EntityNotFoundException")
+    void updateDescription_notFound_fails() {
+        var patch = newUpdateDescription(NON_EXISTENT_ID, "abc");
+        assertThrows(EntityNotFoundException.class, () -> courseService.updateDescription(patch));
+    }
 
-	@Test
-	@DisplayName("deleteByIds: mix existing/missing -> returns deleted & notFound as expected")
-	void deleteByIds_mixed_returnsSplit() {
-		var c = courseService
-				.createAll(List.of(newCreateDto(TO_DELETE_CODE, TO_DELETE_NAME, null, testTeacher.getId())))
-				.get(0);
+    @Test
+    @DisplayName("updateDescription: too long -> ConstraintViolationException")
+    void updateDescription_tooLong_fails() {
+        var tooLong = "A".repeat(10_001);
+        var patch = newUpdateDescription(courseSecurity.getId(), tooLong);
+        assertThrows(ConstraintViolationException.class, () -> courseService.updateDescription(patch));
+    }
 
-		var res = courseService.deleteByIds(Arrays.asList(c.getId(), NON_EXISTENT_ID, null));
-		assertEquals(Set.of(c.getId()), res.deletedIds(), "should delete existing id");
-		assertEquals(Set.of(NON_EXISTENT_ID), res.notFoundIds(), "should report missing id");
-	}
+ // ---------------- GROUPS ----------------
+
+    @Test
+    @DisplayName("addGroupToCourse: adds group when not attached -> returns Optional.of(groupId) and attaches")
+    void addGroupToCourse_adds_whenNotAttached() {
+        var added = courseService.addGroupToCourse(courseSecurity.getId(), g2.getId());
+
+        assertTrue(added.isPresent(), "must return groupId when added");
+        assertEquals(g2.getId(), added.get());
+
+        var reloaded = courseService.findByIds(List.of(courseSecurity.getId())).getFirst();
+        var ids = reloaded.getGroups().stream().map(StudyGroup::getId).toList();
+
+        assertTrue(ids.containsAll(List.of(g1.getId(), g2.getId())), "course must reference both groups");
+    }
+
+    @Test
+    @DisplayName("addGroupToCourse: group already attached -> returns Optional.empty and changes nothing")
+    void addGroupToCourse_alreadyAttached_returnsEmpty() {
+        var added = courseService.addGroupToCourse(courseSecurity.getId(), g1.getId());
+        assertTrue(added.isEmpty(), "must be empty when already attached");
+
+        var reloaded = courseService.findByIds(List.of(courseSecurity.getId())).getFirst();
+        var ids = reloaded.getGroups().stream().map(StudyGroup::getId).toList();
+
+        assertEquals(1, ids.size(), "still must have only one group");
+        assertTrue(ids.contains(g1.getId()));
+    }
+
+    @Test
+    @DisplayName("addGroupToCourse: non-existing course -> EntityNotFoundException")
+    void addGroupToCourse_courseNotFound_fails() {
+        var ex = assertThrows(EntityNotFoundException.class,
+                () -> courseService.addGroupToCourse(NON_EXISTENT_ID, g1.getId()));
+
+        assertEquals("Course not found: id=" + NON_EXISTENT_ID, ex.getMessage());
+    }
+
+    @Test
+    @DisplayName("removeGroupFromCourse: removes attached group -> returns Optional.of(groupId) and detaches")
+    void removeGroupFromCourse_removes_whenAttached() {
+        var removed = courseService.removeGroupFromCourse(courseOperationSys.getId(), g1.getId());
+
+        assertTrue(removed.isPresent(), "must return groupId when removed");
+        assertEquals(g1.getId(), removed.get());
+
+        var reloaded = courseService.findByIds(List.of(courseOperationSys.getId())).getFirst();
+        var ids = reloaded.getGroups().stream().map(StudyGroup::getId).toList();
+
+        assertFalse(ids.contains(g1.getId()), "g1 must be removed");
+        assertTrue(ids.contains(g2.getId()), "g2 must remain");
+    }
+
+    @Test
+    @DisplayName("removeGroupFromCourse: group not attached -> returns Optional.empty and changes nothing")
+    void removeGroupFromCourse_notAttached_returnsEmpty() {
+        var removed = courseService.removeGroupFromCourse(courseSecurity.getId(), g2.getId());
+        assertTrue(removed.isEmpty(), "must be empty when group is not attached");
+
+        var reloaded = courseService.findByIds(List.of(courseSecurity.getId())).getFirst();
+        var ids = reloaded.getGroups().stream().map(StudyGroup::getId).toList();
+
+        assertEquals(1, ids.size());
+        assertTrue(ids.contains(g1.getId()));
+    }
+
+    @Test
+    @DisplayName("removeGroupFromCourse: non-existing course -> EntityNotFoundException")
+    void removeGroupFromCourse_courseNotFound_fails() {
+        var ex = assertThrows(EntityNotFoundException.class,
+                () -> courseService.removeGroupFromCourse(NON_EXISTENT_ID, g1.getId()));
+
+        assertEquals("Course not found: id=" + NON_EXISTENT_ID, ex.getMessage());
+    }
+
+ // ---------------- DELETE ----------------
+
+    @Test
+    @DisplayName("delete: existing id -> deletes course")
+    void delete_existingId_deletes() {
+        tempCourse = courseService.create(
+                newCreateDto(TO_DELETE_CODE, TO_DELETE_NAME, null, testTeacher.getId())
+        );
+        Long id = tempCourse.getId();
+        assertNotNull(id);
+
+        courseService.delete(id);
+
+        assertTrue(courseService.findByIds(List.of(id)).isEmpty(), "course must be deleted");
+    }
+
+    @Test
+    @DisplayName("delete: non-existing id -> EntityNotFoundException")
+    void delete_notFound_throwsEntityNotFound() {
+        var ex = assertThrows(EntityNotFoundException.class, () -> courseService.delete(NON_EXISTENT_ID));
+        assertEquals("Course not found: id=" + NON_EXISTENT_ID, ex.getMessage());
+    }
 }

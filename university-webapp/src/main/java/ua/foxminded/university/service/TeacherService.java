@@ -6,6 +6,8 @@ import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
@@ -15,7 +17,9 @@ import ua.foxminded.university.model.domain.AppUser;
 import ua.foxminded.university.model.domain.Teacher;
 import ua.foxminded.university.model.repository.AppUserRepository;
 import ua.foxminded.university.model.repository.TeacherRepository;
+import ua.foxminded.university.model.repository.dto.TeacherCardView;
 import ua.foxminded.university.model.repository.dto.IdCountAgg;
+import ua.foxminded.university.model.repository.dto.TeacherOptionView;
 import ua.foxminded.university.model.repository.dto.TeacherProfileView;
 import ua.foxminded.university.security.PasswordPolicy;
 import ua.foxminded.university.service.dto.request.teacher.TeacherCreateDto;
@@ -84,7 +88,17 @@ public class TeacherService {
 	}
 	
 	@Transactional(value = TxType.SUPPORTS)
-	public TeacherProfileView getTeacherProfileView(Long id) {
+	public Page<TeacherCardView> listTeacherCardsForAdmin(Pageable pageable) {
+	    return teacherRepository.findTeacherCardsAll(pageable);
+	}
+	
+	@Transactional(value = TxType.SUPPORTS)
+    public List<TeacherOptionView> listTeacherOptions() {
+        return teacherRepository.findTeacherOptions();
+    }
+	
+	@Transactional(value = TxType.SUPPORTS)
+	public TeacherProfileView getTeacherProfileView(long id) {
 		return teacherRepository.findTeacherProfileViewById(id)
 				.orElseThrow(() -> new EntityNotFoundException("Teacher not found: id=" + id));
 	}
@@ -111,12 +125,16 @@ public class TeacherService {
 
 	@Transactional(value = TxType.REQUIRES_NEW)
 	public DeleteResult deleteByIds(Collection<Long> ids) {
-		if (Optional.ofNullable(ids).map(Collection::isEmpty).orElse(true)) {
+		var distinct = Optional.ofNullable(ids)
+				.orElseGet(Collections::emptyList)
+				.stream()
+				.filter(Objects::nonNull)
+				.collect(Collectors.toSet());
+		
+		if (distinct.isEmpty()) {
 			log.warn("deleteByIds called with null/empty list");
 			return new DeleteResult(Set.of(), Set.of());
 		}
-
-		var distinct = ids.stream().filter(Objects::nonNull).collect(Collectors.toSet());
 
 		assertTeachersHaveNoCourses(distinct);
 

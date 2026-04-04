@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<body>
+
+<div th:fragment="profileNotices(profileMsg)">
+  <div class="ou-alert ou-alert--warn" th:if="${profileMsg == 'ACCESS_DENIED'}">
+    Access denied.
+  </div>
+
+  <div class="ou-alert ou-alert--success" th:if="${profileMsg == 'ALREADY_SIGNED_IN'}">
+    You are already signed in.
+  </div>
+</div>
+
+</body>
+</html>

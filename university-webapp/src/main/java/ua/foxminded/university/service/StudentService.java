@@ -7,6 +7,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
 import jakarta.transaction.Transactional.TxType;
@@ -18,6 +20,7 @@ import ua.foxminded.university.model.repository.AppUserRepository;
 import ua.foxminded.university.model.repository.StudentRepository;
 import ua.foxminded.university.model.repository.StudyGroupRepository;
 import ua.foxminded.university.model.repository.dto.StudentProfileView;
+import ua.foxminded.university.model.repository.dto.StudentCardView;
 import ua.foxminded.university.security.PasswordPolicy;
 import ua.foxminded.university.service.dto.request.student.StudentCreateDto;
 import ua.foxminded.university.service.dto.response.DeleteResult;
@@ -46,7 +49,6 @@ public class StudentService {
 
 	@Transactional(value = TxType.REQUIRES_NEW)
 	public List<Student> createAll(Collection<StudentCreateDto> drafts) {
-		drafts = Optional.ofNullable(drafts).orElseGet(List::of).stream().filter(Objects::nonNull).toList();
 		validator.validateAll(drafts);
 
 		var toPersist = dtoMapper.toStudentEntities(drafts);
@@ -91,13 +93,18 @@ public class StudentService {
 	}
 	
 	@Transactional(value = TxType.SUPPORTS)
-	public StudentProfileView getStudentProfileView(Long id) {
+	public Page<StudentCardView> listStudentCardsForAdmin(Pageable pageable) {
+	    return studentRepository.findStudentCardsAll(pageable);
+	}
+	
+	@Transactional(value = TxType.SUPPORTS)
+	public StudentProfileView getStudentProfileView(long id) {
 		return studentRepository.findStudentProfileViewById(id)
 				.orElseThrow(() -> new EntityNotFoundException("Student not found: id=" + id));
 	}
 
 	@Transactional(value = TxType.REQUIRES_NEW)
-	public Integer moveStudentsToGroup(Collection<Long> studentIds, Long targetGroupId) {
+	public int moveStudentsToGroup(Collection<Long> studentIds, long targetGroupId) {
 		if (Optional.ofNullable(studentIds).map(Collection::isEmpty).orElse(true)) {
 			log.warn("moveStudentsToGroup called with null/empty student Ids");
 			return NOT_UPDATED;
@@ -118,12 +125,17 @@ public class StudentService {
 
 	@Transactional(value = TxType.REQUIRES_NEW)
 	public DeleteResult deleteByIds(Collection<Long> ids) {
-		if (Optional.ofNullable(ids).map(Collection::isEmpty).orElse(true)) {
+		var distinct = Optional.ofNullable(ids)
+				.orElseGet(Collections::emptyList)
+				.stream()
+				.filter(Objects::nonNull)
+				.collect(Collectors.toSet());
+		
+		if (distinct.isEmpty()) {
 			log.warn("deleteByIds called with null/empty list");
 			return new DeleteResult(Set.of(), Set.of());
 		}
 
-		var distinct = ids.stream().filter(Objects::nonNull).collect(Collectors.toSet());
 		var existing = studentRepository.findAllById(distinct);
 
 		var deletedIds = existing.stream().map(Student::getId).collect(Collectors.toSet());
@@ -152,12 +164,7 @@ public class StudentService {
 		}
 	}
 
-	private StudyGroup requireGroupRef(Long groupId) {
-		Optional.ofNullable(groupId).orElseThrow(() -> {
-			log.error("moveStudentsToGroup: null target group id");
-			return new IllegalArgumentException("targetGroupId must not be null");
-		});
-
+	private StudyGroup requireGroupRef(long groupId) {
 		if (!groupRepository.existsById(groupId)) {
 			log.error("moveStudentsToGroup: StudyGroup not found: id={}", groupId);
 			throw new EntityNotFoundException("StudyGroup not found: id=" + groupId);

@@ -1,10 +1,13 @@
 package ua.foxminded.university.model.repository;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import ua.foxminded.university.model.domain.StudyGroup;
+import ua.foxminded.university.model.repository.dto.GroupView;
 import ua.foxminded.university.model.repository.dto.IdCountAgg;
 
 import java.util.Collection;
@@ -39,4 +42,39 @@ public interface StudyGroupRepository extends JpaRepository<StudyGroup, Long> {
 			""")
 	List<String> findConflictingNamesIgnoreCase(@Param("names") Collection<String> names,
 			@Param("ids") Collection<Long> ids);
+	
+	@Query("""
+	        select new ua.foxminded.university.model.repository.dto.GroupView(g.id, g.name)
+	        from Course c
+	        join c.groups g
+	        where c.id = :courseId
+	        order by g.name
+	    """)
+	List<GroupView> findAssignedGroupOptions(@Param("courseId") Long courseId);
+
+    @Query("""
+	        select new ua.foxminded.university.model.repository.dto.GroupView(g.id, g.name)
+	        from StudyGroup g
+	        where not exists (
+	            select 1
+	            from Course c
+	            join c.groups g2
+	            where c.id = :courseId and g2.id = g.id
+	        )
+	        order by g.name
+	    """)
+	List<GroupView> findAvailableGroupOptions(@Param("courseId") Long courseId);
+	    
+    @Query(value = """
+                select new ua.foxminded.university.model.repository.dto.GroupView(
+                    g.id,
+                    g.name
+                )
+                from StudyGroup g
+                order by lower(g.name)
+            """, countQuery = """
+                select count(g)
+                from StudyGroup g
+            """)
+    Page<GroupView> findGroupCardsAll(Pageable pageable);
 }
