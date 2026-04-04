@@ -55,7 +55,6 @@ public class SecurityConfig {
 						.accessDeniedHandler(profileAccessDeniedHandler))
 
 				.logout(logout -> logout.logoutUrl("/logout")
-						.logoutUrl("/logout")
 					    .logoutSuccessHandler(logoutSuccessHandler)
 						.invalidateHttpSession(true)
 						.clearAuthentication(true)
