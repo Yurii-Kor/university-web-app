@@ -60,6 +60,13 @@
          th:classappend="${activeTab} == 'admin' ? ' ou-tab--active' : ''">
         Admins
       </a>
+      
+      <a class="ou-tab"
+         sec:authorize="hasRole('ADMIN')"
+         th:href="@{/accounts}"
+         th:classappend="${activeTab} == 'accounts' ? ' ou-tab--active' : ''">
+        Accounts
+      </a>
 
     </nav>
 

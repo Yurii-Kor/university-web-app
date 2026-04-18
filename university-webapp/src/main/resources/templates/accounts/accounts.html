@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+  <meta charset="utf-8" />
+  <title th:text="${page.pageTitle}">Accounts</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="icon" th:href="@{/favicon.ico}" href="/favicon.ico" />
+  <link rel="stylesheet" th:href="@{/css/app.css}" href="/css/app.css" />
+  <link rel="stylesheet" th:href="@{/css/pages/accounts.css}" href="/css/pages/accounts.css" />
+</head>
+
+<body class="ou-page accounts-page">
+<div th:replace="~{fragments/header :: ouHeader('accounts')}"></div>
+
+<main class="accounts-main">
+  <section class="ou-card accounts-shell" aria-label="Account management">
+
+    <div class="accounts-toolbar">
+      <div>
+        <h1 class="ou-card__title" th:text="${page.pageTitle}">Account Management</h1>
+        <p class="accounts-subtitle" th:text="${page.pageSubtitle}">
+          Manage sensitive operations for student and teacher accounts.
+        </p>
+      </div>
+
+      <div class="accounts-toolbar__actions">
+        <a class="ou-btn"
+           th:classappend="${page.currentView == 'students'} ? '' : ' ou-btn--ghost'"
+           th:href="@{/accounts(view='students', page=0)}">
+          Students
+        </a>
+
+        <a class="ou-btn"
+           th:classappend="${page.currentView == 'teachers'} ? '' : ' ou-btn--ghost'"
+           th:href="@{/accounts(view='teachers', page=0)}">
+          Teachers
+        </a>
+      </div>
+    </div>
+
+    <div class="ou-alert ou-alert--success"
+         th:if="${ok != null and accountId == null}"
+         th:text="${ok}">
+      Done.
+    </div>
+
+    <div class="ou-alert ou-alert--error"
+         th:if="${err != null and accountId == null}"
+         th:text="${err}">
+      Something went wrong.
+    </div>
+
+    <div class="accounts-grid"
+         th:if="${page.currentView == 'students' and !#lists.isEmpty(page.students)}">
+      <th:block th:each="s : ${page.students}">
+        <th:block th:replace="~{accounts/fragments/student-card :: studentCard(
+            ${s},
+            ${accountId},
+            ${ok},
+            ${err},
+            ${page.currentPage}
+        )}"></th:block>
+      </th:block>
+    </div>
+
+    <div class="accounts-grid"
+         th:if="${page.currentView == 'teachers' and !#lists.isEmpty(page.teachers)}">
+      <th:block th:each="t : ${page.teachers}">
+        <th:block th:replace="~{accounts/fragments/teacher-card :: teacherCard(
+            ${t},
+            ${accountId},
+            ${ok},
+            ${err},
+            ${page.currentPage}
+        )}"></th:block>
+      </th:block>
+    </div>
+
+    <div class="ou-alert ou-alert--warn"
+         th:if="${page.currentView == 'students' and #lists.isEmpty(page.students)}">
+      No student accounts found.
+    </div>
+
+    <div class="ou-alert ou-alert--warn"
+         th:if="${page.currentView == 'teachers' and #lists.isEmpty(page.teachers)}">
+      No teacher accounts found.
+    </div>
+
+    <nav class="accounts-pager"
+         th:if="${page.totalPages > 1}"
+         aria-label="Accounts pages">
+
+      <a class="ou-btn ou-btn--ghost"
+         th:if="${page.hasPrevious}"
+         th:href="@{/accounts(view=${page.currentView}, page=${page.currentPage - 1})}">
+        ← Previous
+      </a>
+
+      <th:block th:each="p : ${#numbers.sequence(0, page.totalPages - 1)}">
+        <a class="ou-btn"
+           th:classappend="${p == page.currentPage} ? '' : ' ou-btn--ghost'"
+           th:href="@{/accounts(view=${page.currentView}, page=${p})}"
+           th:text="${p + 1}">
+          1
+        </a>
+      </th:block>
+
+      <a class="ou-btn ou-btn--ghost"
+         th:if="${page.hasNext}"
+         th:href="@{/accounts(view=${page.currentView}, page=${page.currentPage + 1})}">
+        Next →
+      </a>
+    </nav>
+
+  </section>
+</main>
+
+<script th:src="@{/js/details-form-cancel.js}" src="/js/details-form-cancel.js"></script>
+
+</body>
+</html>

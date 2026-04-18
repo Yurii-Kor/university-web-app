@@ -17,6 +17,16 @@ public interface StudyGroupRepository extends JpaRepository<StudyGroup, Long> {
 
 	@Query("select g.id from StudyGroup g where g.id in :ids")
 	List<Long> findExistingIds(@Param("ids") Collection<Long> ids);
+	
+	@Query("""
+	        select new ua.foxminded.university.model.repository.dto.GroupView(
+	            g.id,
+	            g.name
+	        )
+	        from StudyGroup g
+	        order by lower(g.name), g.id
+	    """)
+	List<GroupView> findGroupOptions();
 
 	@Query("""
 				select new ua.foxminded.university.model.repository.dto.IdCountAgg(g.id, count(s.id))

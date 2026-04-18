@@ -60,9 +60,7 @@ public class SecurityConfig {
 						.clearAuthentication(true)
 						.deleteCookies(SESSION_NAME))
 
-				.authenticationProvider(authProvider)
-
-				.httpBasic(Customizer.withDefaults());
+				.authenticationProvider(authProvider);
 
 		return http.build();
 	}

@@ -77,6 +77,11 @@ public class StudyGroupService {
 	public Page<GroupView> listGroupCardsForAdmin(Pageable pageable) {
 	    return groupRepository.findGroupCardsAll(pageable);
 	}
+	
+	@Transactional(value = TxType.SUPPORTS)
+	public List<GroupView> listGroupOptions() {
+	    return groupRepository.findGroupOptions();
+	}
 
 	@Transactional(value = TxType.REQUIRES_NEW)
 	public StudyGroup rename(StudyGroupRenameDto patch) {

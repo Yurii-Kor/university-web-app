@@ -26,6 +26,10 @@ public interface StudentRepository extends JpaRepository<Student, Long> {
     int updateGroupByIds(@Param("newGroup") StudyGroup newGroup,
                          @Param("ids") Collection<Long> ids);
 	
+	@Modifying(clearAutomatically = true, flushAutomatically = true)
+	@Query("delete from Student s where s.id = :id")
+	int deleteProfileById(@Param("id") long id);
+	
 	@Query("""
 			select new ua.foxminded.university.model.repository.dto.StudentProfileView(
 			    u.email,

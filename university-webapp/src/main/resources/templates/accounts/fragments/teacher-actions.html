@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<body>
+
+<div th:fragment="teacherActions(t, currentPage)" class="account-actions-bar">
+
+  <details class="account-self-edit">
+    <summary class="ou-btn ou-btn--ghost">To Student</summary>
+
+    <form class="account-self-edit__form"
+          method="post"
+          th:action="@{/accounts/teachers/to-student}"
+          onsubmit="return confirm('Apply role change from teacher to student?');">
+
+      <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
+      <input type="hidden" name="userId" th:value="${t.id}" />
+      <input type="hidden" name="page" th:value="${currentPage}" />
+      <input type="hidden" name="view" value="teachers" />
+
+      <div class="account-self-edit__divider" aria-hidden="true"></div>
+
+      <div class="account-self-edit__fields">
+        <div>
+          <label class="account-self-edit__label"
+                 th:for="|group_${t.id}|">Group</label>
+          <select class="ou-input"
+                  th:id="|group_${t.id}|"
+                  name="groupId">
+            <option value="" selected disabled>— Select group —</option>
+            <option th:each="g : ${all_groups}"
+                    th:value="${g.id}"
+                    th:text="${g.name}">
+              Group
+            </option>
+          </select>
+        </div>
+
+        <div>
+          <label class="account-self-edit__label"
+                 th:for="|year_${t.id}|">Enrollment year</label>
+          <input class="ou-input"
+                 th:id="|year_${t.id}|"
+                 name="enrollmentYear"
+                 type="number"
+                 min="1900"
+                 max="2100"
+                 placeholder="e.g. 2024" />
+        </div>
+      </div>
+
+      <div class="account-self-edit__actions">
+        <button type="button"
+                class="ou-btn ou-btn--ghost"
+                data-details-form-cancel>
+          Cancel
+        </button>
+
+        <button type="submit" class="ou-btn">
+          Apply
+        </button>
+      </div>
+    </form>
+  </details>
+
+  <div class="account-actions-bar__other">
+    <span aria-hidden="true"></span>
+
+    <form class="ou-inline-form"
+          method="post"
+          th:action="${t.enabled} ? @{/accounts/{id}/disable(id=${t.id})} : @{/accounts/{id}/enable(id=${t.id})}"
+          onsubmit="return confirm('Change account status?');">
+      <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
+      <input type="hidden" name="page" th:value="${currentPage}" />
+      <input type="hidden" name="view" value="teachers" />
+      <button type="submit" class="ou-btn ou-btn--ghost"
+              th:text="${t.enabled} ? 'Disable' : 'Enable'">
+        Disable
+      </button>
+    </form>
+
+    <form class="ou-inline-form account-actions-bar__delete"
+          method="post"
+          th:action="@{/accounts/{id}/delete(id=${t.id})}"
+          onsubmit="return confirm('Delete this teacher account?');">
+      <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
+      <input type="hidden" name="page" th:value="${currentPage}" />
+      <input type="hidden" name="view" value="teachers" />
+      <button type="submit"
+              class="ou-btn ou-btn--danger">
+        Delete
+      </button>
+    </form>
+  </div>
+
+</div>
+
+</body>
+</html>
