@@ -3,10 +3,14 @@ package ua.foxminded.university.model.domain;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+
+import org.hibernate.annotations.SQLDelete;
+import org.hibernate.annotations.SQLRestriction;
 
 @Getter @Setter
 @NoArgsConstructor
@@ -16,6 +20,8 @@ import java.util.Set;
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
 @Entity
 @Table(name = "groups")
+@SQLDelete(sql = "update groups set deleted_at = now() where id = ? and deleted_at is null")
+@SQLRestriction("deleted_at is null")
 public class StudyGroup {
 
 	@Id
@@ -35,4 +41,7 @@ public class StudyGroup {
 	@Builder.Default
 	@ManyToMany(mappedBy = "groups")
 	private Set<Course> courses = new LinkedHashSet<>();
+
+	@Column()
+    private OffsetDateTime deletedAt;
 }

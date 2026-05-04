@@ -1,4 +1,4 @@
-package ua.foxminded.university.service.dto.request.appuser;
+package ua.foxminded.university.service.dto.request.rolechange;
 
 import static ua.foxminded.university.service.dto.request.ValidationConstants.OFFICE_MESSAGE;
 import static ua.foxminded.university.service.dto.request.ValidationConstants.ROOM_CODE_REGEX;
@@ -9,20 +9,14 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import ua.foxminded.university.model.domain.enums.AcademicRank;
+import ua.foxminded.university.service.rolechange.target.TargetRoleProfileData;
 
-public record StudentToTeacherRoleChangeDto(
-
-        @NotNull
-        Long userId,
-
-        @NotNull
-        AcademicRank academicRank,
-
+public record ToTeacherRoleChangeDto(
+        @NotNull Long userId,
+        @NotNull AcademicRank academicRank,
+        
         @NotBlank
         @Size(max = ROOM_MAX)
-        @Pattern(
-            regexp = ROOM_CODE_REGEX,
-            message = OFFICE_MESSAGE
-        )
+        @Pattern(regexp = ROOM_CODE_REGEX, message = OFFICE_MESSAGE)
         String office
-) {}
+) implements TargetRoleProfileData {}

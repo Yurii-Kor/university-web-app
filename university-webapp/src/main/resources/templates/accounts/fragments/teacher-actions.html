@@ -5,39 +5,44 @@
 <div th:fragment="teacherActions(t, currentPage)" class="account-actions-bar">
 
   <details class="account-self-edit">
-    <summary class="ou-btn ou-btn--ghost">To Student</summary>
+    <summary class="ou-btn ou-btn--ghost"
+             th:attr="
+               data-role-change-plan-url=@{/accounts/teachers/{id}/role-change/to-student/plan(id=${t.id})},
+               data-role-change-restore-form-id=|restore_teacher_to_student_${t.id}|
+             ">
+      To Student
+    </summary>
+
+    <form th:id="|restore_teacher_to_student_${t.id}|"
+          method="post"
+          th:action="@{/accounts/teachers/{id}/role-change/to-student/restore(id=${t.id})}"
+          hidden>
+      <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
+    </form>
 
     <form class="account-self-edit__form"
           method="post"
-          th:action="@{/accounts/teachers/to-student}"
+          th:action="@{/accounts/teachers/{id}/role-change/to-student(id=${t.id})}"
           onsubmit="return confirm('Apply role change from teacher to student?');">
 
       <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
       <input type="hidden" name="userId" th:value="${t.id}" />
-      <input type="hidden" name="page" th:value="${currentPage}" />
-      <input type="hidden" name="view" value="teachers" />
 
       <div class="account-self-edit__divider" aria-hidden="true"></div>
 
       <div class="account-self-edit__fields">
         <div>
-          <label class="account-self-edit__label"
-                 th:for="|group_${t.id}|">Group</label>
-          <select class="ou-input"
-                  th:id="|group_${t.id}|"
-                  name="groupId">
+          <label class="account-self-edit__label" th:for="|group_${t.id}|">Group</label>
+          <select class="ou-input" th:id="|group_${t.id}|" name="groupId">
             <option value="" selected disabled>— Select group —</option>
-            <option th:each="g : ${all_groups}"
-                    th:value="${g.id}"
-                    th:text="${g.name}">
+            <option th:each="g : ${all_groups}" th:value="${g.id}" th:text="${g.name}">
               Group
             </option>
           </select>
         </div>
 
         <div>
-          <label class="account-self-edit__label"
-                 th:for="|year_${t.id}|">Enrollment year</label>
+          <label class="account-self-edit__label" th:for="|year_${t.id}|">Enrollment year</label>
           <input class="ou-input"
                  th:id="|year_${t.id}|"
                  name="enrollmentYear"
@@ -49,9 +54,7 @@
       </div>
 
       <div class="account-self-edit__actions">
-        <button type="button"
-                class="ou-btn ou-btn--ghost"
-                data-details-form-cancel>
+        <button type="button" class="ou-btn ou-btn--ghost" data-details-form-cancel>
           Cancel
         </button>
 
@@ -67,12 +70,13 @@
 
     <form class="ou-inline-form"
           method="post"
-          th:action="${t.enabled} ? @{/accounts/{id}/disable(id=${t.id})} : @{/accounts/{id}/enable(id=${t.id})}"
+          th:action="${t.enabled} ? @{/accounts/teachers/{id}/disable(id=${t.id})} : @{/accounts/teachers/{id}/enable(id=${t.id})}"
           onsubmit="return confirm('Change account status?');">
       <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
       <input type="hidden" name="page" th:value="${currentPage}" />
-      <input type="hidden" name="view" value="teachers" />
-      <button type="submit" class="ou-btn ou-btn--ghost"
+
+      <button type="submit"
+              class="ou-btn ou-btn--ghost"
               th:text="${t.enabled} ? 'Disable' : 'Enable'">
         Disable
       </button>
@@ -80,14 +84,13 @@
 
     <form class="ou-inline-form account-actions-bar__delete"
           method="post"
-          th:action="@{/accounts/{id}/delete(id=${t.id})}"
+          th:action="@{/accounts/teachers/{id}/delete(id=${t.id})}"
           onsubmit="return confirm('Delete this teacher account?');">
       <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
       <input type="hidden" name="page" th:value="${currentPage}" />
-      <input type="hidden" name="view" value="teachers" />
-      <button type="submit"
-              class="ou-btn ou-btn--danger">
-        Delete
+
+      <button type="submit" class="ou-btn ou-btn--danger">
+        Soft Delete
       </button>
     </form>
   </div>

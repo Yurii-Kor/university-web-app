@@ -8,6 +8,9 @@ import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Optional;
 
+import org.hibernate.annotations.SQLDelete;
+import org.hibernate.annotations.SQLRestriction;
+
 @Getter @Setter
 @NoArgsConstructor
 @AllArgsConstructor
@@ -16,6 +19,8 @@ import java.util.Optional;
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
 @Entity
 @Table(name = "app_user")
+@SQLDelete(sql = "update app_user set deleted_at = now() where id = ? and deleted_at is null")
+@SQLRestriction("deleted_at is null")
 public class AppUser {
 
 	@Id
@@ -49,11 +54,16 @@ public class AppUser {
 	@Column()
 	private boolean enabled = true;
 
-	@Column(insertable = false)
+	@Column(insertable = false, updatable = false)
 	private OffsetDateTime createdAt;
 
 	@ToString.Include(name = "createdAt")
 	public String getCreatedAtIso() {
-		return Optional.ofNullable(createdAt).map(DateTimeFormatter.ISO_OFFSET_DATE_TIME::format).orElse(null);
+		return Optional.ofNullable(createdAt)
+		               .map(DateTimeFormatter.ISO_OFFSET_DATE_TIME::format)
+		               .orElse(null);
 	}
+	
+	@Column()
+    private OffsetDateTime deletedAt;
 }

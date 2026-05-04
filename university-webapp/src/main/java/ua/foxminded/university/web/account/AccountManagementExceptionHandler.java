@@ -1,7 +1,5 @@
 package ua.foxminded.university.web.account;
 
-import java.util.Optional;
-
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -10,10 +8,8 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.ConstraintViolationException;
 import lombok.RequiredArgsConstructor;
-import ua.foxminded.university.service.dto.request.appuser.StudentToTeacherRoleChangeDto;
-import ua.foxminded.university.service.dto.request.appuser.TeacherToStudentRoleChangeDto;
-import ua.foxminded.university.service.exception.appuser.StudentToTeacherRoleChangeException;
-import ua.foxminded.university.service.exception.appuser.TeacherToStudentRoleChangeException;
+import ua.foxminded.university.model.domain.enums.UserRole;
+import ua.foxminded.university.service.rolechange.exception.RoleChangeException;
 import ua.foxminded.university.web.util.ExceptionMessageReader;
 
 @ControllerAdvice(assignableTypes = AccountManagementController.class)
@@ -22,28 +18,14 @@ public class AccountManagementExceptionHandler {
 
     private final ExceptionMessageReader messageReader;
 
-    @ExceptionHandler(StudentToTeacherRoleChangeException.class)
-    public String handleStudentToTeacher(StudentToTeacherRoleChangeException ex,
-                                         RedirectAttributes ra) {
+    @ExceptionHandler(RoleChangeException.class)
+    public String handleRoleChange(RoleChangeException ex,
+                                   RedirectAttributes ra) {
 
-        Optional.ofNullable(ex.getForm())
-                .map(StudentToTeacherRoleChangeDto::userId)
-                .ifPresent(id -> ra.addFlashAttribute("accountId", id));
+        ra.addFlashAttribute("err", messageReader.safeMessage(ex, "Unable to change account role."));
+        ra.addFlashAttribute("accountId", ex.accountId());
 
-        ra.addFlashAttribute("err", messageReader.safeMessage(ex, "Unable to change student role."));
-        return "redirect:/accounts?view=students";
-    }
-
-    @ExceptionHandler(TeacherToStudentRoleChangeException.class)
-    public String handleTeacherToStudent(TeacherToStudentRoleChangeException ex,
-                                         RedirectAttributes ra) {
-
-        Optional.ofNullable(ex.getForm())
-                .map(TeacherToStudentRoleChangeDto::userId)
-                .ifPresent(id -> ra.addFlashAttribute("accountId", id));
-
-        ra.addFlashAttribute("err", messageReader.safeMessage(ex, "Unable to change teacher role."));
-        return "redirect:/accounts?view=teachers";
+        return redirectToRoleView(ex.currentRole());
     }
 
     @ExceptionHandler(ConstraintViolationException.class)
@@ -84,5 +66,13 @@ public class AccountManagementExceptionHandler {
 
         ra.addFlashAttribute("err", "Something went wrong.");
         return "redirect:/accounts";
+    }
+
+    private String redirectToRoleView(UserRole role) {
+        return switch (role) {
+            case STUDENT -> "redirect:/accounts?view=students&page=0";
+            case TEACHER -> "redirect:/accounts?view=teachers&page=0";
+            case ADMIN -> "redirect:/accounts?page=0";
+        };
     }
 }

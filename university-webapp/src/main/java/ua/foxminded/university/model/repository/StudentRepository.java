@@ -2,6 +2,8 @@ package ua.foxminded.university.model.repository;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+
+import ua.foxminded.university.model.repository.dto.DeletedStudentCardProjection;
 import ua.foxminded.university.model.repository.dto.StudentCardView;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
@@ -43,7 +45,7 @@ public interface StudentRepository extends JpaRepository<Student, Long> {
 			join s.user u
 			join s.group g
 			where s.id = :id
-		""")
+		    """)
 	Optional<StudentProfileView> findStudentProfileViewById(@Param("id") Long id);
 	
 	@Query("select s.group.id from Student s where s.id = :studentId")
@@ -69,4 +71,47 @@ public interface StudentRepository extends JpaRepository<Student, Long> {
                 from Student s
             """)
     Page<StudentCardView> findStudentCardsAll(Pageable pageable);
+    
+    @Query(value = """
+            select s.group_id
+            from student s
+            join groups g on g.id = s.group_id
+            where s.id = :id
+              and s.deleted_at is not null
+              and g.deleted_at is null
+            """, nativeQuery = true)
+    Optional<Long> findRestorableDeletedStudentGroupIdById(@Param("id") Long id);
+    
+    @Query(value = """
+            select *
+            from student
+            where id = :id
+              and deleted_at is not null
+            """, nativeQuery = true)
+    Optional<Student> findDeletedById(@Param("id") Long id);
+    
+    @Query(value = """
+            select
+                s.id as id,
+                u.email as email,
+                u.first_name as firstName,
+                u.last_name as lastName,
+                u.enabled as enabled,
+                u.created_at as createdAt,
+                s.deleted_at as deletedAt,
+                s.enrollment_year as enrollmentYear,
+                g.name as groupName
+            from student s
+            join app_user u on u.id = s.id
+            join groups g on g.id = s.group_id
+            where s.deleted_at is not null
+            order by s.deleted_at desc
+            """, countQuery = """
+            select count(*)
+            from student s
+            join app_user u on u.id = s.id
+            join groups g on g.id = s.group_id
+            where s.deleted_at is not null
+            """, nativeQuery = true)
+    Page<DeletedStudentCardProjection> findDeletedStudentCards(Pageable pageable);
 }

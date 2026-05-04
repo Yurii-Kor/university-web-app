@@ -7,6 +7,7 @@ create table if not exists app_user (
   last_name   varchar(64)  not null,
   enabled     boolean      not null default true,
   created_at  timestamptz  not null default now(),
+  deleted_at  timestamptz,
 
   constraint ck_app_user_role        check (role in ('STUDENT','TEACHER','ADMIN')),
   constraint ck_app_user_email_lower check (email = lower(email)),
@@ -15,21 +16,24 @@ create table if not exists app_user (
 
 create table if not exists groups (
   id          bigserial    primary key,
-  name        varchar(255) not null
+  name        varchar(255) not null,
+  deleted_at       timestamptz
 );
 create unique index if not exists uq_groups_name_ci on groups (lower(name));
 
 create table if not exists student (
   id               bigint primary key references app_user(id) on delete cascade,
   group_id         bigint references groups(id) not null,
-  enrollment_year  int not null
+  enrollment_year  int not null,
+  deleted_at       timestamptz
 );
 create index if not exists idx_student_group on student(group_id);
 
 create table if not exists teacher (
   id            bigint primary key references app_user(id) on delete cascade,
   academic_rank varchar(64) not null,
-  office        varchar(64) not null
+  office        varchar(64) not null,
+  deleted_at       timestamptz
 );
 
 create table if not exists courses (

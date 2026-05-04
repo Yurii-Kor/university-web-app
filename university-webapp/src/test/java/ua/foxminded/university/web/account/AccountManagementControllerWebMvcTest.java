@@ -23,18 +23,21 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import ua.foxminded.university.model.domain.enums.AcademicRank;
+import ua.foxminded.university.model.domain.enums.UserRole;
 import ua.foxminded.university.model.repository.dto.GroupView;
 import ua.foxminded.university.model.repository.dto.StudentCardView;
 import ua.foxminded.university.model.repository.dto.TeacherCardView;
-import ua.foxminded.university.service.AppUserRoleTransitionService;
 import ua.foxminded.university.service.AppUserService;
 import ua.foxminded.university.service.StudentService;
 import ua.foxminded.university.service.StudyGroupService;
 import ua.foxminded.university.service.TeacherService;
-import ua.foxminded.university.service.dto.request.appuser.StudentToTeacherRoleChangeDto;
-import ua.foxminded.university.service.dto.request.appuser.TeacherToStudentRoleChangeDto;
-import ua.foxminded.university.service.exception.appuser.StudentToTeacherRoleChangeException;
-import ua.foxminded.university.service.exception.appuser.TeacherToStudentRoleChangeException;
+import ua.foxminded.university.service.dto.request.rolechange.ToTeacherRoleChangeDto;
+import ua.foxminded.university.service.dto.request.rolechange.ToStudentRoleChangeDto;
+import ua.foxminded.university.service.rolechange.RoleChangePlanningService;
+import ua.foxminded.university.service.rolechange.RoleChangeService;
+import ua.foxminded.university.service.rolechange.exception.RoleChangeException;
+import ua.foxminded.university.service.rolechange.plan.RoleChangePlan;
+import ua.foxminded.university.service.rolechange.plan.RoleChangePlanMode;
 import ua.foxminded.university.web.account.page.AccountsPage;
 import ua.foxminded.university.web.account.page.AccountsPageModelFactory;
 import ua.foxminded.university.web.util.ExceptionMessageReader;
@@ -50,26 +53,15 @@ class AccountManagementControllerWebMvcTest {
     private static final Long ACCOUNT_ID = 101L;
     private static final Long GROUP_ID = 11L;
 
-    @Autowired
-    MockMvc mockMvc;
+    @Autowired MockMvc mockMvc;
 
-    @MockitoBean
-    AccountsPageModelFactory pageFactory;
-
-    @MockitoBean
-    StudyGroupService studyGroupService;
-
-    @MockitoBean
-    AppUserRoleTransitionService roleTransitionService;
-
-    @MockitoBean
-    AppUserService appUserService;
-
-    @MockitoBean
-    StudentService studentService;
-
-    @MockitoBean
-    TeacherService teacherService;
+    @MockitoBean AccountsPageModelFactory pageFactory;
+    @MockitoBean StudyGroupService studyGroupService;
+    @MockitoBean RoleChangePlanningService roleChangePlanningService;
+    @MockitoBean RoleChangeService roleChangeService;
+    @MockitoBean AppUserService appUserService;
+    @MockitoBean StudentService studentService;
+    @MockitoBean TeacherService teacherService;
 
     private AcademicRank anyRank() {
         return AcademicRank.values()[0];
@@ -185,183 +177,259 @@ class AccountManagementControllerWebMvcTest {
     }
 
     @Test
-    @DisplayName("POST /accounts/students/to-teacher ok -> redirects students page, flash ok + accountId, calls service")
+    @DisplayName("GET /accounts/students/{id}/role-change/to-teacher/plan -> returns role change plan")
+    void getStudentToTeacherPlan_ok_returnsPlan() throws Exception {
+        var plan = new RoleChangePlan(
+                ACCOUNT_ID,
+                UserRole.STUDENT,
+                UserRole.TEACHER,
+                RoleChangePlanMode.INPUT_REQUIRED,
+                "Teacher profile data is required.",
+                List.of("academicRank", "office")
+        );
+
+        when(roleChangePlanningService.planRoleChange(ACCOUNT_ID, UserRole.STUDENT, UserRole.TEACHER))
+                .thenReturn(plan);
+
+        mockMvc.perform(get("/accounts/students/{id}/role-change/to-teacher/plan", ACCOUNT_ID)
+                        .with(user(USER_ID.toString()).roles("ADMIN")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.userId").value(ACCOUNT_ID))
+                .andExpect(jsonPath("$.sourceRole").value("STUDENT"))
+                .andExpect(jsonPath("$.targetRole").value("TEACHER"))
+                .andExpect(jsonPath("$.mode").value("INPUT_REQUIRED"))
+                .andExpect(jsonPath("$.message").value("Teacher profile data is required."));
+
+        verify(roleChangePlanningService).planRoleChange(ACCOUNT_ID, UserRole.STUDENT, UserRole.TEACHER);
+    }
+
+    @Test
+    @DisplayName("GET /accounts/teachers/{id}/role-change/to-student/plan -> returns role change plan")
+    void getTeacherToStudentPlan_ok_returnsPlan() throws Exception {
+        var plan = new RoleChangePlan(
+                ACCOUNT_ID,
+                UserRole.TEACHER,
+                UserRole.STUDENT,
+                RoleChangePlanMode.AUTO_RESTORE_AVAILABLE,
+                "Previous student profile found. It can be restored without additional data.",
+                List.of()
+        );
+
+        when(roleChangePlanningService.planRoleChange(ACCOUNT_ID, UserRole.TEACHER, UserRole.STUDENT))
+                .thenReturn(plan);
+
+        mockMvc.perform(get("/accounts/teachers/{id}/role-change/to-student/plan", ACCOUNT_ID)
+                        .with(user(USER_ID.toString()).roles("ADMIN")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.userId").value(ACCOUNT_ID))
+                .andExpect(jsonPath("$.sourceRole").value("TEACHER"))
+                .andExpect(jsonPath("$.targetRole").value("STUDENT"))
+                .andExpect(jsonPath("$.mode").value("AUTO_RESTORE_AVAILABLE"));
+
+        verify(roleChangePlanningService).planRoleChange(ACCOUNT_ID, UserRole.TEACHER, UserRole.STUDENT);
+    }
+
+    @Test
+    @DisplayName("POST /accounts/students/{id}/role-change/to-teacher ok -> redirects teachers page, flash ok + accountId, calls service")
     void postStudentToTeacher_ok_redirectsAndCallsService() throws Exception {
         var rank = anyRank();
 
-        mockMvc.perform(post("/accounts/students/to-teacher")
+        mockMvc.perform(post("/accounts/students/{id}/role-change/to-teacher", ACCOUNT_ID)
                         .with(user(USER_ID.toString()).roles("ADMIN"))
                         .with(csrf())
                         .param("userId", ACCOUNT_ID.toString())
                         .param("academicRank", rank.name())
-                        .param("office", "T-301")
-                        .param("page", "2"))
+                        .param("office", "T-301"))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/accounts?view=students&page=2"))
+                .andExpect(redirectedUrl("/accounts?view=teachers&page=0"))
                 .andExpect(flash().attribute("ok", "Student role changed to teacher."))
                 .andExpect(flash().attribute("accountId", ACCOUNT_ID));
 
-        verify(roleTransitionService).changeStudentToTeacher(
-                new StudentToTeacherRoleChangeDto(ACCOUNT_ID, rank, "T-301")
+        verify(roleChangeService).changeStudentToTeacher(
+                new ToTeacherRoleChangeDto(ACCOUNT_ID, rank, "T-301")
         );
     }
 
     @Test
-    @DisplayName("POST /accounts/teachers/to-student ok -> redirects teachers page, flash ok + accountId, calls service")
+    @DisplayName("POST /accounts/students/{id}/role-change/to-teacher/restore ok -> redirects teachers page, flash ok + accountId, calls service")
+    void postRestoreStudentToTeacher_ok_redirectsAndCallsService() throws Exception {
+        mockMvc.perform(post("/accounts/students/{id}/role-change/to-teacher/restore", ACCOUNT_ID)
+                        .with(user(USER_ID.toString()).roles("ADMIN"))
+                        .with(csrf()))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/accounts?view=teachers&page=0"))
+                .andExpect(flash().attribute("ok", "Student role changed to teacher."))
+                .andExpect(flash().attribute("accountId", ACCOUNT_ID));
+
+        verify(roleChangeService).restoreStudentToTeacher(ACCOUNT_ID);
+    }
+
+    @Test
+    @DisplayName("POST /accounts/teachers/{id}/role-change/to-student ok -> redirects students page, flash ok + accountId, calls service")
     void postTeacherToStudent_ok_redirectsAndCallsService() throws Exception {
-        mockMvc.perform(post("/accounts/teachers/to-student")
+        mockMvc.perform(post("/accounts/teachers/{id}/role-change/to-student", ACCOUNT_ID)
                         .with(user(USER_ID.toString()).roles("ADMIN"))
                         .with(csrf())
                         .param("userId", ACCOUNT_ID.toString())
                         .param("groupId", GROUP_ID.toString())
-                        .param("enrollmentYear", "2024")
-                        .param("page", "1"))
+                        .param("enrollmentYear", "2024"))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/accounts?view=teachers&page=1"))
+                .andExpect(redirectedUrl("/accounts?view=students&page=0"))
                 .andExpect(flash().attribute("ok", "Teacher role changed to student."))
                 .andExpect(flash().attribute("accountId", ACCOUNT_ID));
 
-        verify(roleTransitionService).changeTeacherToStudent(
-                new TeacherToStudentRoleChangeDto(ACCOUNT_ID, GROUP_ID, 2024)
+        verify(roleChangeService).changeTeacherToStudent(
+                new ToStudentRoleChangeDto(ACCOUNT_ID, GROUP_ID, 2024)
         );
     }
 
     @Test
-    @DisplayName("POST /accounts/students/to-teacher when StudentToTeacherRoleChangeException -> redirects students view, flash err + accountId")
+    @DisplayName("POST /accounts/teachers/{id}/role-change/to-student/restore ok -> redirects students page, flash ok + accountId, calls service")
+    void postRestoreTeacherToStudent_ok_redirectsAndCallsService() throws Exception {
+        mockMvc.perform(post("/accounts/teachers/{id}/role-change/to-student/restore", ACCOUNT_ID)
+                        .with(user(USER_ID.toString()).roles("ADMIN"))
+                        .with(csrf()))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/accounts?view=students&page=0"))
+                .andExpect(flash().attribute("ok", "Teacher role changed to student."))
+                .andExpect(flash().attribute("accountId", ACCOUNT_ID));
+
+        verify(roleChangeService).restoreTeacherToStudent(ACCOUNT_ID);
+    }
+
+    @Test
+    @DisplayName("POST student to teacher when RoleChangeException -> redirects source students view, flash err + accountId")
     void postStudentToTeacher_roleChangeException_redirectsStudentsAndSetsErr() throws Exception {
         var rank = anyRank();
-        var dto = new StudentToTeacherRoleChangeDto(ACCOUNT_ID, rank, "T-301");
 
-        doThrow(new StudentToTeacherRoleChangeException(dto, "User is not a student: id=" + ACCOUNT_ID))
-                .when(roleTransitionService).changeStudentToTeacher(any());
+        doThrow(new RoleChangeException(
+                ACCOUNT_ID,
+                UserRole.STUDENT,
+                UserRole.TEACHER,
+                "User is not a student: id=" + ACCOUNT_ID
+        )).when(roleChangeService).changeStudentToTeacher(any());
 
-        mockMvc.perform(post("/accounts/students/to-teacher")
+        mockMvc.perform(post("/accounts/students/{id}/role-change/to-teacher", ACCOUNT_ID)
                         .with(user(USER_ID.toString()).roles("ADMIN"))
                         .with(csrf())
                         .param("userId", ACCOUNT_ID.toString())
                         .param("academicRank", rank.name())
-                        .param("office", "T-301")
-                        .param("page", "2"))
+                        .param("office", "T-301"))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/accounts?view=students"))
+                .andExpect(redirectedUrl("/accounts?view=students&page=0"))
                 .andExpect(flash().attribute("accountId", ACCOUNT_ID))
                 .andExpect(flash().attribute("err", "User is not a student: id=" + ACCOUNT_ID));
     }
 
     @Test
-    @DisplayName("POST /accounts/teachers/to-student when TeacherToStudentRoleChangeException -> redirects teachers view, flash err + accountId")
+    @DisplayName("POST teacher to student when RoleChangeException -> redirects source teachers view, flash err + accountId")
     void postTeacherToStudent_roleChangeException_redirectsTeachersAndSetsErr() throws Exception {
-        var dto = new TeacherToStudentRoleChangeDto(ACCOUNT_ID, GROUP_ID, 2024);
+        doThrow(new RoleChangeException(
+                ACCOUNT_ID,
+                UserRole.TEACHER,
+                UserRole.STUDENT,
+                "Cannot change role: teacher has assigned courses (count=1)"
+        )).when(roleChangeService).changeTeacherToStudent(any());
 
-        doThrow(new TeacherToStudentRoleChangeException(dto, "Cannot change role: teacher has assigned courses (count=1)"))
-                .when(roleTransitionService).changeTeacherToStudent(any());
-
-        mockMvc.perform(post("/accounts/teachers/to-student")
+        mockMvc.perform(post("/accounts/teachers/{id}/role-change/to-student", ACCOUNT_ID)
                         .with(user(USER_ID.toString()).roles("ADMIN"))
                         .with(csrf())
                         .param("userId", ACCOUNT_ID.toString())
                         .param("groupId", GROUP_ID.toString())
-                        .param("enrollmentYear", "2024")
-                        .param("page", "1"))
+                        .param("enrollmentYear", "2024"))
                 .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/accounts?view=teachers"))
+                .andExpect(redirectedUrl("/accounts?view=teachers&page=0"))
                 .andExpect(flash().attribute("accountId", ACCOUNT_ID))
                 .andExpect(flash().attribute("err", "Cannot change role: teacher has assigned courses (count=1)"));
     }
 
     @Test
-    @DisplayName("POST /accounts/{id}/enable ok -> redirects current view/page, flash ok, calls service")
-    void postEnableAccount_ok_redirectsAndCallsService() throws Exception {
-        mockMvc.perform(post("/accounts/{id}/enable", ACCOUNT_ID)
+    @DisplayName("POST /accounts/teachers/{id}/enable ok -> redirects teachers page, flash ok, calls service")
+    void postEnableTeacherAccount_ok_redirectsAndCallsService() throws Exception {
+        mockMvc.perform(post("/accounts/teachers/{id}/enable", ACCOUNT_ID)
                         .with(user(USER_ID.toString()).roles("ADMIN"))
                         .with(csrf())
-                        .param("view", "teachers")
                         .param("page", "3"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/accounts?view=teachers&page=3"))
-                .andExpect(flash().attribute("ok", "Account enabled."))
+                .andExpect(flash().attribute("ok", "Teacher account enabled."))
                 .andExpect(flash().attribute("accountId", ACCOUNT_ID));
 
         verify(appUserService).enableUserByIds(ACCOUNT_ID);
     }
-
+    
     @Test
-    @DisplayName("POST /accounts/{id}/disable ok -> redirects current view/page, flash ok, calls service")
-    void postDisableAccount_ok_redirectsAndCallsService() throws Exception {
-        mockMvc.perform(post("/accounts/{id}/disable", ACCOUNT_ID)
+    @DisplayName("POST /accounts/teachers/{id}/enable when EntityNotFoundException -> redirects /accounts, flash err")
+    void postEnableTeacherAccount_entityNotFound_redirectsAccountsAndSetsErr() throws Exception {
+        doThrow(new EntityNotFoundException("User not found: id=" + ACCOUNT_ID))
+                .when(appUserService).enableUserByIds(ACCOUNT_ID);
+
+        mockMvc.perform(post("/accounts/teachers/{id}/enable", ACCOUNT_ID)
                         .with(user(USER_ID.toString()).roles("ADMIN"))
                         .with(csrf())
-                        .param("view", "students")
+                        .param("page", "1"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/accounts"))
+                .andExpect(flash().attribute("err", "User not found: id=" + ACCOUNT_ID));
+    }
+    
+    @Test
+    @DisplayName("POST /accounts/students/{id}/disable ok -> redirects students page, flash ok, calls service")
+    void postDisableStudentAccount_ok_redirectsAndCallsService() throws Exception {
+        mockMvc.perform(post("/accounts/students/{id}/disable", ACCOUNT_ID)
+                        .with(user(USER_ID.toString()).roles("ADMIN"))
+                        .with(csrf())
                         .param("page", "1"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/accounts?view=students&page=1"))
-                .andExpect(flash().attribute("ok", "Account disabled."))
+                .andExpect(flash().attribute("ok", "Student account disabled."))
                 .andExpect(flash().attribute("accountId", ACCOUNT_ID));
 
         verify(appUserService).disableUserByIds(ACCOUNT_ID);
     }
 
     @Test
-    @DisplayName("POST /accounts/{id}/delete with students view -> redirects students page, calls studentService")
-    void postDeleteAccount_studentsView_redirectsAndCallsStudentService() throws Exception {
-        mockMvc.perform(post("/accounts/{id}/delete", ACCOUNT_ID)
+    @DisplayName("POST /accounts/students/{id}/delete -> redirects students page, calls studentService")
+    void postDeleteStudentAccount_redirectsAndCallsStudentService() throws Exception {
+        mockMvc.perform(post("/accounts/students/{id}/delete", ACCOUNT_ID)
                         .with(user(USER_ID.toString()).roles("ADMIN"))
                         .with(csrf())
-                        .param("view", "students")
                         .param("page", "2"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/accounts?view=students&page=2"))
                 .andExpect(flash().attribute("ok", "Student account deleted."));
 
-        verify(studentService).deleteByIds(List.of(ACCOUNT_ID));
-        verify(teacherService, never()).deleteByIds(any());
+        verify(studentService).deleteById(ACCOUNT_ID);
+        verify(teacherService, never()).deleteById(anyLong());
     }
 
     @Test
-    @DisplayName("POST /accounts/{id}/delete with teachers view -> redirects teachers page, calls teacherService")
-    void postDeleteAccount_teachersView_redirectsAndCallsTeacherService() throws Exception {
-        mockMvc.perform(post("/accounts/{id}/delete", ACCOUNT_ID)
+    @DisplayName("POST /accounts/teachers/{id}/delete -> redirects teachers page, calls teacherService")
+    void postDeleteTeacherAccount_redirectsAndCallsTeacherService() throws Exception {
+        mockMvc.perform(post("/accounts/teachers/{id}/delete", ACCOUNT_ID)
                         .with(user(USER_ID.toString()).roles("ADMIN"))
                         .with(csrf())
-                        .param("view", "teachers")
                         .param("page", "4"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/accounts?view=teachers&page=4"))
                 .andExpect(flash().attribute("ok", "Teacher account deleted."));
 
-        verify(teacherService).deleteByIds(List.of(ACCOUNT_ID));
-        verify(studentService, never()).deleteByIds(any());
+        verify(teacherService).deleteById(ACCOUNT_ID);
+        verify(studentService, never()).deleteById(anyLong());
     }
 
     @Test
-    @DisplayName("POST /accounts/{id}/enable when EntityNotFoundException -> redirects /accounts, flash err")
-    void postEnableAccount_entityNotFound_redirectsAccountsAndSetsErr() throws Exception {
-        doThrow(new EntityNotFoundException("User not found: id=" + ACCOUNT_ID))
-                .when(appUserService).enableUserByIds(ACCOUNT_ID);
-
-        mockMvc.perform(post("/accounts/{id}/enable", ACCOUNT_ID)
-                        .with(user(USER_ID.toString()).roles("ADMIN"))
-                        .with(csrf())
-                        .param("view", "teachers")
-                        .param("page", "1"))
-                .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/accounts"))
-                .andExpect(flash().attribute("err", "User not found: id=" + ACCOUNT_ID));
-    }
-
-    @Test
-    @DisplayName("POST /accounts/teachers/to-student invalid dto -> redirects /accounts, flash err")
+    @DisplayName("POST /accounts/teachers/{id}/role-change/to-student invalid dto -> redirects /accounts, flash err")
     void postTeacherToStudent_validationError_redirectsAccountsAndSetsErr() throws Exception {
         doThrow(mock(ConstraintViolationException.class))
-                .when(roleTransitionService).changeTeacherToStudent(any());
+                .when(roleChangeService).changeTeacherToStudent(any());
 
-        mockMvc.perform(post("/accounts/teachers/to-student")
+        mockMvc.perform(post("/accounts/teachers/{id}/role-change/to-student", ACCOUNT_ID)
                         .with(user(USER_ID.toString()).roles("ADMIN"))
                         .with(csrf())
                         .param("userId", ACCOUNT_ID.toString())
                         .param("groupId", "")
-                        .param("enrollmentYear", "")
-                        .param("page", "1"))
+                        .param("enrollmentYear", ""))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/accounts"))
                 .andExpect(flash().attributeExists("err"));

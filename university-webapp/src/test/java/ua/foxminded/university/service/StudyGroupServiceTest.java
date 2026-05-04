@@ -31,49 +31,63 @@ import ua.foxminded.university.testutil.TestDataInitializer;
 @ActiveProfiles("test")
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-@Import({ TestcontainersConfiguration.class, StudyGroupService.class, ValidatorConfig.class, EntityValidatior.class,
-		TestDataInitializer.class, DtoMapper.class, DuplicateGuard.class })
+@Import({
+    TestcontainersConfiguration.class,
+    StudyGroupService.class,
+    ValidatorConfig.class,
+    EntityValidatior.class,
+	TestDataInitializer.class,
+	DtoMapper.class,
+	DuplicateGuard.class
+})
 class StudyGroupServiceTest {
 
-	static final String DEFAULT_GROUP_NAME = "CS-101";
-	static final String NAME_A = "AB-101";
-	static final String NAME_B = "SE-205";
-	static final String TO_CREATE_VALID = "EE-205";
-	static final String TO_DELETE = "CS-102";
+    static final String DEFAULT_GROUP_NAME = "AA-101";
+    static final String GROUP_WITH_STUDENT_NAME = "AA-102";
 
-	static final String BAD_NAME = "wrong";
-	static final String BAD_SPACED_LOWER = "  e  e  205 ";
+    static final String CREATE_HAPPY_GROUP_NAME = "AB-101";
+    static final String DUPLICATE_REQUEST_GROUP_NAME = "AB-102";
 
-	static final Long MISSING_ID = 999_999L;
-	static final Integer ONE_GROUP = 1;
+    static final String RENAME_SOURCE_GROUP_NAME = "AC-101";
+    static final String RENAME_TARGET_GROUP_NAME = "AC-102";
+    static final String RENAME_NULL_ID_GROUP_NAME = "AC-103";
+    static final String RENAME_MISSING_ID_GROUP_NAME = "AC-104";
 
-	@Autowired
-	private StudyGroupService groupService;
-	@Autowired
-	private TestDataInitializer initializer;
+    static final String DELETE_MIXED_GROUP_NAME = "AD-101";
+    static final String DELETE_DUPLICATED_INPUT_GROUP_NAME = "AD-102";
 
-	private StudyGroup testGroup, groupWithStudent, tempGroup;
+    static final String BAD_NAME = "wrong";
+    static final String BAD_SPACED_LOWER = "  e  e  205 ";
+
+    static final Long MISSING_ID = 999_999L;
+    static final Integer ONE_GROUP = 1;
+
+	@Autowired StudyGroupService groupService;
+	@Autowired TestDataInitializer initializer;
+
+	StudyGroup testGroup, groupWithStudent, tempGroup;
 
 	@BeforeAll
 	void setup() {
-		testGroup = initializer.persistAll(StudyGroup.builder().name(DEFAULT_GROUP_NAME).build()).get(0);
+        testGroup = initializer.persistAll(StudyGroup.builder().name(DEFAULT_GROUP_NAME).build()).getFirst();
 
-		var group = StudyGroup.builder().name("CS-201").build();
-		var student = Student.builder()
-				.user(AppUser.builder()
-						.email("seed-student@example.com")
-						.password("Abcd1234!")
-						.role(UserRole.STUDENT)
-						.firstName("Seed")
-						.lastName("Student")
-						.enabled(true)
-						.build())
-				.group(group)
-				.enrollmentYear(2024)
-				.build();
+	    var group = StudyGroup.builder().name(GROUP_WITH_STUDENT_NAME).build();
 
-		groupWithStudent = initializer.persistAll(group).get(0);
-		initializer.persistAll(student).get(0);
+	    var student = Student.builder()
+	            .user(AppUser.builder()
+	                    .email("seed-student@example.com")
+	                    .password("Abcd1234!")
+	                    .role(UserRole.STUDENT)
+	                    .firstName("Seed")
+	                    .lastName("Student")
+	                    .enabled(true)
+	                    .build())
+	            .group(group)
+	            .enrollmentYear(2024)
+	            .build();
+
+	    groupWithStudent = initializer.persistAll(group).getFirst();
+	    initializer.persistAll(student).getFirst();
 	}
 	
 	@AfterEach
@@ -84,15 +98,15 @@ class StudyGroupServiceTest {
 	@Test
 	@DisplayName("createAll: happy path — ignores nulls and persists valid group")
 	void createAll_happyPath_success() {
-		var dto = new StudyGroupCreateDto(NAME_A);
+	    var dto = new StudyGroupCreateDto(CREATE_HAPPY_GROUP_NAME);
 
-		var savedAll = groupService.createAll(Arrays.asList(null, dto));
+	    var savedAll = groupService.createAll(Arrays.asList(null, dto));
 
-		assertEquals(ONE_GROUP, savedAll.size(), "null DTO must be ignored");
-		tempGroup = savedAll.getFirst();
+	    assertEquals(ONE_GROUP, savedAll.size(), "null DTO must be ignored");
+	    tempGroup = savedAll.getFirst();
 
-		assertNotNull(tempGroup.getId(), "Group id must be assigned");
-		assertEquals(NAME_A, tempGroup.getName(), "Name must be persisted as provided");
+	    assertNotNull(tempGroup.getId(), "Group id must be assigned");
+	    assertEquals(CREATE_HAPPY_GROUP_NAME, tempGroup.getName(), "Name must be persisted as provided");
 	}
 
 	@Test
@@ -142,9 +156,10 @@ class StudyGroupServiceTest {
 	@Test
 	@DisplayName("createAll: duplicate names in one request -> IllegalArgumentException")
 	void createAll_duplicatesInRequest_fail() {
-		var a = new StudyGroupCreateDto(NAME_B);
-		var b = new StudyGroupCreateDto(NAME_B);
-		assertThrows(IllegalArgumentException.class, () -> groupService.createAll(List.of(a, b)));
+	    var a = new StudyGroupCreateDto(DUPLICATE_REQUEST_GROUP_NAME);
+	    var b = new StudyGroupCreateDto(DUPLICATE_REQUEST_GROUP_NAME);
+
+	    assertThrows(IllegalArgumentException.class, () -> groupService.createAll(List.of(a, b)));
 	}
 
 	@Test
@@ -165,12 +180,12 @@ class StudyGroupServiceTest {
 	@Test
 	@DisplayName("rename: happy path — updates group name")
 	void rename_happyPath_success() {
-		tempGroup = groupService.createAll(List.of(new StudyGroupCreateDto(NAME_A))).getFirst();
+	    tempGroup = groupService.createAll(List.of(new StudyGroupCreateDto(RENAME_SOURCE_GROUP_NAME))).getFirst();
 
-		var renamed = groupService.rename(new StudyGroupRenameDto(tempGroup.getId(), NAME_B));
+	    var renamed = groupService.rename(new StudyGroupRenameDto(tempGroup.getId(), RENAME_TARGET_GROUP_NAME));
 
-		assertEquals(tempGroup.getId(), renamed.getId());
-		assertEquals(NAME_B, renamed.getName(), "Name must be updated");
+	    assertEquals(tempGroup.getId(), renamed.getId());
+	    assertEquals(RENAME_TARGET_GROUP_NAME, renamed.getName(), "Name must be updated");
 	}
 
 	@Test
@@ -182,8 +197,8 @@ class StudyGroupServiceTest {
 	@Test
 	@DisplayName("rename: null id -> ConstraintViolationException")
 	void rename_nullId_fails() {
-		assertThrows(ConstraintViolationException.class,
-				() -> groupService.rename(new StudyGroupRenameDto(null, NAME_B)));
+	    assertThrows(ConstraintViolationException.class,
+	            () -> groupService.rename(new StudyGroupRenameDto(null, RENAME_NULL_ID_GROUP_NAME)));
 	}
 
 	@Test
@@ -197,8 +212,8 @@ class StudyGroupServiceTest {
 	@Test
 	@DisplayName("rename: missing id with valid name -> EntityNotFoundException")
 	void rename_missingId_distinctName_fails() {
-		assertThrows(EntityNotFoundException.class,
-				() -> groupService.rename(new StudyGroupRenameDto(MISSING_ID, NAME_B)));
+	    assertThrows(EntityNotFoundException.class,
+	            () -> groupService.rename(new StudyGroupRenameDto(MISSING_ID, RENAME_MISSING_ID_GROUP_NAME)));
 	}
 
 	@Test
@@ -220,11 +235,12 @@ class StudyGroupServiceTest {
 	@Test
 	@DisplayName("deleteByIds: mix existing/missing -> returns deleted & notFound as expected")
 	void deleteByIds_mixed_returnsSplit() {
-		var g = groupService.createAll(List.of(new StudyGroupCreateDto(TO_DELETE))).get(0);
+	    var g = groupService.createAll(List.of(new StudyGroupCreateDto(DELETE_MIXED_GROUP_NAME))).getFirst();
 
-		var res = groupService.deleteByIds(Arrays.asList(g.getId(), MISSING_ID, null));
-		assertEquals(Set.of(g.getId()), res.deletedIds(), "should delete existing id");
-		assertEquals(Set.of(MISSING_ID), res.notFoundIds(), "should report missing id");
+	    var res = groupService.deleteByIds(Arrays.asList(g.getId(), MISSING_ID, null));
+
+	    assertEquals(Set.of(g.getId()), res.deletedIds(), "should delete existing id");
+	    assertEquals(Set.of(MISSING_ID), res.notFoundIds(), "should report missing id");
 	}
 
 	@Test
@@ -246,9 +262,11 @@ class StudyGroupServiceTest {
 	@Test
 	@DisplayName("deleteByIds: duplicated ids in input -> deletedIds unique")
 	void deleteByIds_duplicatedInput_ok() {
-		var g = groupService.createAll(List.of(new StudyGroupCreateDto(TO_DELETE))).get(0);
-		var res = groupService.deleteByIds(Arrays.asList(g.getId(), g.getId()));
-		assertEquals(Set.of(g.getId()), res.deletedIds());
-		assertTrue(res.notFoundIds().isEmpty());
+	    var g = groupService.createAll(List.of(new StudyGroupCreateDto(DELETE_DUPLICATED_INPUT_GROUP_NAME))).getFirst();
+
+	    var res = groupService.deleteByIds(Arrays.asList(g.getId(), g.getId()));
+
+	    assertEquals(Set.of(g.getId()), res.deletedIds());
+	    assertTrue(res.notFoundIds().isEmpty());
 	}
 }

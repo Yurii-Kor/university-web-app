@@ -9,6 +9,7 @@ import org.springframework.data.repository.query.Param;
 
 import ua.foxminded.university.model.domain.Teacher;
 import ua.foxminded.university.model.repository.dto.TeacherCardView;
+import ua.foxminded.university.model.repository.dto.DeletedTeacherCardProjection;
 import ua.foxminded.university.model.repository.dto.IdCountAgg;
 import ua.foxminded.university.model.repository.dto.TeacherOptionView;
 import ua.foxminded.university.model.repository.dto.TeacherProfileView;
@@ -84,4 +85,35 @@ public interface TeacherRepository extends JpaRepository<Teacher, Long> {
                 from Teacher t
             """)
     Page<TeacherCardView> findTeacherCardsAll(Pageable pageable);
+    
+    @Query(value = """
+            select *
+            from teacher
+            where id = :id
+              and deleted_at is not null
+            """, nativeQuery = true)
+    Optional<Teacher> findDeletedById(@Param("id") Long id);
+    
+    @Query(value = """
+            select
+                t.id as id,
+                u.email as email,
+                u.first_name as firstName,
+                u.last_name as lastName,
+                u.enabled as enabled,
+                u.created_at as createdAt,
+                t.deleted_at as deletedAt,
+                t.academic_rank as academicRank,
+                t.office as office
+            from teacher t
+            join app_user u on u.id = t.id
+            where t.deleted_at is not null
+            order by t.deleted_at desc
+            """, countQuery = """
+            select count(*)
+            from teacher t
+            join app_user u on u.id = t.id
+            where t.deleted_at is not null
+            """, nativeQuery = true)
+    Page<DeletedTeacherCardProjection> findDeletedTeacherCards(Pageable pageable);
 }

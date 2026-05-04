@@ -20,13 +20,15 @@ import ua.foxminded.university.model.repository.AppUserRepository;
 import ua.foxminded.university.model.repository.StudentRepository;
 import ua.foxminded.university.model.repository.StudyGroupRepository;
 import ua.foxminded.university.model.repository.dto.StudentProfileView;
+import ua.foxminded.university.model.repository.dto.DeletedStudentCardProjection;
 import ua.foxminded.university.model.repository.dto.StudentCardView;
 import ua.foxminded.university.security.PasswordPolicy;
 import ua.foxminded.university.service.dto.request.student.StudentCreateDto;
-import ua.foxminded.university.service.dto.response.DeleteResult;
+import ua.foxminded.university.service.dto.response.DeletedStudentCardView;
 import ua.foxminded.university.service.util.validation.EntityValidatior;
 import ua.foxminded.university.service.util.DtoMapper;
 import ua.foxminded.university.service.util.DuplicateGuard;
+import ua.foxminded.university.service.util.projectionmapper.ProjectionMapper;
 
 @Service
 @RequiredArgsConstructor
@@ -41,10 +43,10 @@ public class StudentService {
 	private final AppUserRepository usersRepository;
 	private final StudyGroupRepository groupRepository;
 
+	private final ProjectionMapper<DeletedStudentCardProjection, DeletedStudentCardView> projectionMapper;
+	private final DtoMapper dtoMapper;
 	private final EntityValidatior validator;
 	private final PasswordPolicy passwordPolicy;
-
-	private final DtoMapper dtoMapper;
 	private final DuplicateGuard duplicateGuard;
 
 	@Transactional(value = TxType.REQUIRES_NEW)
@@ -96,7 +98,12 @@ public class StudentService {
 	public Page<StudentCardView> listStudentCardsForAdmin(Pageable pageable) {
 	    return studentRepository.findStudentCardsAll(pageable);
 	}
-	
+
+    @Transactional(value = TxType.SUPPORTS)
+    public Page<DeletedStudentCardView> listDeletedStudentCardsForAdmin(Pageable pageable) {
+        return studentRepository.findDeletedStudentCards(pageable).map(projectionMapper::toView);
+    }
+
 	@Transactional(value = TxType.SUPPORTS)
 	public StudentProfileView getStudentProfileView(long id) {
 		return studentRepository.findStudentProfileViewById(id)
@@ -122,30 +129,17 @@ public class StudentService {
 
 		return studentRepository.updateGroupByIds(newGroup, ids);
 	}
-
+	
 	@Transactional(value = TxType.REQUIRES_NEW)
-	public DeleteResult deleteByIds(Collection<Long> ids) {
-		var distinct = Optional.ofNullable(ids)
-				.orElseGet(Collections::emptyList)
-				.stream()
-				.filter(Objects::nonNull)
-				.collect(Collectors.toSet());
-		
-		if (distinct.isEmpty()) {
-			log.warn("deleteByIds called with null/empty list");
-			return new DeleteResult(Set.of(), Set.of());
-		}
+	public void deleteById(long id) {
+	    var student = studentRepository.findById(id)
+	            .orElseThrow(() -> new EntityNotFoundException("Active student not found: id=" + id));
 
-		var existing = studentRepository.findAllById(distinct);
-
-		var deletedIds = existing.stream().map(Student::getId).collect(Collectors.toSet());
-		var notFound = distinct.stream().filter(id -> !deletedIds.contains(id)).collect(Collectors.toSet());
-
-		studentRepository.deleteAll(existing);
-		log.info("Deleted {} student(s); not found: {}", deletedIds.size(), notFound);
-
-		return new DeleteResult(deletedIds, notFound);
+	    studentRepository.delete(student);
+	    log.info("Soft deleted student: id={}", id);
 	}
+
+	
 
 	private void assertStudentEmailsFreeInDb(Collection<String> emailsLower) {
 		var normalized = emailsLower.stream()
@@ -154,8 +148,7 @@ public class StudentService {
 				.map(String::toLowerCase)
 				.collect(Collectors.toSet());
 
-		if (normalized.isEmpty())
-			return;
+		if (normalized.isEmpty()) return;
 
 		var conflicts = usersRepository.findExistingEmailsIgnoreCase(normalized);
 		if (!conflicts.isEmpty()) {
@@ -181,9 +174,7 @@ public class StudentService {
 				.filter(Objects::nonNull)
 				.collect(Collectors.toSet());
 
-		if (groupIds.isEmpty()) {
-			return;
-		}
+		if (groupIds.isEmpty()) return;
 
 		var existing = new HashSet<>(groupRepository.findExistingIds(groupIds));
 		var missing = groupIds.stream().filter(id -> !existing.contains(id)).collect(Collectors.toSet());
@@ -195,8 +186,7 @@ public class StudentService {
 	}
 
 	private void assertStudentsExist(Collection<Long> studentIds) {
-		if (studentIds.isEmpty())
-			return;
+		if (studentIds.isEmpty()) return;
 
 		var existing = new HashSet<>(studentRepository.findExistingIds(studentIds));
 		var missing = studentIds.stream().filter(id -> !existing.contains(id)).collect(Collectors.toSet());

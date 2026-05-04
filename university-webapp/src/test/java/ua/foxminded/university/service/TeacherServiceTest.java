@@ -2,10 +2,8 @@ package ua.foxminded.university.service;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.ConstraintViolationException;
@@ -15,6 +13,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.test.context.ActiveProfiles;
 
 import ua.foxminded.university.TestcontainersConfiguration;
@@ -28,6 +27,8 @@ import ua.foxminded.university.service.dto.request.teacher.TeacherCreateDto;
 import ua.foxminded.university.service.dto.request.teacher.TeacherSelfUpdateDto;
 import ua.foxminded.university.service.util.DtoMapper;
 import ua.foxminded.university.service.util.DuplicateGuard;
+import ua.foxminded.university.service.util.projectionmapper.DateTimeMapper;
+import ua.foxminded.university.service.util.projectionmapper.DeletedTeacherCardMapper;
 import ua.foxminded.university.service.util.validation.EntityValidatior;
 import ua.foxminded.university.service.util.validation.config.ValidatorConfig;
 import ua.foxminded.university.testutil.TestDataInitializer;
@@ -36,23 +37,24 @@ import ua.foxminded.university.testutil.TestDataInitializer;
 @ActiveProfiles("test")
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-@Import({ TestcontainersConfiguration.class, TeacherService.class, AppUserService.class, ValidatorConfig.class,
-		EntityValidatior.class, PasswordPolicy.class, PasswordEncoderConfig.class, DtoMapper.class,
-		DuplicateGuard.class, TestDataInitializer.class })
+@Import({
+    TestcontainersConfiguration.class,
+    TeacherService.class,
+    AppUserService.class,
+    ValidatorConfig.class,
+	EntityValidatior.class,
+	PasswordPolicy.class,
+	PasswordEncoderConfig.class,
+	DtoMapper.class,
+	DuplicateGuard.class,
+	TestDataInitializer.class,
+	DeletedTeacherCardMapper.class,
+    DateTimeMapper.class
+})
 class TeacherServiceTest {
 
-	// ---- constants
-	static final AcademicRank RANK_A = AcademicRank.values()[0];
-	static final AcademicRank RANK_B = AcademicRank.values().length > 1 ? AcademicRank.values()[1]
-			: AcademicRank.values()[0];
-
-	static final String VALID_EMAIL = "teacher1@example.com";
-	static final String DUP_EMAIL = "dup-teacher@example.com";
-	static final String EMAIL_DELETE = "teacher.delete@example.com";
-	static final String NOT_AN_EMAIL = "not-an-email";
-
-	static final String EMAIL_FOR_UPDATES = "teacher.updates@example.com";
-	static final String EMAIL_WITH_COURSE = "teacher.with.courses@example.com";
+	static final AcademicRank RANK_LECTURER = AcademicRank.LECTURER;
+    static final AcademicRank RANK_PROFESSOR = AcademicRank.PROFESSOR;
 
 	static final String VALID_PASSWORD = "Abcd1234!";
 	static final String FIRST_NAME = "Alice";
@@ -64,33 +66,44 @@ class TeacherServiceTest {
 
 	static final String LOCK_COURSE_CODE = "SEC-731";
 	static final String LOCK_COURSE_NAME = "Locked Course";
+	
+	static final String EMAIL_CREATE_HAPPY = "teacher.create.happy@example.com";
+	static final String EMAIL_UPDATE_HAPPY = "teacher.update.happy@example.com";
+	static final String EMAIL_NULL_OFFICE = "teacher.null.office@example.com";
+	static final String EMAIL_BAD_OFFICE = "teacher.bad.office@example.com";
+	static final String EMAIL_NULL_RANK = "teacher.null.rank@example.com";
+	static final String EMAIL_DELETE_BY_ID = "teacher.delete.by.id@example.com";
+	static final String EMAIL_DELETED_CARD = "teacher.deleted.card@example.com";
+
+	static final String DUP_EMAIL = "dup-teacher@example.com";
+	static final String EMAIL_DELETE = "teacher.delete@example.com";
+	static final String NOT_AN_EMAIL = "not-an-email";
+
+	static final String EMAIL_FOR_UPDATES = "teacher.updates@example.com";
+	static final String EMAIL_WITH_COURSE = "teacher.with.courses@example.com";
 
 	static final Long NON_EXISTENT_ID = 999L;
 
-	@Autowired
-	private TeacherService teacherService;
-	@Autowired
-	private TestDataInitializer initializer;
+	@Autowired TeacherService teacherService;
+	@Autowired TestDataInitializer initializer;
 
-	private Teacher tempTeacher;
+	Long teacherForUpdatesId, teacherWithCoursesId;
+	Teacher tempTeacher;
 
-	private Long teacherForUpdatesId;
-	private Long teacherWithCoursesId;
-
-	private TeacherCreateDto newTeacher(String email, String office, AcademicRank rank) {
+	TeacherCreateDto newTeacher(String email, String office, AcademicRank rank) {
 		return new TeacherCreateDto(email, VALID_PASSWORD, FIRST_NAME, LAST_NAME, rank, office);
 	}
 
-	private TeacherSelfUpdateDto patch(Long id, AcademicRank rank, String office) {
+	TeacherSelfUpdateDto patch(Long id, AcademicRank rank, String office) {
 		return new TeacherSelfUpdateDto(id, rank, office);
 	}
 
 	@BeforeAll
 	void setup() {
-		Teacher tUpdates = teacherService.createAll(List.of(newTeacher(EMAIL_FOR_UPDATES, OFFICE_A, RANK_A))).get(0);
+		var tUpdates = teacherService.createAll(List.of(newTeacher(EMAIL_FOR_UPDATES, OFFICE_A, RANK_LECTURER))).getFirst();
 		teacherForUpdatesId = tUpdates.getId();
 
-		Teacher tWithCourse = teacherService.createAll(List.of(newTeacher(EMAIL_WITH_COURSE, OFFICE_A, RANK_A))).get(0);
+		var tWithCourse = teacherService.createAll(List.of(newTeacher(EMAIL_WITH_COURSE, OFFICE_A, RANK_LECTURER))).getFirst();
 		teacherWithCoursesId = tWithCourse.getId();
 
 		initializer.persistAll(Course.builder()
@@ -103,78 +116,79 @@ class TeacherServiceTest {
 
 	@AfterEach
 	void cleanup() {
-		Optional.ofNullable(tempTeacher).ifPresent(user -> teacherService.deleteByIds(List.of(tempTeacher.getId())));
+		Optional.ofNullable(tempTeacher).ifPresent(user -> teacherService.deleteById(tempTeacher.getId()));
+		tempTeacher = null;
 	}
 
 	@Test
 	@DisplayName("createAll: happy path — creates TEACHER with role TEACHER")
 	void createAll_happyPath_success() {
-		tempTeacher = teacherService.createAll(List.of(newTeacher(VALID_EMAIL, OFFICE_A, RANK_A))).get(0);
+        tempTeacher = teacherService.createAll(List.of(newTeacher(EMAIL_CREATE_HAPPY, OFFICE_A, RANK_LECTURER)))
+                .getFirst();
 
-		assertNotNull(tempTeacher.getId());
-		assertNotNull(tempTeacher.getUser());
-		assertEquals(VALID_EMAIL, tempTeacher.getUser().getEmail());
-		assertEquals(OFFICE_A, tempTeacher.getOffice());
-		assertEquals(RANK_A, tempTeacher.getAcademicRank());
-		assertEquals(UserRole.TEACHER, tempTeacher.getUser().getRole());
-
-		teacherService.deleteByIds(List.of(tempTeacher.getId()));
+	    assertNotNull(tempTeacher.getId());
+	    assertNotNull(tempTeacher.getUser());
+	    assertEquals(EMAIL_CREATE_HAPPY, tempTeacher.getUser().getEmail());
+	    assertEquals(OFFICE_A, tempTeacher.getOffice());
+	    assertEquals(RANK_LECTURER, tempTeacher.getAcademicRank());
+	    assertEquals(UserRole.TEACHER, tempTeacher.getUser().getRole());
 	}
 
 	@Test
 	@DisplayName("createAll: two teachers with the same email in one batch -> IllegalArgumentException")
 	void createAll_twoTeachersSameEmail_oneBatch_fails() {
-		var t1 = newTeacher(DUP_EMAIL, OFFICE_A, RANK_A);
-		var t2 = newTeacher(DUP_EMAIL, OFFICE_B, RANK_A);
+		var t1 = newTeacher(DUP_EMAIL, OFFICE_A, RANK_LECTURER);
+		var t2 = newTeacher(DUP_EMAIL, OFFICE_B, RANK_LECTURER);
 		assertThrows(IllegalArgumentException.class, () -> teacherService.createAll(List.of(t1, t2)));
 	}
 
 	@Test
 	@DisplayName("createAll: duplicate email across two calls -> IllegalArgumentException")
 	void createAll_duplicateEmail_acrossTwoCalls_fails() {
-		tempTeacher = teacherService.createAll(List.of(newTeacher(DUP_EMAIL, OFFICE_A, RANK_A))).get(0);
+        tempTeacher = teacherService.createAll(List.of(newTeacher(DUP_EMAIL, OFFICE_A, RANK_LECTURER))).getFirst();
 		assertThrows(IllegalArgumentException.class,
-				() -> teacherService.createAll(List.of(newTeacher(DUP_EMAIL, OFFICE_B, RANK_A))));
+				() -> teacherService.createAll(List.of(newTeacher(DUP_EMAIL, OFFICE_B, RANK_LECTURER))));
 	}
 
 	@Test
 	@DisplayName("createAll: invalid email -> ConstraintViolationException")
 	void createAll_invalidEmail_fails() {
-		var bad = newTeacher(NOT_AN_EMAIL, OFFICE_A, RANK_A);
+		var bad = newTeacher(NOT_AN_EMAIL, OFFICE_A, RANK_LECTURER);
 		assertThrows(ConstraintViolationException.class, () -> teacherService.createAll(List.of(bad)));
 	}
 
 	@Test
 	@DisplayName("createAll: null office -> ConstraintViolationException (DTO validation)")
 	void createAll_nullOffice_fails() {
-		var bad = newTeacher(VALID_EMAIL, null, RANK_A);
-		assertThrows(ConstraintViolationException.class, () -> teacherService.createAll(List.of(bad)));
+	    var bad = newTeacher(EMAIL_NULL_OFFICE, null, RANK_LECTURER);
+	    assertThrows(ConstraintViolationException.class, () -> teacherService.createAll(List.of(bad)));
 	}
 
 	@Test
 	@DisplayName("createAll: bad office pattern -> ConstraintViolationException")
 	void createAll_badOfficePattern_fails() {
-		var bad = newTeacher(VALID_EMAIL, BAD_OFFICE, RANK_A);
-		assertThrows(ConstraintViolationException.class, () -> teacherService.createAll(List.of(bad)));
+	    var bad = newTeacher(EMAIL_BAD_OFFICE, BAD_OFFICE, RANK_LECTURER);
+	    assertThrows(ConstraintViolationException.class, () -> teacherService.createAll(List.of(bad)));
 	}
 
 	@Test
 	@DisplayName("createAll: null academicRank -> ConstraintViolationException")
 	void createAll_nullRank_fails() {
-		var bad = new TeacherCreateDto(VALID_EMAIL, VALID_PASSWORD, FIRST_NAME, LAST_NAME, null, OFFICE_A);
-		assertThrows(ConstraintViolationException.class, () -> teacherService.createAll(List.of(bad)));
+	    var bad = new TeacherCreateDto(EMAIL_NULL_RANK, VALID_PASSWORD, FIRST_NAME, LAST_NAME, null, OFFICE_A);
+	    assertThrows(ConstraintViolationException.class, () -> teacherService.createAll(List.of(bad)));
 	}
 
 	@Test
 	@DisplayName("updateSelf: happy path — updates rank and office")
 	void updateSelf_happyPath_success() {
-		tempTeacher = teacherService.createAll(List.of(newTeacher(VALID_EMAIL, OFFICE_A, RANK_A))).get(0);
+        tempTeacher = teacherService.createAll(List.of(newTeacher(EMAIL_UPDATE_HAPPY, OFFICE_A, RANK_LECTURER)))
+                .getFirst();
 
-		var updated = teacherService.updateSelf(patch(tempTeacher.getId(), RANK_B, OFFICE_B));
+	    var updated = teacherService.updateSelf(patch(tempTeacher.getId(), RANK_PROFESSOR, OFFICE_B));
 
-		assertEquals(tempTeacher.getId(), updated.getId());
-		assertEquals(RANK_B, updated.getAcademicRank());
-		assertEquals(OFFICE_B, updated.getOffice());
+	    assertEquals(tempTeacher.getId(), updated.getId());
+	    assertEquals(RANK_PROFESSOR, updated.getAcademicRank());
+	    assertEquals(OFFICE_B, updated.getOffice());
 	}
 
 	@Test
@@ -194,37 +208,79 @@ class TeacherServiceTest {
 	@Test
 	@DisplayName("updateSelf: only office provided -> rank remains unchanged")
 	void updateSelf_onlyOffice_rankUnchanged() {
-		tempTeacher = teacherService.createAll(List.of(newTeacher("upd-office-only@example.com", OFFICE_A, RANK_A)))
-				.get(0);
+        tempTeacher = teacherService
+                .createAll(List.of(newTeacher("upd-office-only@example.com", OFFICE_A, RANK_LECTURER)))
+                .getFirst();
+		
 		var updated = teacherService.updateSelf(patch(tempTeacher.getId(), null, OFFICE_B));
+		
 		assertEquals(OFFICE_B, updated.getOffice());
-		assertEquals(RANK_A, updated.getAcademicRank());
+		assertEquals(RANK_LECTURER, updated.getAcademicRank());
 	}
 
 	@Test
 	@DisplayName("deleteByIds: teacher has courses -> IllegalStateException")
 	void deleteByIds_teacherHasCourses_fails() {
 		assertThrows(IllegalStateException.class,
-				() -> teacherService.deleteByIds(List.of(teacherWithCoursesId)),
+				() -> teacherService.deleteById(teacherWithCoursesId),
 				"Should fail when teacher has courses");
 	}
+	
+    @Test
+    @DisplayName("deleteById: soft deletes active teacher")
+    void deleteById_activeTeacher_softDeletes() {
+        var saved = teacherService.createAll(List.of(newTeacher(EMAIL_DELETE_BY_ID, OFFICE_A, RANK_LECTURER)))
+                .getFirst();
 
-	@Test
-	@DisplayName("deleteByIds: mix of existing and missing -> returns deleted & notFound as expected")
-	void deleteByIds_mixedIds_returnsSplit() {
-		var saved = teacherService.createAll(List.of(newTeacher(EMAIL_DELETE, OFFICE_A, RANK_A))).get(0);
+        teacherService.deleteById(saved.getId());
 
-		var result = teacherService.deleteByIds(Arrays.asList(saved.getId(), NON_EXISTENT_ID, null));
+        assertTrue(teacherService.findByIds(List.of(saved.getId())).isEmpty());
+        assertThrows(EntityNotFoundException.class, () -> teacherService.getTeacherProfileView(saved.getId()));
+    }
+    
+    @Test
+    @DisplayName("deleteById: teacher has courses -> IllegalStateException")
+    void deleteById_teacherHasCourses_fails() {
+        assertThrows(IllegalStateException.class, () -> teacherService.deleteById(teacherWithCoursesId),
+                "Should fail when teacher has assigned courses");
+    }
+    
+    @Test
+    @DisplayName("deleteById: missing or already deleted teacher -> EntityNotFoundException")
+    void deleteById_missingOrDeletedTeacher_fails() {
+        assertThrows(EntityNotFoundException.class, () -> teacherService.deleteById(NON_EXISTENT_ID));
+    }
+    
+    @Test
+    @DisplayName("listDeletedTeacherCardsForAdmin: returns soft-deleted teachers with deletedAt")
+    void listDeletedTeacherCardsForAdmin_returnsDeletedTeachers() {
+        var saved = teacherService.createAll(List.of(newTeacher(EMAIL_DELETED_CARD, OFFICE_A, RANK_LECTURER)))
+                .getFirst();
 
-		assertEquals(Set.of(saved.getId()), result.deletedIds(), "should delete existing id");
-		assertEquals(Set.of(NON_EXISTENT_ID), result.notFoundIds(), "should report missing id");
-	}
+        teacherService.deleteById(saved.getId());
+
+        var page = teacherService.listDeletedTeacherCardsForAdmin(PageRequest.of(0, 10));
+        var deleted = page.getContent()
+                .stream()
+                .filter(card -> card.id().equals(saved.getId()))
+                .findFirst()
+                .orElseThrow();
+
+        assertEquals(EMAIL_DELETED_CARD, deleted.email());
+        assertEquals(FIRST_NAME, deleted.firstName());
+        assertEquals(LAST_NAME, deleted.lastName());
+        assertEquals(RANK_LECTURER, deleted.academicRank());
+        assertEquals(OFFICE_A, deleted.office());
+        assertNotNull(deleted.createdAt());
+        assertNotNull(deleted.deletedAt());
+    }
 
 	@Test
 	@DisplayName("getTeacherProfileView: happy path — returns TeacherProfileView for existing teacher")
 	void getTeacherProfileView_happyPath_success() {
-		tempTeacher = teacherService.createAll(List.of(newTeacher("profile.teacher@example.com", OFFICE_A, RANK_A)))
-				.get(0);
+        tempTeacher = teacherService
+                .createAll(List.of(newTeacher("profile.teacher@example.com", OFFICE_A, RANK_LECTURER)))
+                .getFirst();
 
 		var view = teacherService.getTeacherProfileView(tempTeacher.getId());
 

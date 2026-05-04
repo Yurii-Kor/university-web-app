@@ -1,5 +1,10 @@
 package ua.foxminded.university.model.domain;
 
+import java.time.OffsetDateTime;
+
+import org.hibernate.annotations.SQLDelete;
+import org.hibernate.annotations.SQLRestriction;
+
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -10,6 +15,8 @@ import lombok.*;
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
 @Entity
 @Table(name = "student")
+@SQLDelete(sql = "update student set deleted_at = now() where id = ? and deleted_at is null")
+@SQLRestriction("deleted_at is null")
 public class Student {
 
     @Id
@@ -29,5 +36,7 @@ public class Student {
     @ToString.Include
     @Column()
     private Integer enrollmentYear;
+    
+    @Column()
+    private OffsetDateTime deletedAt;
 }
-

@@ -1,6 +1,6 @@
 package ua.foxminded.university.web.account;
 
-import java.util.List;
+import java.util.Objects;
 
 import org.springframework.beans.propertyeditors.StringTrimmerEditor;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -12,13 +12,16 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import lombok.RequiredArgsConstructor;
 import ua.foxminded.university.model.domain.enums.AcademicRank;
-import ua.foxminded.university.service.AppUserRoleTransitionService;
+import ua.foxminded.university.model.domain.enums.UserRole;
 import ua.foxminded.university.service.AppUserService;
 import ua.foxminded.university.service.StudentService;
 import ua.foxminded.university.service.StudyGroupService;
 import ua.foxminded.university.service.TeacherService;
-import ua.foxminded.university.service.dto.request.appuser.StudentToTeacherRoleChangeDto;
-import ua.foxminded.university.service.dto.request.appuser.TeacherToStudentRoleChangeDto;
+import ua.foxminded.university.service.dto.request.rolechange.ToTeacherRoleChangeDto;
+import ua.foxminded.university.service.dto.request.rolechange.ToStudentRoleChangeDto;
+import ua.foxminded.university.service.rolechange.RoleChangePlanningService;
+import ua.foxminded.university.service.rolechange.plan.RoleChangePlan;
+import ua.foxminded.university.service.rolechange.RoleChangeService;
 import ua.foxminded.university.web.account.page.AccountsPageModelFactory;
 
 @Controller
@@ -27,10 +30,11 @@ import ua.foxminded.university.web.account.page.AccountsPageModelFactory;
 @RequiredArgsConstructor
 public class AccountManagementController {
 
+    private final RoleChangePlanningService roleChangePlanningService;
     private final AccountsPageModelFactory pageFactory;
-    private final StudyGroupService studyGroupService;
+    private final RoleChangeService roleChangeService;
 
-    private final AppUserRoleTransitionService roleTransitionService;
+    private final StudyGroupService studyGroupService;
     private final AppUserService appUserService;
     private final StudentService studentService;
     private final TeacherService teacherService;
@@ -53,85 +57,169 @@ public class AccountManagementController {
 
         return "accounts/accounts";
     }
-
-    @PostMapping("/students/to-teacher")
-    public String changeStudentToTeacher(@ModelAttribute StudentToTeacherRoleChangeDto form,
-                                         @RequestParam(name = "page", defaultValue = "0") int pageNumber,
+    
+    @GetMapping("/students/{id}/role-change/to-teacher/plan")
+    @ResponseBody
+    public RoleChangePlan planStudentToTeacher(@PathVariable long id) {
+        return roleChangePlanningService.planRoleChange(id, UserRole.STUDENT, UserRole.TEACHER);
+    }
+    
+    @GetMapping("/teachers/{id}/role-change/to-student/plan")
+    @ResponseBody
+    public RoleChangePlan planTeacherToStudent(@PathVariable long id) {
+        return roleChangePlanningService.planRoleChange(id, UserRole.TEACHER, UserRole.STUDENT);
+    }
+    
+    @PostMapping("/students/{id}/role-change/to-teacher")
+    public String changeStudentToTeacher(@PathVariable long id,
+                                         @ModelAttribute ToTeacherRoleChangeDto form,
                                          RedirectAttributes ra) {
 
-        roleTransitionService.changeStudentToTeacher(form);
+        assertPathMatchesFormUserId(id, form.userId());
+
+        roleChangeService.changeStudentToTeacher(form);
 
         ra.addFlashAttribute("ok", "Student role changed to teacher.");
-        ra.addFlashAttribute("accountId", form.userId());
-
-        return "redirect:/accounts?view=students&page=" + normalizePage(pageNumber);
-    }
-
-    @PostMapping("/teachers/to-student")
-    public String changeTeacherToStudent(@ModelAttribute TeacherToStudentRoleChangeDto form,
-                                         @RequestParam(name = "page", defaultValue = "0") int pageNumber,
-                                         RedirectAttributes ra) {
-
-        roleTransitionService.changeTeacherToStudent(form);
-
-        ra.addFlashAttribute("ok", "Teacher role changed to student.");
-        ra.addFlashAttribute("accountId", form.userId());
-
-        return "redirect:/accounts?view=teachers&page=" + normalizePage(pageNumber);
-    }
-
-    @PostMapping("/{id}/enable")
-    public String enableAccount(@PathVariable("id") long id,
-                                @RequestParam(name = "view", defaultValue = "students") String view,
-                                @RequestParam(name = "page", defaultValue = "0") int pageNumber,
-                                RedirectAttributes ra) {
-
-        appUserService.enableUserByIds(id);
-
-        ra.addFlashAttribute("ok", "Account enabled.");
         ra.addFlashAttribute("accountId", id);
 
-        return "redirect:/accounts?view=" + normalizeView(view) + "&page=" + normalizePage(pageNumber);
+        return redirectToTeachers(0);
+    }
+    
+    @PostMapping("/students/{id}/role-change/to-teacher/restore")
+    public String restoreStudentToTeacher(@PathVariable long id,
+                                          RedirectAttributes ra) {
+
+        roleChangeService.restoreStudentToTeacher(id);
+
+        ra.addFlashAttribute("ok", "Student role changed to teacher.");
+        ra.addFlashAttribute("accountId", id);
+
+        return redirectToTeachers(0);
+    }
+    
+    @PostMapping("/teachers/{id}/role-change/to-student")
+    public String changeTeacherToStudent(@PathVariable long id,
+                                         @ModelAttribute ToStudentRoleChangeDto form,
+                                         RedirectAttributes ra) {
+
+        assertPathMatchesFormUserId(id, form.userId());
+
+        roleChangeService.changeTeacherToStudent(form);
+
+        ra.addFlashAttribute("ok", "Teacher role changed to student.");
+        ra.addFlashAttribute("accountId", id);
+
+        return redirectToStudents(0);
+    }
+    
+    @PostMapping("/teachers/{id}/role-change/to-student/restore")
+    public String restoreTeacherToStudent(@PathVariable long id,
+                                          RedirectAttributes ra) {
+
+        roleChangeService.restoreTeacherToStudent(id);
+
+        ra.addFlashAttribute("ok", "Teacher role changed to student.");
+        ra.addFlashAttribute("accountId", id);
+
+        return redirectToStudents(0);
     }
 
-    @PostMapping("/{id}/disable")
-    public String disableAccount(@PathVariable("id") long id,
-                                 @RequestParam(name = "view", defaultValue = "students") String view,
-                                 @RequestParam(name = "page", defaultValue = "0") int pageNumber,
-                                 RedirectAttributes ra) {
+    @PostMapping("/students/{id}/enable")
+    public String enableStudentAccount(@PathVariable long id,
+                                       @RequestParam(name = "page", defaultValue = "0") int pageNumber,
+                                       RedirectAttributes ra) {
+        
+        appUserService.enableUserByIds(id);
+
+        ra.addFlashAttribute("ok", "Student account enabled.");
+        ra.addFlashAttribute("accountId", id);
+
+        return redirectToStudents(pageNumber);
+    }
+
+    @PostMapping("/students/{id}/disable")
+    public String disableStudentAccount(@PathVariable long id,
+                                        @RequestParam(name = "page", defaultValue = "0") int pageNumber,
+                                        RedirectAttributes ra) {
 
         appUserService.disableUserByIds(id);
 
-        ra.addFlashAttribute("ok", "Account disabled.");
+        ra.addFlashAttribute("ok", "Student account disabled.");
         ra.addFlashAttribute("accountId", id);
 
-        return "redirect:/accounts?view=" + normalizeView(view) + "&page=" + normalizePage(pageNumber);
+        return redirectToStudents(pageNumber);
     }
 
-    @PostMapping("/{id}/delete")
-    public String deleteAccount(@PathVariable("id") long id,
-                                @RequestParam(name = "view", defaultValue = "students") String view,
-                                @RequestParam(name = "page", defaultValue = "0") int pageNumber,
-                                RedirectAttributes ra) {
+    @PostMapping("/teachers/{id}/disable")
+    public String disableTeacherAccount(@PathVariable long id,
+                                        @RequestParam(name = "page", defaultValue = "0") int pageNumber,
+                                        RedirectAttributes ra) {
 
-        var safeView = normalizeView(view);
+        appUserService.disableUserByIds(id);
 
-        if ("teachers".equals(safeView)) {
-            teacherService.deleteByIds(List.of(id));
-            ra.addFlashAttribute("ok", "Teacher account deleted.");
-        } else {
-            studentService.deleteByIds(List.of(id));
-            ra.addFlashAttribute("ok", "Student account deleted.");
-        }
+        ra.addFlashAttribute("ok", "Teacher account disabled.");
+        ra.addFlashAttribute("accountId", id);
 
-        return "redirect:/accounts?view=" + safeView + "&page=" + normalizePage(pageNumber);
+        return redirectToTeachers(pageNumber);
+    }
+
+    @PostMapping("/teachers/{id}/enable")
+    public String enableTeacherAccount(@PathVariable long id,
+                                       @RequestParam(name = "page", defaultValue = "0") int pageNumber,
+                                       RedirectAttributes ra) {
+        
+        appUserService.enableUserByIds(id);
+
+        ra.addFlashAttribute("ok", "Teacher account enabled.");
+        ra.addFlashAttribute("accountId", id);
+
+        return redirectToTeachers(pageNumber);
+    }
+
+    @PostMapping("/students/{id}/delete")
+    public String deleteStudentAccount(@PathVariable long id,
+                                       @RequestParam(name = "page", defaultValue = "0") int pageNumber,
+                                       RedirectAttributes ra) {
+
+        studentService.deleteById(id);
+
+        ra.addFlashAttribute("ok", "Student account deleted.");
+        ra.addFlashAttribute("accountId", id);
+
+        return redirectToStudents(pageNumber);
+    }
+
+    @PostMapping("/teachers/{id}/delete")
+    public String deleteTeacherAccount(@PathVariable long id,
+                                       @RequestParam(name = "page", defaultValue = "0") int pageNumber,
+                                       RedirectAttributes ra) {
+
+        teacherService.deleteById(id);
+
+        ra.addFlashAttribute("ok", "Teacher account deleted.");
+        ra.addFlashAttribute("accountId", id);
+
+        return redirectToTeachers(pageNumber);
+    }
+
+    private String redirectToStudents(int pageNumber) {
+        return "redirect:/accounts?view=students&page=" + normalizePage(pageNumber);
+    }
+
+    private String redirectToTeachers(int pageNumber) {
+        return "redirect:/accounts?view=teachers&page=" + normalizePage(pageNumber);
     }
 
     private int normalizePage(int pageNumber) {
         return Math.max(pageNumber, 0);
     }
 
-    private String normalizeView(String view) {
-        return "teachers".equalsIgnoreCase(view) ? "teachers" : "students";
+    private void assertPathMatchesFormUserId(long pathId, Long formUserId) {
+        if (Objects.equals(pathId, formUserId)) return;
+
+        throw new IllegalArgumentException(
+                "Role change request userId mismatch: pathId=" + pathId
+                        + ", formUserId=" + formUserId
+        );
     }
 }

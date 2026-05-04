@@ -1,6 +1,11 @@
 package ua.foxminded.university.model.domain;
 
 import java.util.Set;
+
+import org.hibernate.annotations.SQLDelete;
+import org.hibernate.annotations.SQLRestriction;
+
+import java.time.OffsetDateTime;
 import java.util.LinkedHashSet;
 
 import jakarta.persistence.*;
@@ -15,6 +20,8 @@ import ua.foxminded.university.model.domain.enums.AcademicRank;
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
 @Entity
 @Table(name = "teacher")
+@SQLDelete(sql = "update teacher set deleted_at = now() where id = ? and deleted_at is null")
+@SQLRestriction("deleted_at is null")
 public class Teacher {
 
     @Id
@@ -39,5 +46,7 @@ public class Teacher {
     @OneToMany(mappedBy = "teacher", fetch = FetchType.LAZY)
     @Builder.Default
     private Set<Course> courses = new LinkedHashSet<>();
+    
+    @Column()
+    private OffsetDateTime deletedAt;
 }
-

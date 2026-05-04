@@ -37,49 +37,48 @@ import ua.foxminded.university.testutil.TestDataInitializer;
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @Import({ 
-	TestcontainersConfiguration.class, 
-	AppUserService.class, 
-	ValidatorConfig.class, 
+	TestcontainersConfiguration.class,
+	AppUserService.class,
+	ValidatorConfig.class,
 	EntityValidatior.class,
-	PasswordPolicy.class, 
-	PasswordEncoderConfig.class, 
-	TestDataInitializer.class, 
+	PasswordPolicy.class,
+	PasswordEncoderConfig.class,
+	TestDataInitializer.class,
 	DtoMapper.class,
-	DuplicateGuard.class 
+	DuplicateGuard.class
 })
 class AppUserServiceTest {
 
-	private static final String DEFAULT_EMAIL = "admin@example.com";
-	private static final String UPDATED_EMAIL = "admin.updated@example.com";
+	static final String TEST_ADMIN_EMAIL = "admin.test@example.com";
+	static final String TAKEN_EMAIL = "student.taken@example.com";
+	static final String UPDATED_EMAIL = "admin.updated@example.com";
+	static final String ADMIN_CREATE_EMAIL = "admin.create@example.com";
+	static final String ADMIN_LIST_EMAIL = "admin.list@example.com";
+	static final String ADMIN_UPDATE_EMAIL = "admin.update@example.com";
+	static final String ADMIN_UPDATED_EMAIL = "admin.updated@example.com";
+	static final String ADMIN_NULL_PASSWORD_EMAIL = "admin.null.password@example.com";
 
-	private static final String TEST_ADMIN_EMAIL = "admin.test@example.com";
-	private static final String TAKEN_EMAIL = "student.taken@example.com";
+	static final String FIRST_NAME = "Alice";
+	static final String LAST_NAME = "Cooper";
 
-	private static final String FIRST_NAME = "Alice";
-	private static final String LAST_NAME = "Cooper";
+	static final String UPDATED_FIRST_NAME = "UpdatedFirstName";
+	static final String UPDATED_LAST_NAME = "UpdatedLastName";
 
-	private static final String UPDATED_FIRST_NAME = "UpdatedFirstName";
-	private static final String UPDATED_LAST_NAME = "UpdatedLastName";
+	static final String PWD = "Abcd1234!";
+	static final String PWD_NEW = "Abcd1234!x";
+	static final String PWD_BAD = "bad";
 
-	private static final String PWD = "Abcd1234!";
-	private static final String PWD_NEW = "Abcd1234!x";
-	private static final String PWD_BAD = "bad";
+	static final Integer ONE_USER = 1;
 
-	private static final Long MISSING_ID = 999_999L;
-	private static final Integer ONE_USER = 1;
+	static final Long MISSING_ID = 999_999L;
 
-	@Autowired
-	private PasswordPolicy passwordPolicy;
+	@Autowired PasswordPolicy passwordPolicy;
+	@Autowired AppUserService appUserService;
+	@Autowired TestDataInitializer initializer;
 
-	@Autowired
-	private AppUserService appUserService;
+	AppUser testAdmin, userStudent, tempAdmin;
 
-	@Autowired
-	private TestDataInitializer initializer;
-
-	private AppUser testAdmin, userStudent, tempAdmin;
-
-	private AppUser draftAdminEntity(String email) {
+	AppUser draftAdminEntity(String email) {
 		return AppUser.builder()
 				.email(email)
 				.password(passwordPolicy.encodePassword(PWD))
@@ -90,15 +89,15 @@ class AppUserServiceTest {
 				.build();
 	}
 
-	private AppUserCreateDto newAdminDto(String email) {
+	AppUserCreateDto newAdminDto(String email) {
 		return new AppUserCreateDto(email, PWD, "Alice", "Admin");
 	}
 
-	private AppUserSelfUpdateDto patchProfileDto(Long id, String email, String first, String last) {
+	AppUserSelfUpdateDto patchProfileDto(Long id, String email, String first, String last) {
 		return new AppUserSelfUpdateDto(id, email, first, last);
 	}
 
-	private AppUserPasswordChangeDto changePasswordDto(Long id, String current, String next) {
+	AppUserPasswordChangeDto changePasswordDto(Long id, String current, String next) {
 		return new AppUserPasswordChangeDto(id, current, next);
 	}
 
@@ -126,14 +125,14 @@ class AppUserServiceTest {
 	@Test
 	@DisplayName("createAdmin: happy path — creates enabled ADMIN with encoded password")
 	void createAdmins_happyPath_success() {
-		tempAdmin = appUserService.createAdmin(newAdminDto(DEFAULT_EMAIL));
+	    tempAdmin = appUserService.createAdmin(newAdminDto(ADMIN_CREATE_EMAIL));
 
-		assertNotNull(tempAdmin.getId());
-		assertEquals(DEFAULT_EMAIL, tempAdmin.getEmail());
-		assertEquals(UserRole.ADMIN, tempAdmin.getRole());
-		assertTrue(tempAdmin.isEnabled());
+	    assertNotNull(tempAdmin.getId());
+	    assertEquals(ADMIN_CREATE_EMAIL, tempAdmin.getEmail());
+	    assertEquals(UserRole.ADMIN, tempAdmin.getRole());
+	    assertTrue(tempAdmin.isEnabled());
 
-		passwordPolicy.assertCurrentMatches(PWD, tempAdmin.getPassword());
+	    passwordPolicy.assertCurrentMatches(PWD, tempAdmin.getPassword());
 	}
 
 	@Test
@@ -146,8 +145,8 @@ class AppUserServiceTest {
 	@Test
 	@DisplayName("createAdmin: null password -> ConstraintViolationException")
 	void createAdmin_nullPassword_fails() {
-		var bad = new AppUserCreateDto(DEFAULT_EMAIL, null, "Alice", "Admin");
-		assertThrows(ConstraintViolationException.class, () -> appUserService.createAdmin(bad));
+	    var bad = new AppUserCreateDto(ADMIN_NULL_PASSWORD_EMAIL, null, "Alice", "Admin");
+	    assertThrows(ConstraintViolationException.class, () -> appUserService.createAdmin(bad));
 	}
 
 	@Test
@@ -160,23 +159,23 @@ class AppUserServiceTest {
 	@Test
 	@DisplayName("listAdmins: returns paged admin rows only")
 	void listAdmins_returnsAdminsOnly() {
-	    tempAdmin = appUserService.createAdmin(newAdminDto(DEFAULT_EMAIL));
+	    tempAdmin = appUserService.createAdmin(newAdminDto(ADMIN_LIST_EMAIL));
 
 	    var adminsPage = appUserService.listAdminsForView(tempAdmin.getId(), PageRequest.of(0, 10));
 	    var admins = adminsPage.getContent();
 
 	    assertNotNull(adminsPage);
 	    assertNotNull(admins);
-	    assertEquals(2, adminsPage.getTotalElements(), "must contain seeded admin and created admin");
-	    assertEquals(1, adminsPage.getTotalPages(), "must fit into one page");
+	    assertEquals(2, adminsPage.getTotalElements());
+	    assertEquals(1, adminsPage.getTotalPages());
 
 	    var adminEmails = admins.stream()
 	            .map(admin -> admin.email())
 	            .toList();
 
 	    assertTrue(adminEmails.contains(TEST_ADMIN_EMAIL));
-	    assertTrue(adminEmails.contains(DEFAULT_EMAIL));
-	    assertFalse(adminEmails.contains(TAKEN_EMAIL), "student email must not appear in admin rows");
+	    assertTrue(adminEmails.contains(ADMIN_LIST_EMAIL));
+	    assertFalse(adminEmails.contains(TAKEN_EMAIL));
 	}
 	
 	@Test
@@ -188,17 +187,18 @@ class AppUserServiceTest {
 
 	@Test
 	@DisplayName("updateProfileFields: happy path — email + first/last name updated")
-	void updateProfileFields_happyPath_success() {
-		tempAdmin = appUserService.createAdmin(newAdminDto(DEFAULT_EMAIL));
-		appUserService.updateProfileFields(
-				patchProfileDto(tempAdmin.getId(), UPDATED_EMAIL, UPDATED_FIRST_NAME, UPDATED_LAST_NAME));
+    void updateProfileFields_happyPath_success() {
+        tempAdmin = appUserService.createAdmin(newAdminDto(ADMIN_UPDATE_EMAIL));
 
-		var reloaded = appUserService.findByIds(List.of(tempAdmin.getId())).getFirst();
+        appUserService.updateProfileFields(
+                patchProfileDto(tempAdmin.getId(), ADMIN_UPDATED_EMAIL, UPDATED_FIRST_NAME, UPDATED_LAST_NAME));
 
-		assertEquals(UPDATED_EMAIL, reloaded.getEmail());
-		assertEquals(UPDATED_FIRST_NAME, reloaded.getFirstName());
-		assertEquals(UPDATED_LAST_NAME, reloaded.getLastName());
-	}
+        var reloaded = appUserService.findByIds(List.of(tempAdmin.getId())).getFirst();
+
+        assertEquals(ADMIN_UPDATED_EMAIL, reloaded.getEmail());
+        assertEquals(UPDATED_FIRST_NAME, reloaded.getFirstName());
+        assertEquals(UPDATED_LAST_NAME, reloaded.getLastName());
+    }
 
 	@Test
 	@DisplayName("updateProfileFields: no-op — same email (trim/case-insensitive) and null names")
