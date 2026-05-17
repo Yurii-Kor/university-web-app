@@ -9,7 +9,6 @@ import jakarta.validation.constraints.NotNull;
 import ua.foxminded.university.service.rolechange.target.TargetRoleProfileData;
 
 public record ToStudentRoleChangeDto(
-        @NotNull Long userId,
         @NotNull Long groupId,
         
         @NotNull

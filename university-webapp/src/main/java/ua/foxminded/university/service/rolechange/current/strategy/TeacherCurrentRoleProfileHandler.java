@@ -1,6 +1,7 @@
 package ua.foxminded.university.service.rolechange.current.strategy;
 
 import java.time.OffsetDateTime;
+import java.util.Optional;
 
 import org.springframework.stereotype.Component;
 
@@ -25,7 +26,7 @@ public class TeacherCurrentRoleProfileHandler implements CurrentRoleProfileHandl
     @Override
     @Transactional(value = TxType.MANDATORY)
     public void deactivateCurrentProfile(long userId, UserRole targetRole) {
-        var teacher = teacherRepository.findById(userId)
+        var teacherWithCourses = teacherRepository.findTeacherWithCoursesCountById(userId)
                 .orElseThrow(() -> new RoleChangeException(
                         userId,
                         UserRole.TEACHER,
@@ -33,22 +34,23 @@ public class TeacherCurrentRoleProfileHandler implements CurrentRoleProfileHandl
                         "Active teacher profile not found: userId=" + userId
                 ));
 
-        assertTeacherHasNoCourses(userId, targetRole);
+        assertTeacherHasNoCourses(userId, targetRole, teacherWithCourses.coursesCount());
 
-        teacher.setDeletedAt(OffsetDateTime.now());
+        teacherWithCourses.teacher().setDeletedAt(OffsetDateTime.now());
     }
 
-    private void assertTeacherHasNoCourses(long teacherId, UserRole targetRole) {
-        var coursesCount = teacherRepository.countCoursesByTeacherId(teacherId);
-        if (coursesCount == 0) return;
+    private void assertTeacherHasNoCourses(long teacherId, UserRole targetRole, Long coursesCount) {
+        var normalizedCoursesCount = Optional.ofNullable(coursesCount).orElse(0L);
 
-        throw new RoleChangeException(
-                teacherId,
-                UserRole.TEACHER,
-                targetRole,
-                "Cannot change teacher role to " + targetRole
-                        + ": teacher has assigned courses, teacherId=" + teacherId
-                        + ", coursesCount=" + coursesCount
-        );
+        Optional.of(normalizedCoursesCount)
+                .filter(count -> count == 0L)
+                .orElseThrow(() -> new RoleChangeException(
+                        teacherId,
+                        UserRole.TEACHER,
+                        targetRole,
+                        "Cannot change teacher role to " + targetRole
+                                + ": teacher has assigned courses, teacherId=" + teacherId
+                                + ", coursesCount=" + normalizedCoursesCount
+                ));
     }
 }

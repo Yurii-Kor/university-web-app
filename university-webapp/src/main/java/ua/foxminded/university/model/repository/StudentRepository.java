@@ -83,12 +83,14 @@ public interface StudentRepository extends JpaRepository<Student, Long> {
     Optional<Long> findRestorableDeletedStudentGroupIdById(@Param("id") Long id);
     
     @Query(value = """
-            select *
-            from student
-            where id = :id
-              and deleted_at is not null
+            select s.*
+            from student s
+            join groups g on g.id = s.group_id
+            where s.id = :id
+              and s.deleted_at is not null
+              and g.deleted_at is null
             """, nativeQuery = true)
-    Optional<Student> findDeletedById(@Param("id") Long id);
+    Optional<Student> findRestorableDeletedById(@Param("id") Long id);
     
     @Query(value = """
             select

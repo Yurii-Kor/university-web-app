@@ -8,19 +8,18 @@ import jakarta.transaction.Transactional.TxType;
 import lombok.RequiredArgsConstructor;
 import ua.foxminded.university.model.domain.enums.UserRole;
 import ua.foxminded.university.model.repository.AppUserRepository;
-import ua.foxminded.university.service.rolechange.plan.RoleChangePlan;
-import ua.foxminded.university.service.rolechange.plan.TargetRoleChangePlannerRegistry;
+import ua.foxminded.university.service.rolechange.assessment.RoleChangeAssessment;
+import ua.foxminded.university.service.rolechange.assessment.TargetRoleChangeAssessorRegistry;
 
 @Service
 @RequiredArgsConstructor
-@Transactional
-public class RoleChangePlanningService {
+public class RoleChangeAssessmentService {
 
     private final AppUserRepository userRepository;
-    private final TargetRoleChangePlannerRegistry plannerRegistry;
+    private final TargetRoleChangeAssessorRegistry plannerRegistry;
 
     @Transactional(value = TxType.SUPPORTS)
-    public RoleChangePlan planRoleChange(long userId, UserRole expectedSourceRole, UserRole targetRole) {
+    public RoleChangeAssessment assessRoleChange(long userId, UserRole expectedSourceRole, UserRole targetRole) {
         var user = userRepository.findById(userId)
                 .orElseThrow(() -> new EntityNotFoundException("Active account not found: id=" + userId));
 
@@ -28,7 +27,7 @@ public class RoleChangePlanningService {
         assertTargetRoleIsDifferent(user.getRole(), targetRole, userId);
 
         return plannerRegistry.getRequired(targetRole)
-                .plan(userId, user.getRole());
+                              .assess(userId, user.getRole());
     }
 
     private void assertSourceRoleMatches(UserRole actualRole, UserRole expectedRole, long userId) {

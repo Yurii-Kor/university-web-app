@@ -1,5 +1,5 @@
 document.addEventListener("click", async (event) => {
-  const trigger = event.target.closest("[data-role-change-plan-url]");
+  const trigger = event.target.closest("[data-role-change-assessment-url]");
 
   if (!trigger) {
     return;
@@ -8,11 +8,11 @@ document.addEventListener("click", async (event) => {
   event.preventDefault();
 
   const details = trigger.closest("details");
-  const planUrl = trigger.dataset.roleChangePlanUrl;
+  const assessmentUrl = trigger.dataset.roleChangeAssessmentUrl;
   const restoreFormId = trigger.dataset.roleChangeRestoreFormId;
 
   try {
-    const response = await fetch(planUrl, {
+    const response = await fetch(assessmentUrl, {
       method: "GET",
       headers: {
         "Accept": "application/json"
@@ -24,11 +24,11 @@ document.addEventListener("click", async (event) => {
       return;
     }
 
-    const plan = await response.json();
+    const assessment = await response.json();
 
-    if (plan.mode === "AUTO_RESTORE_AVAILABLE") {
-      const message = plan.message
-        ? `${plan.message}\n\nApply role change now?`
+    if (assessment.mode === "AUTO_RESTORE_AVAILABLE") {
+      const message = assessment.message
+        ? `${assessment.message}\n\nApply role change now?`
         : "Previous profile can be restored. Apply role change now?";
 
       if (confirm(message)) {
@@ -42,8 +42,8 @@ document.addEventListener("click", async (event) => {
       return;
     }
 
-    if (plan.mode === "BLOCKED") {
-      alert(plan.message || "Role change is blocked.");
+    if (assessment.mode === "BLOCKED") {
+      alert(assessment.message || "Role change is blocked.");
       return;
     }
 

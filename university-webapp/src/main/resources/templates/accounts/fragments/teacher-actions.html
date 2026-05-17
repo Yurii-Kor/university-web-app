@@ -7,7 +7,11 @@
   <details class="account-self-edit">
     <summary class="ou-btn ou-btn--ghost"
              th:attr="
-               data-role-change-plan-url=@{/accounts/teachers/{id}/role-change/to-student/plan(id=${t.id})},
+               data-role-change-assessment-url=@{/accounts/{id}/role-change/assessment(
+                 id=${t.id},
+                 sourceRole='TEACHER',
+                 targetRole='STUDENT'
+               )},
                data-role-change-restore-form-id=|restore_teacher_to_student_${t.id}|
              ">
       To Student
@@ -15,18 +19,25 @@
 
     <form th:id="|restore_teacher_to_student_${t.id}|"
           method="post"
-          th:action="@{/accounts/teachers/{id}/role-change/to-student/restore(id=${t.id})}"
+          th:action="@{/accounts/{id}/role-change/restore(
+            id=${t.id},
+            sourceRole='TEACHER',
+            targetRole='STUDENT'
+          )}"
           hidden>
       <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
     </form>
 
     <form class="account-self-edit__form"
           method="post"
-          th:action="@{/accounts/teachers/{id}/role-change/to-student(id=${t.id})}"
+          th:action="@{/accounts/{id}/role-change(
+            id=${t.id},
+            sourceRole='TEACHER',
+            targetRole='STUDENT'
+          )}"
           onsubmit="return confirm('Apply role change from teacher to student?');">
 
       <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
-      <input type="hidden" name="userId" th:value="${t.id}" />
 
       <div class="account-self-edit__divider" aria-hidden="true"></div>
 
@@ -70,10 +81,9 @@
 
     <form class="ou-inline-form"
           method="post"
-          th:action="${t.enabled} ? @{/accounts/teachers/{id}/disable(id=${t.id})} : @{/accounts/teachers/{id}/enable(id=${t.id})}"
+          th:action="${t.enabled} ? @{/accounts/{id}/disable(id=${t.id}, role='TEACHER', page=${currentPage})} : @{/accounts/{id}/enable(id=${t.id}, role='TEACHER', page=${currentPage})}"
           onsubmit="return confirm('Change account status?');">
       <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
-      <input type="hidden" name="page" th:value="${currentPage}" />
 
       <button type="submit"
               class="ou-btn ou-btn--ghost"
@@ -84,10 +94,9 @@
 
     <form class="ou-inline-form account-actions-bar__delete"
           method="post"
-          th:action="@{/accounts/teachers/{id}/delete(id=${t.id})}"
+          th:action="@{/accounts/{id}/delete(id=${t.id}, role='TEACHER', page=${currentPage})}"
           onsubmit="return confirm('Delete this teacher account?');">
       <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
-      <input type="hidden" name="page" th:value="${currentPage}" />
 
       <button type="submit" class="ou-btn ou-btn--danger">
         Soft Delete

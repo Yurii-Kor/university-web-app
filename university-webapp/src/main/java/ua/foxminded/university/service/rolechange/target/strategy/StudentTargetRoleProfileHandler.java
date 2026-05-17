@@ -32,34 +32,17 @@ public class StudentTargetRoleProfileHandler implements TargetRoleProfileHandler
     @Override
     @Transactional(value = TxType.MANDATORY)
     public void activateTargetProfile(AppUser user, TargetRoleProfileData data) {
-        var restorableGroupId = studentRepository.findRestorableDeletedStudentGroupIdById(user.getId());
+        var restorableDeletedStudent = studentRepository.findRestorableDeletedById(user.getId());
 
-        if (restorableGroupId.isPresent()) {
-            restoreRestorableDeletedStudent(user, data);
+        if (restorableDeletedStudent.isPresent()) {
+            restoreDeletedStudent(user, restorableDeletedStudent.get(), data);
             return;
         }
-
-        Optional.ofNullable(data)
-                .orElseThrow(() -> new RoleChangeException(
-                        user.getId(),
-                        user.getRole(),
-                        UserRole.STUDENT,
-                        "Student profile data is required because previous student profile is missing or previous group is not active: userId="
-                                + user.getId()
-                ));
 
         createStudent(user, requireStudentData(user, data));
     }
 
-    private void restoreRestorableDeletedStudent(AppUser user, TargetRoleProfileData data) {
-        var student = studentRepository.findDeletedById(user.getId())
-                .orElseThrow(() -> new RoleChangeException(
-                        user.getId(),
-                        user.getRole(),
-                        UserRole.STUDENT,
-                        "Deleted student profile not found: userId=" + user.getId()
-                ));
-
+    private void restoreDeletedStudent(AppUser user, Student student, TargetRoleProfileData data) {
         castIfPresent(user, data)
                 .ifPresentOrElse(
                         form -> restoreDeletedStudentWithSubmittedData(user, student, form),
@@ -74,6 +57,7 @@ public class StudentTargetRoleProfileHandler implements TargetRoleProfileHandler
     private void restoreDeletedStudentWithSubmittedData(AppUser user,
                                                        Student student,
                                                        ToStudentRoleChangeDto data) {
+        
         var group = requireActiveGroup(user, data.groupId());
 
         student.setGroup(group);

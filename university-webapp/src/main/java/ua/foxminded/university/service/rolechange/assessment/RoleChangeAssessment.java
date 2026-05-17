@@ -1,14 +1,14 @@
-package ua.foxminded.university.service.rolechange.plan;
+package ua.foxminded.university.service.rolechange.assessment;
 
 import java.util.List;
 
 import ua.foxminded.university.model.domain.enums.UserRole;
 
-public record RoleChangePlan(
+public record RoleChangeAssessment(
         Long userId,
         UserRole sourceRole,
         UserRole targetRole,
-        RoleChangePlanMode mode,
+        RoleChangeAssessmentMode mode,
         String message,
         List<String> requiredFields
 ) {}

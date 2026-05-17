@@ -12,7 +12,6 @@ import ua.foxminded.university.model.domain.enums.AcademicRank;
 import ua.foxminded.university.service.rolechange.target.TargetRoleProfileData;
 
 public record ToTeacherRoleChangeDto(
-        @NotNull Long userId,
         @NotNull AcademicRank academicRank,
         
         @NotBlank
