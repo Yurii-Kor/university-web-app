@@ -1,5 +1,7 @@
 package ua.foxminded.university.service.rolechange.target.strategy;
 
+import java.util.Optional;
+
 import org.springframework.stereotype.Component;
 
 import jakarta.transaction.Transactional;
@@ -14,6 +16,11 @@ public class AdminTargetRoleProfileHandler implements TargetRoleProfileHandler {
     @Override
     public UserRole role() {
         return UserRole.ADMIN;
+    }
+    
+    @Override
+    public Optional<Class<? extends TargetRoleProfileData>> targetDataType() {
+        return Optional.empty();
     }
 
     @Override

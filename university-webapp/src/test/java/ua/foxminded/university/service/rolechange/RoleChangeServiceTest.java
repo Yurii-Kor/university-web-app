@@ -12,6 +12,7 @@ import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabas
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.transaction.TestTransaction;
 
 import ua.foxminded.university.TestcontainersConfiguration;
 import ua.foxminded.university.model.domain.AppUser;
@@ -24,8 +25,6 @@ import ua.foxminded.university.model.domain.enums.UserRole;
 import ua.foxminded.university.model.repository.AppUserRepository;
 import ua.foxminded.university.model.repository.StudentRepository;
 import ua.foxminded.university.model.repository.TeacherRepository;
-import ua.foxminded.university.service.dto.request.rolechange.ToTeacherRoleChangeDto;
-import ua.foxminded.university.service.dto.request.rolechange.ToStudentRoleChangeDto;
 import ua.foxminded.university.service.rolechange.current.CurrentRoleProfileHandlerRegistry;
 import ua.foxminded.university.service.rolechange.current.strategy.AdminCurrentRoleProfileHandler;
 import ua.foxminded.university.service.rolechange.current.strategy.StudentCurrentRoleProfileHandler;
@@ -38,6 +37,7 @@ import ua.foxminded.university.service.rolechange.target.strategy.TeacherTargetR
 import ua.foxminded.university.service.util.validation.EntityValidatior;
 import ua.foxminded.university.service.util.validation.config.ValidatorConfig;
 import ua.foxminded.university.testutil.TestDataInitializer;
+import ua.foxminded.university.web.account.form.RoleChangeForm;
 
 @DataJpaTest
 @ActiveProfiles("test")
@@ -71,7 +71,7 @@ class RoleChangeServiceTest {
     private static final String OFFICE_B = "T-202";
 
     private static final Integer ENROLLMENT_YEAR = 2024;
-    
+
     @PersistenceContext EntityManager em;
 
     @Autowired AppUserRepository userRepository;
@@ -80,18 +80,15 @@ class RoleChangeServiceTest {
     @Autowired TestDataInitializer initializer;
     @Autowired RoleChangeService roleChangeService;
 
-
     @Test
-    @DisplayName("changeRole: student -> teacher creates teacher profile, soft-deletes student profile, updates user role")
-    void changeRole_studentToTeacher_createsTeacher_softDeletesStudent_updatesRole() {
+    @DisplayName("performRoleChange: student -> teacher creates teacher profile, soft-deletes student profile, updates user role")
+    void performRoleChange_studentToTeacher_createsTeacher_softDeletesStudent_updatesRole() {
         var student = activeStudent("role.student.to.teacher.create@example.com", "RC-101");
+        var form = toTeacherForm(AcademicRank.LECTURER, OFFICE_A);
 
-        var form = new ToTeacherRoleChangeDto(
-                AcademicRank.LECTURER,
-                OFFICE_A
-        );
+        commitTestSetup();
 
-        roleChangeService.changeRole(
+        roleChangeService.performRoleChange(
                 student.getId(),
                 UserRole.STUDENT,
                 UserRole.TEACHER,
@@ -112,16 +109,19 @@ class RoleChangeServiceTest {
     }
 
     @Test
-    @DisplayName("restoreRole: student -> teacher restores deleted teacher profile without submitted data")
-    void restoreRole_studentToTeacher_restoresDeletedTeacher_softDeletesStudent_updatesRole() {
+    @DisplayName("performRoleChange: student -> teacher restores deleted teacher profile without submitted data")
+    void performRoleChange_studentToTeacher_restoresDeletedTeacher_softDeletesStudent_updatesRole() {
         var student = activeStudent("role.student.to.teacher.restore@example.com", "RC-102");
 
         insertDeletedTeacherProfile(student.getId(), AcademicRank.PROFESSOR, OFFICE_B);
 
-        roleChangeService.restoreRole(
+        commitTestSetup();
+
+        roleChangeService.performRoleChange(
                 student.getId(),
                 UserRole.STUDENT,
-                UserRole.TEACHER
+                UserRole.TEACHER,
+                null
         );
 
         assertUserRole(student.getId(), UserRole.TEACHER);
@@ -138,17 +138,15 @@ class RoleChangeServiceTest {
     }
 
     @Test
-    @DisplayName("changeRole: teacher -> student creates student profile, soft-deletes teacher profile, updates user role")
-    void changeRole_teacherToStudent_createsStudent_softDeletesTeacher_updatesRole() {
+    @DisplayName("performRoleChange: teacher -> student creates student profile, soft-deletes teacher profile, updates user role")
+    void performRoleChange_teacherToStudent_createsStudent_softDeletesTeacher_updatesRole() {
         var teacher = activeTeacher("role.teacher.to.student.create@example.com");
         var group = activeGroup("RC-201");
+        var form = toStudentForm(group.getId(), ENROLLMENT_YEAR);
 
-        var form = new ToStudentRoleChangeDto(
-                group.getId(),
-                ENROLLMENT_YEAR
-        );
+        commitTestSetup();
 
-        roleChangeService.changeRole(
+        roleChangeService.performRoleChange(
                 teacher.getId(),
                 UserRole.TEACHER,
                 UserRole.STUDENT,
@@ -169,17 +167,20 @@ class RoleChangeServiceTest {
     }
 
     @Test
-    @DisplayName("restoreRole: teacher -> student restores deleted student profile when previous group is active")
-    void restoreRole_teacherToStudent_restoresDeletedStudentWithActiveGroup_updatesRole() {
+    @DisplayName("performRoleChange: teacher -> student restores deleted student profile when previous group is active")
+    void performRoleChange_teacherToStudent_restoresDeletedStudentWithActiveGroup_updatesRole() {
         var teacher = activeTeacher("role.teacher.to.student.restore@example.com");
         var group = activeGroup("RC-202");
 
         insertDeletedStudentProfile(teacher.getId(), group.getId(), ENROLLMENT_YEAR);
 
-        roleChangeService.restoreRole(
+        commitTestSetup();
+
+        roleChangeService.performRoleChange(
                 teacher.getId(),
                 UserRole.TEACHER,
-                UserRole.STUDENT
+                UserRole.STUDENT,
+                null
         );
 
         assertUserRole(teacher.getId(), UserRole.STUDENT);
@@ -196,42 +197,43 @@ class RoleChangeServiceTest {
     }
 
     @Test
-    @DisplayName("restoreRole: teacher -> student with archived previous group -> RoleChangeException")
-    void restoreRole_teacherToStudent_archivedPreviousGroup_fails() {
+    @DisplayName("performRoleChange: teacher -> student with archived previous group -> RoleChangeException")
+    void performRoleChange_teacherToStudent_archivedPreviousGroup_fails() {
         var teacher = activeTeacher("role.teacher.to.student.archived.group@example.com");
         var group = activeGroup("RC-203");
 
         insertDeletedStudentProfile(teacher.getId(), group.getId(), ENROLLMENT_YEAR);
         softDeleteGroup(group.getId());
 
+        commitTestSetup();
+
         assertThrows(RoleChangeException.class,
-                () -> roleChangeService.restoreRole(
+                () -> roleChangeService.performRoleChange(
                         teacher.getId(),
                         UserRole.TEACHER,
-                        UserRole.STUDENT
+                        UserRole.STUDENT,
+                        null
                 ));
     }
 
     @Test
-    @DisplayName("changeRole: teacher -> student with assigned courses -> rollback, teacher remains active")
-    void changeRole_teacherToStudent_teacherWithCourses_failsAndRollsBack() {
+    @DisplayName("performRoleChange: teacher -> student with assigned courses -> rollback, teacher remains active")
+    void performRoleChange_teacherToStudent_teacherWithCourses_failsAndRollsBack() {
         var teacher = activeTeacher("role.teacher.with.course@example.com");
         var group = activeGroup("RC-204");
+        var form = toStudentForm(group.getId(), ENROLLMENT_YEAR);
 
         initializer.persistAll(Course.builder()
-                .code("RC-COURSE-204")
+                .code(uniqueValue("RC-COURSE-204"))
                 .name("Role Change Locked Course")
                 .description(null)
                 .teacher(teacher)
                 .build());
 
-        var form = new ToStudentRoleChangeDto(
-                group.getId(),
-                ENROLLMENT_YEAR
-        );
+        commitTestSetup();
 
         assertThrows(RoleChangeException.class,
-                () -> roleChangeService.changeRole(
+                () -> roleChangeService.performRoleChange(
                         teacher.getId(),
                         UserRole.TEACHER,
                         UserRole.STUDENT,
@@ -247,17 +249,15 @@ class RoleChangeServiceTest {
     }
 
     @Test
-    @DisplayName("changeRole: source role mismatch -> RoleChangeException")
-    void changeRole_sourceRoleMismatch_fails() {
+    @DisplayName("performRoleChange: source role mismatch -> RoleChangeException")
+    void performRoleChange_sourceRoleMismatch_fails() {
         var student = activeStudent("role.student.mismatch.source@example.com", "RC-301");
+        var form = toTeacherForm(AcademicRank.LECTURER, OFFICE_A);
 
-        var form = new ToTeacherRoleChangeDto(
-                AcademicRank.LECTURER,
-                OFFICE_A
-        );
+        commitTestSetup();
 
         assertThrows(RoleChangeException.class,
-                () -> roleChangeService.changeRole(
+                () -> roleChangeService.performRoleChange(
                         student.getId(),
                         UserRole.TEACHER,
                         UserRole.TEACHER,
@@ -268,19 +268,18 @@ class RoleChangeServiceTest {
         assertTrue(studentRepository.findById(student.getId()).isPresent());
         assertTrue(teacherRepository.findById(student.getId()).isEmpty());
     }
-    
-    @Test
-    @DisplayName("changeRole: target role same as current role -> RoleChangeException")
-    void changeRole_sameTargetRole_fails() {
-        var student = activeStudent("role.student.same.target@example.com", "RC-303");
 
-        var form = new ToStudentRoleChangeDto(
-                activeGroup("RC-304").getId(),
-                ENROLLMENT_YEAR
-        );
+    @Test
+    @DisplayName("performRoleChange: target role same as current role -> RoleChangeException")
+    void performRoleChange_sameTargetRole_fails() {
+        var student = activeStudent("role.student.same.target@example.com", "RC-303");
+        var group = activeGroup("RC-304");
+        var form = toStudentForm(group.getId(), ENROLLMENT_YEAR);
+
+        commitTestSetup();
 
         assertThrows(RoleChangeException.class,
-                () -> roleChangeService.changeRole(
+                () -> roleChangeService.performRoleChange(
                         student.getId(),
                         UserRole.STUDENT,
                         UserRole.STUDENT,
@@ -290,6 +289,26 @@ class RoleChangeServiceTest {
         assertUserRole(student.getId(), UserRole.STUDENT);
         assertTrue(studentRepository.findById(student.getId()).isPresent());
         assertTrue(teacherRepository.findById(student.getId()).isEmpty());
+    }
+
+    private RoleChangeForm toTeacherForm(AcademicRank rank, String office) {
+        return new RoleChangeForm(
+                UserRole.TEACHER,
+                rank,
+                office,
+                null,
+                null
+        );
+    }
+
+    private RoleChangeForm toStudentForm(Long groupId, Integer enrollmentYear) {
+        return new RoleChangeForm(
+                UserRole.STUDENT,
+                null,
+                null,
+                groupId,
+                enrollmentYear
+        );
     }
 
     private Student activeStudent(String email, String groupName) {
@@ -315,7 +334,7 @@ class RoleChangeServiceTest {
 
     private AppUser activeUser(String email, UserRole role) {
         return initializer.persistAll(AppUser.builder()
-                .email(email)
+                .email(uniqueEmail(email))
                 .password(PASSWORD)
                 .role(role)
                 .firstName(FIRST_NAME)
@@ -326,7 +345,7 @@ class RoleChangeServiceTest {
 
     private StudyGroup activeGroup(String name) {
         return initializer.persistAll(StudyGroup.builder()
-                .name(name)
+                .name(uniqueValue(name))
                 .build()).getFirst();
     }
 
@@ -371,8 +390,17 @@ class RoleChangeServiceTest {
         em.clear();
     }
 
-    private void assertUserRole(long userId, UserRole expectedRole) {
+    private void commitTestSetup() {
+        assertTrue(TestTransaction.isActive(), "Test transaction must be active before setup commit");
+
         em.flush();
+        em.clear();
+
+        TestTransaction.flagForCommit();
+        TestTransaction.end();
+    }
+
+    private void assertUserRole(long userId, UserRole expectedRole) {
         em.clear();
 
         var user = userRepository.findById(userId).orElseThrow();
@@ -380,6 +408,8 @@ class RoleChangeServiceTest {
     }
 
     private void assertProfileActive(String tableName, long id) {
+        em.clear();
+
         var deletedAt = em.createNativeQuery("""
                 select deleted_at
                 from %s
@@ -392,6 +422,8 @@ class RoleChangeServiceTest {
     }
 
     private void assertProfileDeleted(String tableName, long id) {
+        em.clear();
+
         var deletedAt = em.createNativeQuery("""
                 select deleted_at
                 from %s
@@ -401,5 +433,19 @@ class RoleChangeServiceTest {
                 .getSingleResult();
 
         assertNotNull(deletedAt, tableName + " profile should be soft-deleted");
+    }
+
+    private String uniqueEmail(String email) {
+        var at = email.indexOf('@');
+
+        if (at < 0) {
+            return uniqueValue(email);
+        }
+
+        return email.substring(0, at) + "." + System.nanoTime() + email.substring(at);
+    }
+
+    private String uniqueValue(String value) {
+        return value + "-" + System.nanoTime();
     }
 }

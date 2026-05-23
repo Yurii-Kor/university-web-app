@@ -19,6 +19,10 @@ public class TargetRoleProfileHandlerRegistry {
         this.handlersByRole = handlers.stream()
                 .collect(Collectors.toMap(TargetRoleProfileHandler::role, handler -> handler));
     }
+    
+    public Optional<Class<? extends TargetRoleProfileData>> targetDataTypeFor(UserRole role) {
+        return getRequired(role).targetDataType();
+    }
 
     public TargetRoleProfileHandler getRequired(UserRole role) {
         return Optional.ofNullable(handlersByRole.get(role))

@@ -13,9 +13,9 @@ import ua.foxminded.university.model.domain.StudyGroup;
 import ua.foxminded.university.model.domain.enums.UserRole;
 import ua.foxminded.university.model.repository.StudentRepository;
 import ua.foxminded.university.model.repository.StudyGroupRepository;
-import ua.foxminded.university.service.dto.request.rolechange.ToStudentRoleChangeDto;
 import ua.foxminded.university.service.rolechange.exception.RoleChangeException;
 import ua.foxminded.university.service.rolechange.target.TargetRoleProfileData;
+import ua.foxminded.university.service.rolechange.target.strategy.data.ToStudentRoleProfileData;
 
 @Component
 @RequiredArgsConstructor
@@ -27,6 +27,11 @@ public class StudentTargetRoleProfileHandler implements TargetRoleProfileHandler
     @Override
     public UserRole role() {
         return UserRole.STUDENT;
+    }
+    
+    @Override
+    public Optional<Class<? extends TargetRoleProfileData>> targetDataType() {
+        return Optional.of(ToStudentRoleProfileData.class);
     }
 
     @Override
@@ -56,7 +61,7 @@ public class StudentTargetRoleProfileHandler implements TargetRoleProfileHandler
 
     private void restoreDeletedStudentWithSubmittedData(AppUser user,
                                                        Student student,
-                                                       ToStudentRoleChangeDto data) {
+                                                       ToStudentRoleProfileData  data) {
         
         var group = requireActiveGroup(user, data.groupId());
 
@@ -65,7 +70,7 @@ public class StudentTargetRoleProfileHandler implements TargetRoleProfileHandler
         student.setDeletedAt(null);
     }
 
-    private void createStudent(AppUser user, ToStudentRoleChangeDto data) {
+    private void createStudent(AppUser user, ToStudentRoleProfileData  data) {
         var group = requireActiveGroup(user, data.groupId());
 
         var student = Student.builder()
@@ -87,9 +92,9 @@ public class StudentTargetRoleProfileHandler implements TargetRoleProfileHandler
                 ));
     }
 
-    private Optional<ToStudentRoleChangeDto> castIfPresent(AppUser user, TargetRoleProfileData data) {
+    private Optional<ToStudentRoleProfileData> castIfPresent(AppUser user, TargetRoleProfileData data) {
         return Optional.ofNullable(data).map(value -> {
-            if (value instanceof ToStudentRoleChangeDto form) {
+            if (value instanceof ToStudentRoleProfileData form) {
                 return form;
             }
 
@@ -102,7 +107,7 @@ public class StudentTargetRoleProfileHandler implements TargetRoleProfileHandler
         });
     }
 
-    private ToStudentRoleChangeDto requireStudentData(AppUser user, TargetRoleProfileData data) {
+    private ToStudentRoleProfileData requireStudentData(AppUser user, TargetRoleProfileData data) {
         return castIfPresent(user, data)
                 .orElseThrow(() -> new RoleChangeException(
                         user.getId(),

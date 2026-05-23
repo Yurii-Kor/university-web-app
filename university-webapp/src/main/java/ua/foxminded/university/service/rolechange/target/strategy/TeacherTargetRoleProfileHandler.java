@@ -11,9 +11,9 @@ import ua.foxminded.university.model.domain.AppUser;
 import ua.foxminded.university.model.domain.Teacher;
 import ua.foxminded.university.model.domain.enums.UserRole;
 import ua.foxminded.university.model.repository.TeacherRepository;
-import ua.foxminded.university.service.dto.request.rolechange.ToTeacherRoleChangeDto;
 import ua.foxminded.university.service.rolechange.exception.RoleChangeException;
 import ua.foxminded.university.service.rolechange.target.TargetRoleProfileData;
+import ua.foxminded.university.service.rolechange.target.strategy.data.ToTeacherRoleProfileData;
 
 @Component
 @RequiredArgsConstructor
@@ -24,6 +24,11 @@ public class TeacherTargetRoleProfileHandler implements TargetRoleProfileHandler
     @Override
     public UserRole role() {
         return UserRole.TEACHER;
+    }
+    
+    @Override
+    public Optional<Class<? extends TargetRoleProfileData>> targetDataType() {
+        return Optional.of(ToTeacherRoleProfileData.class);
     }
 
     @Override
@@ -51,13 +56,13 @@ public class TeacherTargetRoleProfileHandler implements TargetRoleProfileHandler
         teacher.setDeletedAt(null);
     }
 
-    private void restoreDeletedTeacherWithSubmittedData(Teacher teacher, ToTeacherRoleChangeDto data) {
+    private void restoreDeletedTeacherWithSubmittedData(Teacher teacher, ToTeacherRoleProfileData data) {
         teacher.setAcademicRank(data.academicRank());
         teacher.setOffice(data.office());
         teacher.setDeletedAt(null);
     }
 
-    private void createTeacher(AppUser user, ToTeacherRoleChangeDto data) {
+    private void createTeacher(AppUser user, ToTeacherRoleProfileData data) {
         var teacher = Teacher.builder()
                 .user(user)
                 .academicRank(data.academicRank())
@@ -67,9 +72,9 @@ public class TeacherTargetRoleProfileHandler implements TargetRoleProfileHandler
         teacherRepository.save(teacher);
     }
 
-    private Optional<ToTeacherRoleChangeDto> castIfPresent(AppUser user, TargetRoleProfileData data) {
+    private Optional<ToTeacherRoleProfileData> castIfPresent(AppUser user, TargetRoleProfileData data) {
         return Optional.ofNullable(data).map(value -> {
-            if (value instanceof ToTeacherRoleChangeDto form) {
+            if (value instanceof ToTeacherRoleProfileData form) {
                 return form;
             }
 
@@ -82,7 +87,7 @@ public class TeacherTargetRoleProfileHandler implements TargetRoleProfileHandler
         });
     }
 
-    private ToTeacherRoleChangeDto requireTeacherData(AppUser user, TargetRoleProfileData data) {
+    private ToTeacherRoleProfileData requireTeacherData(AppUser user, TargetRoleProfileData data) {
         return castIfPresent(user, data)
                 .orElseThrow(() -> new RoleChangeException(
                         user.getId(),

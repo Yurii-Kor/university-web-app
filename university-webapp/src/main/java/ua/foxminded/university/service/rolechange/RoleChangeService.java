@@ -26,28 +26,13 @@ public class RoleChangeService {
     private final TargetRoleProfileHandlerRegistry targetRoleHandlerRegistry;
     private final EntityValidatior validator;
 
-    public void changeRole(long userId,
-                           UserRole expectedSourceRole,
-                           UserRole targetRole,
-                           TargetRoleProfileData targetData) {
-
-        performRoleChange(userId, expectedSourceRole, targetRole, targetData);
-    }
-
-    public void restoreRole(long userId,
-                            UserRole expectedSourceRole,
-                            UserRole targetRole) {
-
-        performRoleChange(userId, expectedSourceRole, targetRole, null);
-    }
-
     @Transactional(value = TxType.REQUIRES_NEW)
     void performRoleChange(long userId,
                     UserRole expectedSourceRole,
                     UserRole targetRole,
                     TargetRoleProfileData targetData) {
 
-        Optional.ofNullable(targetData).ifPresent(validator::validate);
+        validateTargetData(targetRole, targetData);
         
         var user = userRepository.findById(userId)
                 .orElseThrow(() -> new EntityNotFoundException("Active account not found: id=" + userId));
@@ -64,6 +49,15 @@ public class RoleChangeService {
                                  .activateTargetProfile(user, targetData);
 
         user.setRole(targetRole);
+    }
+    
+    private void validateTargetData(UserRole targetRole, TargetRoleProfileData targetData) {
+        Optional.ofNullable(targetData)
+                .ifPresent(data -> targetRoleHandlerRegistry.targetDataTypeFor(targetRole)
+                        .ifPresentOrElse(
+                                group -> validator.validate(data, group),
+                                () -> validator.validate(data)
+                        ));
     }
 
     private void assertSourceRoleMatches(UserRole actualRole,

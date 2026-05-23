@@ -1,9 +1,14 @@
 package ua.foxminded.university.web.account;
 
+import java.util.Locale;
+import java.util.Optional;
+
 import org.springframework.beans.propertyeditors.StringTrimmerEditor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
+import org.springframework.validation.BindingResult;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.WebDataBinder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
@@ -12,16 +17,13 @@ import lombok.RequiredArgsConstructor;
 import ua.foxminded.university.model.domain.enums.AcademicRank;
 import ua.foxminded.university.model.domain.enums.UserRole;
 import ua.foxminded.university.service.AppUserService;
-import ua.foxminded.university.service.StudentService;
 import ua.foxminded.university.service.StudyGroupService;
-import ua.foxminded.university.service.TeacherService;
-import ua.foxminded.university.service.dto.request.rolechange.ToTeacherRoleChangeDto;
-import ua.foxminded.university.service.dto.request.rolechange.ToStudentRoleChangeDto;
-import ua.foxminded.university.service.rolechange.RoleChangeAssessmentService;
-import ua.foxminded.university.service.rolechange.RoleChangeService;
+import ua.foxminded.university.service.rolechange.RoleChangeFacade;
 import ua.foxminded.university.service.rolechange.assessment.RoleChangeAssessment;
-import ua.foxminded.university.service.rolechange.target.TargetRoleProfileData;
+import ua.foxminded.university.web.account.delete.AccountDeleterRegistry;
+import ua.foxminded.university.web.account.form.RoleChangeForm;
 import ua.foxminded.university.web.account.page.AccountsPageModelFactory;
+import ua.foxminded.university.web.account.validation.RoleChangeFormValidator;
 
 @Controller
 @RequestMapping("/accounts")
@@ -29,18 +31,23 @@ import ua.foxminded.university.web.account.page.AccountsPageModelFactory;
 @RequiredArgsConstructor
 public class AccountManagementController {
 
-    private final RoleChangeAssessmentService roleChangeAssessor;
+    private final RoleChangeFacade roleChangeFacade;
     private final AccountsPageModelFactory pageFactory;
-    private final RoleChangeService roleChangeService;
+    private final RoleChangeFormValidator roleChangeFormValidator;
+    
+    private final AccountDeleterRegistry accountDeleterRegistry;
 
     private final StudyGroupService studyGroupService;
     private final AppUserService appUserService;
-    private final StudentService studentService;
-    private final TeacherService teacherService;
 
     @InitBinder
     void initBinder(WebDataBinder binder) {
         binder.registerCustomEditor(String.class, new StringTrimmerEditor(true));
+    }
+
+    @InitBinder("roleChangeForm")
+    void initRoleChangeFormBinder(WebDataBinder binder) {
+        binder.replaceValidators(roleChangeFormValidator);
     }
 
     @GetMapping
@@ -56,44 +63,50 @@ public class AccountManagementController {
 
         return "accounts/accounts";
     }
-    
+
     @GetMapping("/{id}/role-change/assessment")
     @ResponseBody
     public RoleChangeAssessment assessRoleChange(@PathVariable long id,
                                                  @RequestParam UserRole sourceRole,
                                                  @RequestParam UserRole targetRole) {
 
-        return roleChangeAssessor.assessRoleChange(id, sourceRole, targetRole);
+        return roleChangeFacade.assessRoleChange(id, sourceRole, targetRole);
     }
-    
+
     @PostMapping("/{id}/role-change")
     public String changeRole(@PathVariable long id,
                              @RequestParam UserRole sourceRole,
-                             @RequestParam UserRole targetRole,
-                             @ModelAttribute ToTeacherRoleChangeDto teacherData,
-                             @ModelAttribute ToStudentRoleChangeDto studentData,
+                             @Validated @ModelAttribute("roleChangeForm") RoleChangeForm form,
+                             BindingResult bindingResult,
                              RedirectAttributes ra) {
 
-        roleChangeService.changeRole(
+        if (bindingResult.hasErrors()) {
+            ra.addFlashAttribute("err", "Role change form contains invalid data.");
+            ra.addFlashAttribute("accountId", id);
+
+            return redirectToRole(sourceRole, 0);
+        }
+
+        roleChangeFacade.changeRole(
                 id,
                 sourceRole,
-                targetRole,
-                targetDataFor(targetRole, teacherData, studentData)
+                form.targetRole(),
+                form
         );
 
-        ra.addFlashAttribute("ok", roleChangeSuccessMessage(sourceRole, targetRole));
+        ra.addFlashAttribute("ok", roleChangeSuccessMessage(sourceRole, form.targetRole()));
         ra.addFlashAttribute("accountId", id);
 
-        return redirectToRole(targetRole, 0);
+        return redirectToRole(form.targetRole(), 0);
     }
-    
+
     @PostMapping("/{id}/role-change/restore")
     public String restoreRole(@PathVariable long id,
                               @RequestParam UserRole sourceRole,
                               @RequestParam UserRole targetRole,
                               RedirectAttributes ra) {
 
-        roleChangeService.restoreRole(id, sourceRole, targetRole);
+        roleChangeFacade.restoreRole(id, sourceRole, targetRole);
 
         ra.addFlashAttribute("ok", roleChangeSuccessMessage(sourceRole, targetRole));
         ra.addFlashAttribute("accountId", id);
@@ -107,7 +120,7 @@ public class AccountManagementController {
                                 @RequestParam(name = "page", defaultValue = "0") int pageNumber,
                                 RedirectAttributes ra) {
         
-        assertRoleSupportsAccountAction(role);
+        requireSupportedAccountRole(role);
 
         appUserService.enableUserByIds(id);
 
@@ -116,14 +129,14 @@ public class AccountManagementController {
 
         return redirectToRole(role, pageNumber);
     }
-    
+
     @PostMapping("/{id}/disable")
     public String disableAccount(@PathVariable long id,
                                  @RequestParam UserRole role,
                                  @RequestParam(name = "page", defaultValue = "0") int pageNumber,
                                  RedirectAttributes ra) {
 
-        assertRoleSupportsAccountAction(role);
+        requireSupportedAccountRole(role);
 
         appUserService.disableUserByIds(id);
 
@@ -139,9 +152,8 @@ public class AccountManagementController {
                                 @RequestParam(name = "page", defaultValue = "0") int pageNumber,
                                 RedirectAttributes ra) {
 
-        assertRoleSupportsAccountAction(role);
-
-        deleteAccountByRole(id, role);
+        accountDeleterRegistry.getRequired(role)
+                .deleteByRoleAndId(role, id);
 
         ra.addFlashAttribute("ok", roleLabel(role) + " account deleted.");
         ra.addFlashAttribute("accountId", id);
@@ -149,57 +161,32 @@ public class AccountManagementController {
         return redirectToRole(role, pageNumber);
     }
 
-    private TargetRoleProfileData targetDataFor(UserRole targetRole,
-                                                ToTeacherRoleChangeDto teacherData,
-                                                ToStudentRoleChangeDto studentData) {
-        
-        return switch (targetRole) {
-            case TEACHER -> teacherData;
-            case STUDENT -> studentData;
-            case ADMIN   -> throw new IllegalArgumentException(
-                    "Changing account role to ADMIN is not supported from this workflow.");
-        };
-    }
-    
     private String redirectToRole(UserRole role, int pageNumber) {
         return "redirect:/accounts?view=" + viewOf(role) + "&page=" + Math.max(pageNumber, 0);
     }
-    
+
     private String viewOf(UserRole role) {
-        return switch (role) {
-            case STUDENT -> "students";
-            case TEACHER -> "teachers";
-            case ADMIN -> throw new IllegalArgumentException("Admin accounts view is not supported here.");
-        };
+        return requireSupportedAccountRole(role)
+                .name()
+                .toLowerCase(Locale.ROOT) + "s";
     }
-    
+
     private String roleChangeSuccessMessage(UserRole sourceRole, UserRole targetRole) {
         return roleLabel(sourceRole) + " role changed to " + roleLabel(targetRole) + ".";
     }
-    
-    private String roleLabel(UserRole role) {
-        return switch (role) {
-            case STUDENT -> "Student";
-            case TEACHER -> "Teacher";
-            case ADMIN -> throw new IllegalArgumentException(
-                    "Admin accounts view is not supported here.");
-        };
-    }
-    
-    private void assertRoleSupportsAccountAction(UserRole role) {
-        if (role == UserRole.STUDENT || role == UserRole.TEACHER) {
-            return;
-        }
 
-        throw new IllegalArgumentException("Only student and teacher account actions are supported.");
+    private String roleLabel(UserRole role) {
+        var roleName = requireSupportedAccountRole(role)
+                .name()
+                .toLowerCase(Locale.ROOT);
+
+        return Character.toUpperCase(roleName.charAt(0)) + roleName.substring(1);
     }
-    
-    private void deleteAccountByRole(long id, UserRole role) {
-        switch (role) {
-            case STUDENT -> studentService.deleteById(id);
-            case TEACHER -> teacherService.deleteById(id);
-            case ADMIN -> throw new IllegalArgumentException(
-                    "Admin account deletion is not supported here.");
-        }
+
+    private UserRole requireSupportedAccountRole(UserRole role) {
+        return Optional.ofNullable(role)
+                .filter(value -> value != UserRole.ADMIN)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Only student and teacher account actions are supported."));
     }
 }
