@@ -14,7 +14,6 @@ import java.util.List;
 
 import jakarta.persistence.EntityNotFoundException;
 
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,7 +21,6 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
-import org.springframework.validation.Errors;
 
 import ua.foxminded.university.model.domain.enums.AcademicRank;
 import ua.foxminded.university.model.domain.enums.UserRole;
@@ -37,12 +35,12 @@ import ua.foxminded.university.service.rolechange.RoleChangeFacade;
 import ua.foxminded.university.service.rolechange.assessment.RoleChangeAssessment;
 import ua.foxminded.university.service.rolechange.assessment.RoleChangeAssessmentMode;
 import ua.foxminded.university.service.rolechange.exception.RoleChangeException;
+import ua.foxminded.university.service.rolechange.target.strategy.data.ToStudentRoleProfileData;
+import ua.foxminded.university.service.rolechange.target.strategy.data.ToTeacherRoleProfileData;
 import ua.foxminded.university.web.account.delete.AccountDeleterRegistry;
 import ua.foxminded.university.web.account.delete.strategy.AccountDeleter;
-import ua.foxminded.university.web.account.form.RoleChangeForm;
 import ua.foxminded.university.web.account.page.AccountsPage;
 import ua.foxminded.university.web.account.page.AccountsPageModelFactory;
-import ua.foxminded.university.web.account.validation.RoleChangeFormValidator;
 import ua.foxminded.university.web.util.ExceptionMessageReader;
 
 @WebMvcTest(controllers = AccountManagementController.class)
@@ -61,18 +59,11 @@ class AccountManagementControllerWebMvcTest {
     @MockitoBean AccountsPageModelFactory pageFactory;
     @MockitoBean StudyGroupService studyGroupService;
     @MockitoBean RoleChangeFacade roleChangeFacade;
-    @MockitoBean RoleChangeFormValidator roleChangeFormValidator;
     @MockitoBean AppUserService appUserService;
     @MockitoBean StudentService studentService;
     @MockitoBean TeacherService teacherService;
     @MockitoBean AccountDeleterRegistry accountDeleterRegistry;
     @MockitoBean AccountDeleter accountDeleter;
-    
-    @BeforeEach
-    void setUp() {
-        when(roleChangeFormValidator.supports(RoleChangeForm.class)).thenReturn(true);
-        doNothing().when(roleChangeFormValidator).validate(any(), any(Errors.class));
-    }
 
     private AcademicRank anyRank() {
         return AcademicRank.values()[0];
@@ -199,7 +190,8 @@ class AccountManagementControllerWebMvcTest {
                 List.of("academicRank", "office")
         );
 
-        when(roleChangeFacade.assessRoleChange(ACCOUNT_ID, UserRole.STUDENT, UserRole.TEACHER)).thenReturn(assessment);
+        when(roleChangeFacade.assessRoleChange(ACCOUNT_ID, UserRole.STUDENT, UserRole.TEACHER))
+                .thenReturn(assessment);
 
         mockMvc.perform(get("/accounts/{id}/role-change/assessment", ACCOUNT_ID)
                         .param("sourceRole", "STUDENT")
@@ -244,8 +236,8 @@ class AccountManagementControllerWebMvcTest {
     }
 
     @Test
-    @DisplayName("POST /accounts/{id}/role-change student -> teacher ok -> redirects teachers page, flash ok + accountId, calls service")
-    void postChangeRole_studentToTeacher_ok_redirectsAndCallsService() throws Exception {
+    @DisplayName("POST /accounts/{id}/role-change student -> teacher ok -> redirects teachers page, flash ok + accountId, calls facade")
+    void postChangeRole_studentToTeacher_ok_redirectsAndCallsFacade() throws Exception {
         var rank = anyRank();
 
         mockMvc.perform(post("/accounts/{id}/role-change", ACCOUNT_ID)
@@ -260,20 +252,42 @@ class AccountManagementControllerWebMvcTest {
                 .andExpect(flash().attribute("ok", "Student role changed to Teacher."))
                 .andExpect(flash().attribute("accountId", ACCOUNT_ID));
 
-        verify(roleChangeFacade).changeRole(
+        verify(roleChangeFacade).changeRoleToTeacher(
                 eq(ACCOUNT_ID),
                 eq(UserRole.STUDENT),
-                eq(UserRole.TEACHER),
-                argThat(form -> form instanceof RoleChangeForm roleForm
-                        && roleForm.targetRole() == UserRole.TEACHER
-                        && roleForm.academicRank() == rank
-                        && "T-301".equals(roleForm.office()))
+                argThat(form -> form instanceof ToTeacherRoleProfileData teacherForm
+                        && teacherForm.academicRank() == rank
+                        && "T-301".equals(teacherForm.office()))
         );
     }
 
     @Test
-    @DisplayName("POST /accounts/{id}/role-change/restore student -> teacher ok -> redirects teachers page, flash ok + accountId, calls service")
-    void postRestoreRole_studentToTeacher_ok_redirectsAndCallsService() throws Exception {
+    @DisplayName("POST /accounts/{id}/role-change teacher -> student ok -> redirects students page, flash ok + accountId, calls facade")
+    void postChangeRole_teacherToStudent_ok_redirectsAndCallsFacade() throws Exception {
+        mockMvc.perform(post("/accounts/{id}/role-change", ACCOUNT_ID)
+                        .with(user(USER_ID.toString()).roles("ADMIN"))
+                        .with(csrf())
+                        .param("sourceRole", "TEACHER")
+                        .param("targetRole", "STUDENT")
+                        .param("groupId", GROUP_ID.toString())
+                        .param("enrollmentYear", "2024"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/accounts?view=students&page=0"))
+                .andExpect(flash().attribute("ok", "Teacher role changed to Student."))
+                .andExpect(flash().attribute("accountId", ACCOUNT_ID));
+
+        verify(roleChangeFacade).changeRoleToStudent(
+                eq(ACCOUNT_ID),
+                eq(UserRole.TEACHER),
+                argThat(form -> form instanceof ToStudentRoleProfileData studentForm
+                        && GROUP_ID.equals(studentForm.groupId())
+                        && Integer.valueOf(2024).equals(studentForm.enrollmentYear()))
+        );
+    }
+
+    @Test
+    @DisplayName("POST /accounts/{id}/role-change/restore student -> teacher ok -> redirects teachers page, flash ok + accountId, calls facade")
+    void postRestoreRole_studentToTeacher_ok_redirectsAndCallsFacade() throws Exception {
         mockMvc.perform(post("/accounts/{id}/role-change/restore", ACCOUNT_ID)
                         .with(user(USER_ID.toString()).roles("ADMIN"))
                         .with(csrf())
@@ -288,34 +302,8 @@ class AccountManagementControllerWebMvcTest {
     }
 
     @Test
-    @DisplayName("POST /accounts/{id}/role-change teacher -> student ok -> redirects students page, flash ok + accountId, calls service")
-    void postChangeRole_teacherToStudent_ok_redirectsAndCallsService() throws Exception {
-        mockMvc.perform(post("/accounts/{id}/role-change", ACCOUNT_ID)
-                        .with(user(USER_ID.toString()).roles("ADMIN"))
-                        .with(csrf())
-                        .param("sourceRole", "TEACHER")
-                        .param("targetRole", "STUDENT")
-                        .param("groupId", GROUP_ID.toString())
-                        .param("enrollmentYear", "2024"))
-                .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/accounts?view=students&page=0"))
-                .andExpect(flash().attribute("ok", "Teacher role changed to Student."))
-                .andExpect(flash().attribute("accountId", ACCOUNT_ID));
-
-        verify(roleChangeFacade).changeRole(
-                eq(ACCOUNT_ID),
-                eq(UserRole.TEACHER),
-                eq(UserRole.STUDENT),
-                argThat(form -> form instanceof RoleChangeForm roleForm
-                        && roleForm.targetRole() == UserRole.STUDENT
-                        && GROUP_ID.equals(roleForm.groupId())
-                        && Integer.valueOf(2024).equals(roleForm.enrollmentYear()))
-        );
-    }
-
-    @Test
-    @DisplayName("POST /accounts/{id}/role-change/restore teacher -> student ok -> redirects students page, flash ok + accountId, calls service")
-    void postRestoreRole_teacherToStudent_ok_redirectsAndCallsService() throws Exception {
+    @DisplayName("POST /accounts/{id}/role-change/restore teacher -> student ok -> redirects students page, flash ok + accountId, calls facade")
+    void postRestoreRole_teacherToStudent_ok_redirectsAndCallsFacade() throws Exception {
         mockMvc.perform(post("/accounts/{id}/role-change/restore", ACCOUNT_ID)
                         .with(user(USER_ID.toString()).roles("ADMIN"))
                         .with(csrf())
@@ -339,11 +327,10 @@ class AccountManagementControllerWebMvcTest {
                 UserRole.STUDENT,
                 UserRole.TEACHER,
                 "User is not a student: id=" + ACCOUNT_ID
-        )).when(roleChangeFacade).changeRole(
+        )).when(roleChangeFacade).changeRoleToTeacher(
                 eq(ACCOUNT_ID),
                 eq(UserRole.STUDENT),
-                eq(UserRole.TEACHER),
-                any()
+                any(ToTeacherRoleProfileData.class)
         );
 
         mockMvc.perform(post("/accounts/{id}/role-change", ACCOUNT_ID)
@@ -367,11 +354,10 @@ class AccountManagementControllerWebMvcTest {
                 UserRole.TEACHER,
                 UserRole.STUDENT,
                 "Cannot change role: teacher has assigned courses (count=1)"
-        )).when(roleChangeFacade).changeRole(
+        )).when(roleChangeFacade).changeRoleToStudent(
                 eq(ACCOUNT_ID),
                 eq(UserRole.TEACHER),
-                eq(UserRole.STUDENT),
-                any()
+                any(ToStudentRoleProfileData.class)
         );
 
         mockMvc.perform(post("/accounts/{id}/role-change", ACCOUNT_ID)
@@ -385,6 +371,44 @@ class AccountManagementControllerWebMvcTest {
                 .andExpect(redirectedUrl("/accounts?view=teachers&page=0"))
                 .andExpect(flash().attribute("accountId", ACCOUNT_ID))
                 .andExpect(flash().attribute("err", "Cannot change role: teacher has assigned courses (count=1)"));
+    }
+
+    @Test
+    @DisplayName("POST /accounts/{id}/role-change target admin -> redirects accounts page, flash err")
+    void postChangeRole_targetAdmin_redirectsAccountsAndSetsErr() throws Exception {
+        mockMvc.perform(post("/accounts/{id}/role-change", ACCOUNT_ID)
+                        .with(user(USER_ID.toString()).roles("ADMIN"))
+                        .with(csrf())
+                        .param("sourceRole", "STUDENT")
+                        .param("targetRole", "ADMIN"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/accounts"))
+                .andExpect(flash().attribute(
+                        "err",
+                        "Changing account role to ADMIN is not supported from this workflow."
+                ));
+
+        verify(roleChangeFacade, never()).changeRoleToStudent(anyLong(), any(), any());
+        verify(roleChangeFacade, never()).changeRoleToTeacher(anyLong(), any(), any());
+    }
+
+    @Test
+    @DisplayName("POST /accounts/{id}/role-change teacher -> student invalid form -> redirects source teachers page, flash err")
+    void postChangeRole_teacherToStudent_validationError_redirectsSourceViewAndSetsErr() throws Exception {
+        mockMvc.perform(post("/accounts/{id}/role-change", ACCOUNT_ID)
+                        .with(user(USER_ID.toString()).roles("ADMIN"))
+                        .with(csrf())
+                        .param("sourceRole", "TEACHER")
+                        .param("targetRole", "STUDENT")
+                        .param("groupId", "")
+                        .param("enrollmentYear", ""))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/accounts?view=teachers&page=0"))
+                .andExpect(flash().attribute("accountId", ACCOUNT_ID))
+                .andExpect(flash().attribute("err", "Role change form contains invalid data."));
+
+        verify(roleChangeFacade, never()).changeRoleToStudent(anyLong(), any(), any());
+        verify(roleChangeFacade, never()).changeRoleToTeacher(anyLong(), any(), any());
     }
 
     @Test
@@ -473,29 +497,5 @@ class AccountManagementControllerWebMvcTest {
 
         verify(accountDeleterRegistry).getRequired(UserRole.TEACHER);
         verify(accountDeleter).deleteByRoleAndId(UserRole.TEACHER, ACCOUNT_ID);
-    }
-
-    @Test
-    @DisplayName("POST /accounts/{id}/role-change teacher -> student invalid form -> redirects source teachers page, flash err")
-    void postChangeRole_teacherToStudent_validationError_redirectsSourceViewAndSetsErr() throws Exception {
-        doAnswer(invocation -> {
-            var errors = invocation.getArgument(1, Errors.class);
-            errors.rejectValue("groupId", "NotNull", "Group is required.");
-            return null;
-        }).when(roleChangeFormValidator).validate(any(), any(Errors.class));
-
-        mockMvc.perform(post("/accounts/{id}/role-change", ACCOUNT_ID)
-                        .with(user(USER_ID.toString()).roles("ADMIN"))
-                        .with(csrf())
-                        .param("sourceRole", "TEACHER")
-                        .param("targetRole", "STUDENT")
-                        .param("groupId", "")
-                        .param("enrollmentYear", ""))
-                .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/accounts?view=teachers&page=0"))
-                .andExpect(flash().attribute("accountId", ACCOUNT_ID))
-                .andExpect(flash().attribute("err", "Role change form contains invalid data."));
-
-        verify(roleChangeFacade, never()).changeRole(anyLong(), any(), any(), any());
     }
 }

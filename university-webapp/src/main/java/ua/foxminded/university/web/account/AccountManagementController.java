@@ -18,12 +18,12 @@ import ua.foxminded.university.model.domain.enums.AcademicRank;
 import ua.foxminded.university.model.domain.enums.UserRole;
 import ua.foxminded.university.service.AppUserService;
 import ua.foxminded.university.service.StudyGroupService;
+import ua.foxminded.university.service.dto.request.rolechange.ToStudentRoleChangeDto;
+import ua.foxminded.university.service.dto.request.rolechange.ToTeacherRoleChangeDto;
 import ua.foxminded.university.service.rolechange.RoleChangeFacade;
 import ua.foxminded.university.service.rolechange.assessment.RoleChangeAssessment;
 import ua.foxminded.university.web.account.delete.AccountDeleterRegistry;
-import ua.foxminded.university.web.account.form.RoleChangeForm;
 import ua.foxminded.university.web.account.page.AccountsPageModelFactory;
-import ua.foxminded.university.web.account.validation.RoleChangeFormValidator;
 
 @Controller
 @RequestMapping("/accounts")
@@ -33,7 +33,6 @@ public class AccountManagementController {
 
     private final RoleChangeFacade roleChangeFacade;
     private final AccountsPageModelFactory pageFactory;
-    private final RoleChangeFormValidator roleChangeFormValidator;
     
     private final AccountDeleterRegistry accountDeleterRegistry;
 
@@ -43,11 +42,6 @@ public class AccountManagementController {
     @InitBinder
     void initBinder(WebDataBinder binder) {
         binder.registerCustomEditor(String.class, new StringTrimmerEditor(true));
-    }
-
-    @InitBinder("roleChangeForm")
-    void initRoleChangeFormBinder(WebDataBinder binder) {
-        binder.replaceValidators(roleChangeFormValidator);
     }
 
     @GetMapping
@@ -72,39 +66,14 @@ public class AccountManagementController {
 
         return roleChangeFacade.assessRoleChange(id, sourceRole, targetRole);
     }
-
-    @PostMapping("/{id}/role-change")
-    public String changeRole(@PathVariable long id,
-                             @RequestParam UserRole sourceRole,
-                             @Validated @ModelAttribute("roleChangeForm") RoleChangeForm form,
-                             BindingResult bindingResult,
-                             RedirectAttributes ra) {
-
-        if (bindingResult.hasErrors()) {
-            ra.addFlashAttribute("err", "Role change form contains invalid data.");
-            ra.addFlashAttribute("accountId", id);
-
-            return redirectToRole(sourceRole, 0);
-        }
-
-        roleChangeFacade.changeRole(
-                id,
-                sourceRole,
-                form.targetRole(),
-                form
-        );
-
-        ra.addFlashAttribute("ok", roleChangeSuccessMessage(sourceRole, form.targetRole()));
-        ra.addFlashAttribute("accountId", id);
-
-        return redirectToRole(form.targetRole(), 0);
-    }
-
+    
     @PostMapping("/{id}/role-change/restore")
     public String restoreRole(@PathVariable long id,
                               @RequestParam UserRole sourceRole,
                               @RequestParam UserRole targetRole,
                               RedirectAttributes ra) {
+
+        requireSupportedAccountRole(targetRole);
 
         roleChangeFacade.restoreRole(id, sourceRole, targetRole);
 
@@ -112,6 +81,50 @@ public class AccountManagementController {
         ra.addFlashAttribute("accountId", id);
 
         return redirectToRole(targetRole, 0);
+    }
+
+    @PostMapping(value = "/{id}/role-change", params = "targetRole=TEACHER")
+    public String changeRoleToTeacher(@PathVariable long id,
+                                      @RequestParam UserRole sourceRole,
+                                      @Validated @ModelAttribute ToTeacherRoleChangeDto form,
+                                      BindingResult bindingResult,
+                                      RedirectAttributes ra) {
+
+        if (rejectInvalidRoleChangeForm(id, bindingResult, ra)) {
+            return redirectToRole(sourceRole, 0);
+        }
+
+        roleChangeFacade.changeRoleToTeacher(id, sourceRole, form);
+
+        ra.addFlashAttribute("ok", roleChangeSuccessMessage(sourceRole, UserRole.TEACHER));
+        ra.addFlashAttribute("accountId", id);
+
+        return redirectToRole(UserRole.TEACHER, 0);
+    }
+
+    @PostMapping(value = "/{id}/role-change", params = "targetRole=STUDENT")
+    public String changeRoleToStudent(@PathVariable long id,
+                                      @RequestParam UserRole sourceRole,
+                                      @Validated @ModelAttribute ToStudentRoleChangeDto form,
+                                      BindingResult bindingResult,
+                                      RedirectAttributes ra) {
+
+        if (rejectInvalidRoleChangeForm(id, bindingResult, ra)) {
+            return redirectToRole(sourceRole, 0);
+        }
+
+        roleChangeFacade.changeRoleToStudent(id, sourceRole, form);
+
+        ra.addFlashAttribute("ok", roleChangeSuccessMessage(sourceRole, UserRole.STUDENT));
+        ra.addFlashAttribute("accountId", id);
+
+        return redirectToRole(UserRole.STUDENT, 0);
+    }
+
+    @PostMapping(value = "/{id}/role-change", params = "targetRole=ADMIN")
+    public String changeRoleToAdmin() {
+        throw new IllegalArgumentException(
+                "Changing account role to ADMIN is not supported from this workflow.");
     }
 
     @PostMapping("/{id}/enable")
@@ -188,5 +201,19 @@ public class AccountManagementController {
                 .filter(value -> value != UserRole.ADMIN)
                 .orElseThrow(() -> new IllegalArgumentException(
                         "Only student and teacher account actions are supported."));
+    }
+    
+    private boolean rejectInvalidRoleChangeForm(long id,
+                                                BindingResult bindingResult,
+                                                RedirectAttributes ra) {
+
+        if (!bindingResult.hasErrors()) {
+            return false;
+        }
+
+        ra.addFlashAttribute("err", "Role change form contains invalid data.");
+        ra.addFlashAttribute("accountId", id);
+
+        return true;
     }
 }

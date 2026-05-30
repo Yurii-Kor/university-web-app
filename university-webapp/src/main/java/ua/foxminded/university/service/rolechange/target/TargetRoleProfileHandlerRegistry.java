@@ -13,18 +13,14 @@ import ua.foxminded.university.service.rolechange.target.strategy.TargetRoleProf
 @Component
 public class TargetRoleProfileHandlerRegistry {
 
-    private final Map<UserRole, TargetRoleProfileHandler> handlersByRole;
+    private final Map<UserRole, TargetRoleProfileHandler<?>> handlersByRole;
 
-    public TargetRoleProfileHandlerRegistry(List<TargetRoleProfileHandler> handlers) {
+    public TargetRoleProfileHandlerRegistry(List<TargetRoleProfileHandler<?>> handlers) {
         this.handlersByRole = handlers.stream()
                 .collect(Collectors.toMap(TargetRoleProfileHandler::role, handler -> handler));
     }
-    
-    public Optional<Class<? extends TargetRoleProfileData>> targetDataTypeFor(UserRole role) {
-        return getRequired(role).targetDataType();
-    }
 
-    public TargetRoleProfileHandler getRequired(UserRole role) {
+    public TargetRoleProfileHandler<?> getRequired(UserRole role) {
         return Optional.ofNullable(handlersByRole.get(role))
                 .orElseThrow(() -> new IllegalStateException(
                         "No target role profile handler configured for role=" + role));

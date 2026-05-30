@@ -14,12 +14,11 @@ import ua.foxminded.university.model.domain.enums.UserRole;
 import ua.foxminded.university.model.repository.StudentRepository;
 import ua.foxminded.university.model.repository.StudyGroupRepository;
 import ua.foxminded.university.service.rolechange.exception.RoleChangeException;
-import ua.foxminded.university.service.rolechange.target.TargetRoleProfileData;
 import ua.foxminded.university.service.rolechange.target.strategy.data.ToStudentRoleProfileData;
 
 @Component
 @RequiredArgsConstructor
-public class StudentTargetRoleProfileHandler implements TargetRoleProfileHandler {
+public class StudentTargetRoleProfileHandler implements TargetRoleProfileHandler<ToStudentRoleProfileData> {
 
     private final StudentRepository studentRepository;
     private final StudyGroupRepository groupRepository;
@@ -28,15 +27,10 @@ public class StudentTargetRoleProfileHandler implements TargetRoleProfileHandler
     public UserRole role() {
         return UserRole.STUDENT;
     }
-    
-    @Override
-    public Optional<Class<? extends TargetRoleProfileData>> targetDataType() {
-        return Optional.of(ToStudentRoleProfileData.class);
-    }
 
     @Override
     @Transactional(value = TxType.MANDATORY)
-    public void activateTargetProfile(AppUser user, TargetRoleProfileData data) {
+    public void activateTargetProfile(AppUser user, ToStudentRoleProfileData data) {
         var restorableDeletedStudent = studentRepository.findRestorableDeletedById(user.getId());
 
         if (restorableDeletedStudent.isPresent()) {
@@ -47,8 +41,8 @@ public class StudentTargetRoleProfileHandler implements TargetRoleProfileHandler
         createStudent(user, requireStudentData(user, data));
     }
 
-    private void restoreDeletedStudent(AppUser user, Student student, TargetRoleProfileData data) {
-        castIfPresent(user, data)
+    private void restoreDeletedStudent(AppUser user, Student student, ToStudentRoleProfileData data) {
+        Optional.ofNullable(data)
                 .ifPresentOrElse(
                         form -> restoreDeletedStudentWithSubmittedData(user, student, form),
                         () -> restoreDeletedStudentWithPreviousData(student)
@@ -70,7 +64,7 @@ public class StudentTargetRoleProfileHandler implements TargetRoleProfileHandler
         student.setDeletedAt(null);
     }
 
-    private void createStudent(AppUser user, ToStudentRoleProfileData  data) {
+    private void createStudent(AppUser user, ToStudentRoleProfileData data) {
         var group = requireActiveGroup(user, data.groupId());
 
         var student = Student.builder()
@@ -91,24 +85,9 @@ public class StudentTargetRoleProfileHandler implements TargetRoleProfileHandler
                         "Active group not found: id=" + groupId
                 ));
     }
-
-    private Optional<ToStudentRoleProfileData> castIfPresent(AppUser user, TargetRoleProfileData data) {
-        return Optional.ofNullable(data).map(value -> {
-            if (value instanceof ToStudentRoleProfileData form) {
-                return form;
-            }
-
-            throw new RoleChangeException(
-                    user.getId(),
-                    user.getRole(),
-                    UserRole.STUDENT,
-                    "Invalid target profile data type for STUDENT: actual=" + value.getClass().getSimpleName()
-            );
-        });
-    }
-
-    private ToStudentRoleProfileData requireStudentData(AppUser user, TargetRoleProfileData data) {
-        return castIfPresent(user, data)
+    
+    private ToStudentRoleProfileData requireStudentData(AppUser user, ToStudentRoleProfileData data) {
+        return Optional.ofNullable(data)
                 .orElseThrow(() -> new RoleChangeException(
                         user.getId(),
                         user.getRole(),

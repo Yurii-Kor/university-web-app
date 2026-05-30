@@ -25,19 +25,18 @@ import ua.foxminded.university.model.domain.enums.UserRole;
 import ua.foxminded.university.model.repository.AppUserRepository;
 import ua.foxminded.university.model.repository.StudentRepository;
 import ua.foxminded.university.model.repository.TeacherRepository;
+import ua.foxminded.university.service.dto.request.rolechange.ToStudentRoleChangeDto;
+import ua.foxminded.university.service.dto.request.rolechange.ToTeacherRoleChangeDto;
 import ua.foxminded.university.service.rolechange.current.CurrentRoleProfileHandlerRegistry;
 import ua.foxminded.university.service.rolechange.current.strategy.AdminCurrentRoleProfileHandler;
 import ua.foxminded.university.service.rolechange.current.strategy.StudentCurrentRoleProfileHandler;
 import ua.foxminded.university.service.rolechange.current.strategy.TeacherCurrentRoleProfileHandler;
 import ua.foxminded.university.service.rolechange.exception.RoleChangeException;
-import ua.foxminded.university.service.rolechange.target.TargetRoleProfileHandlerRegistry;
-import ua.foxminded.university.service.rolechange.target.strategy.AdminTargetRoleProfileHandler;
 import ua.foxminded.university.service.rolechange.target.strategy.StudentTargetRoleProfileHandler;
 import ua.foxminded.university.service.rolechange.target.strategy.TeacherTargetRoleProfileHandler;
 import ua.foxminded.university.service.util.validation.EntityValidatior;
 import ua.foxminded.university.service.util.validation.config.ValidatorConfig;
 import ua.foxminded.university.testutil.TestDataInitializer;
-import ua.foxminded.university.web.account.form.RoleChangeForm;
 
 @DataJpaTest
 @ActiveProfiles("test")
@@ -53,8 +52,6 @@ import ua.foxminded.university.web.account.form.RoleChangeForm;
         StudentCurrentRoleProfileHandler.class,
         TeacherCurrentRoleProfileHandler.class,
 
-        TargetRoleProfileHandlerRegistry.class,
-        AdminTargetRoleProfileHandler.class,
         StudentTargetRoleProfileHandler.class,
         TeacherTargetRoleProfileHandler.class,
 
@@ -78,7 +75,10 @@ class RoleChangeServiceTest {
     @Autowired StudentRepository studentRepository;
     @Autowired TeacherRepository teacherRepository;
     @Autowired TestDataInitializer initializer;
+
     @Autowired RoleChangeService roleChangeService;
+    @Autowired StudentTargetRoleProfileHandler studentTargetHandler;
+    @Autowired TeacherTargetRoleProfileHandler teacherTargetHandler;
 
     @Test
     @DisplayName("performRoleChange: student -> teacher creates teacher profile, soft-deletes student profile, updates user role")
@@ -86,12 +86,12 @@ class RoleChangeServiceTest {
         var student = activeStudent("role.student.to.teacher.create@example.com", "RC-101");
         var form = toTeacherForm(AcademicRank.LECTURER, OFFICE_A);
 
-        commitTestSetup();
+        commitSetupBeforeRequiresNewServiceCall();
 
         roleChangeService.performRoleChange(
                 student.getId(),
                 UserRole.STUDENT,
-                UserRole.TEACHER,
+                teacherTargetHandler,
                 form
         );
 
@@ -115,12 +115,12 @@ class RoleChangeServiceTest {
 
         insertDeletedTeacherProfile(student.getId(), AcademicRank.PROFESSOR, OFFICE_B);
 
-        commitTestSetup();
+        commitSetupBeforeRequiresNewServiceCall();
 
         roleChangeService.performRoleChange(
                 student.getId(),
                 UserRole.STUDENT,
-                UserRole.TEACHER,
+                teacherTargetHandler,
                 null
         );
 
@@ -144,12 +144,12 @@ class RoleChangeServiceTest {
         var group = activeGroup("RC-201");
         var form = toStudentForm(group.getId(), ENROLLMENT_YEAR);
 
-        commitTestSetup();
+        commitSetupBeforeRequiresNewServiceCall();
 
         roleChangeService.performRoleChange(
                 teacher.getId(),
                 UserRole.TEACHER,
-                UserRole.STUDENT,
+                studentTargetHandler,
                 form
         );
 
@@ -174,12 +174,12 @@ class RoleChangeServiceTest {
 
         insertDeletedStudentProfile(teacher.getId(), group.getId(), ENROLLMENT_YEAR);
 
-        commitTestSetup();
+        commitSetupBeforeRequiresNewServiceCall();
 
         roleChangeService.performRoleChange(
                 teacher.getId(),
                 UserRole.TEACHER,
-                UserRole.STUDENT,
+                studentTargetHandler,
                 null
         );
 
@@ -205,13 +205,13 @@ class RoleChangeServiceTest {
         insertDeletedStudentProfile(teacher.getId(), group.getId(), ENROLLMENT_YEAR);
         softDeleteGroup(group.getId());
 
-        commitTestSetup();
+        commitSetupBeforeRequiresNewServiceCall();
 
         assertThrows(RoleChangeException.class,
                 () -> roleChangeService.performRoleChange(
                         teacher.getId(),
                         UserRole.TEACHER,
-                        UserRole.STUDENT,
+                        studentTargetHandler,
                         null
                 ));
     }
@@ -230,13 +230,13 @@ class RoleChangeServiceTest {
                 .teacher(teacher)
                 .build());
 
-        commitTestSetup();
+        commitSetupBeforeRequiresNewServiceCall();
 
         assertThrows(RoleChangeException.class,
                 () -> roleChangeService.performRoleChange(
                         teacher.getId(),
                         UserRole.TEACHER,
-                        UserRole.STUDENT,
+                        studentTargetHandler,
                         form
                 ));
 
@@ -254,13 +254,13 @@ class RoleChangeServiceTest {
         var student = activeStudent("role.student.mismatch.source@example.com", "RC-301");
         var form = toTeacherForm(AcademicRank.LECTURER, OFFICE_A);
 
-        commitTestSetup();
+        commitSetupBeforeRequiresNewServiceCall();
 
         assertThrows(RoleChangeException.class,
                 () -> roleChangeService.performRoleChange(
                         student.getId(),
                         UserRole.TEACHER,
-                        UserRole.TEACHER,
+                        teacherTargetHandler,
                         form
                 ));
 
@@ -276,13 +276,13 @@ class RoleChangeServiceTest {
         var group = activeGroup("RC-304");
         var form = toStudentForm(group.getId(), ENROLLMENT_YEAR);
 
-        commitTestSetup();
+        commitSetupBeforeRequiresNewServiceCall();
 
         assertThrows(RoleChangeException.class,
                 () -> roleChangeService.performRoleChange(
                         student.getId(),
                         UserRole.STUDENT,
-                        UserRole.STUDENT,
+                        studentTargetHandler,
                         form
                 ));
 
@@ -291,24 +291,12 @@ class RoleChangeServiceTest {
         assertTrue(teacherRepository.findById(student.getId()).isEmpty());
     }
 
-    private RoleChangeForm toTeacherForm(AcademicRank rank, String office) {
-        return new RoleChangeForm(
-                UserRole.TEACHER,
-                rank,
-                office,
-                null,
-                null
-        );
+    private ToTeacherRoleChangeDto toTeacherForm(AcademicRank rank, String office) {
+        return new ToTeacherRoleChangeDto(rank, office);
     }
 
-    private RoleChangeForm toStudentForm(Long groupId, Integer enrollmentYear) {
-        return new RoleChangeForm(
-                UserRole.STUDENT,
-                null,
-                null,
-                groupId,
-                enrollmentYear
-        );
+    private ToStudentRoleChangeDto toStudentForm(Long groupId, Integer enrollmentYear) {
+        return new ToStudentRoleChangeDto(groupId, enrollmentYear);
     }
 
     private Student activeStudent(String email, String groupName) {
@@ -390,7 +378,9 @@ class RoleChangeServiceTest {
         em.clear();
     }
 
-    private void commitTestSetup() {
+    // RoleChangeService uses REQUIRES_NEW, so setup data must be committed
+    // before calling the service; otherwise the new transaction may not see it.
+    private void commitSetupBeforeRequiresNewServiceCall() {
         assertTrue(TestTransaction.isActive(), "Test transaction must be active before setup commit");
 
         em.flush();

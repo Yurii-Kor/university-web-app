@@ -12,12 +12,11 @@ import ua.foxminded.university.model.domain.Teacher;
 import ua.foxminded.university.model.domain.enums.UserRole;
 import ua.foxminded.university.model.repository.TeacherRepository;
 import ua.foxminded.university.service.rolechange.exception.RoleChangeException;
-import ua.foxminded.university.service.rolechange.target.TargetRoleProfileData;
 import ua.foxminded.university.service.rolechange.target.strategy.data.ToTeacherRoleProfileData;
 
 @Component
 @RequiredArgsConstructor
-public class TeacherTargetRoleProfileHandler implements TargetRoleProfileHandler {
+public class TeacherTargetRoleProfileHandler implements TargetRoleProfileHandler<ToTeacherRoleProfileData> {
 
     private final TeacherRepository teacherRepository;
 
@@ -25,27 +24,22 @@ public class TeacherTargetRoleProfileHandler implements TargetRoleProfileHandler
     public UserRole role() {
         return UserRole.TEACHER;
     }
-    
-    @Override
-    public Optional<Class<? extends TargetRoleProfileData>> targetDataType() {
-        return Optional.of(ToTeacherRoleProfileData.class);
-    }
 
     @Override
     @Transactional(value = TxType.MANDATORY)
-    public void activateTargetProfile(AppUser user, TargetRoleProfileData data) {
+    public void activateTargetProfile(AppUser user, ToTeacherRoleProfileData data) {
         var deletedTeacher = teacherRepository.findDeletedById(user.getId());
 
         if (deletedTeacher.isPresent()) {
-            restoreDeletedTeacher(user, deletedTeacher.get(), data);
+            restoreDeletedTeacher(deletedTeacher.get(), data);
             return;
         }
 
         createTeacher(user, requireTeacherData(user, data));
     }
 
-    private void restoreDeletedTeacher(AppUser user, Teacher teacher, TargetRoleProfileData data) {
-        castIfPresent(user, data)
+    private void restoreDeletedTeacher(Teacher teacher, ToTeacherRoleProfileData data) {
+        Optional.ofNullable(data)
                 .ifPresentOrElse(
                         form -> restoreDeletedTeacherWithSubmittedData(teacher, form),
                         () -> restoreDeletedTeacherWithPreviousData(teacher)
@@ -71,24 +65,9 @@ public class TeacherTargetRoleProfileHandler implements TargetRoleProfileHandler
 
         teacherRepository.save(teacher);
     }
-
-    private Optional<ToTeacherRoleProfileData> castIfPresent(AppUser user, TargetRoleProfileData data) {
-        return Optional.ofNullable(data).map(value -> {
-            if (value instanceof ToTeacherRoleProfileData form) {
-                return form;
-            }
-
-            throw new RoleChangeException(
-                    user.getId(),
-                    user.getRole(),
-                    UserRole.TEACHER,
-                    "Invalid target profile data type for TEACHER: actual=" + value.getClass().getSimpleName()
-            );
-        });
-    }
-
-    private ToTeacherRoleProfileData requireTeacherData(AppUser user, TargetRoleProfileData data) {
-        return castIfPresent(user, data)
+    
+    private ToTeacherRoleProfileData requireTeacherData(AppUser user, ToTeacherRoleProfileData data) {
+        return Optional.ofNullable(data)
                 .orElseThrow(() -> new RoleChangeException(
                         user.getId(),
                         user.getRole(),
