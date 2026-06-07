@@ -2,24 +2,16 @@ package ua.foxminded.university.service.rolechange;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import jakarta.persistence.EntityManager;
-import jakarta.persistence.PersistenceContext;
-
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
-import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
-import org.springframework.test.context.transaction.TestTransaction;
+import org.springframework.test.context.jdbc.Sql;
+import org.springframework.test.context.jdbc.SqlMergeMode;
 
 import ua.foxminded.university.TestcontainersConfiguration;
-import ua.foxminded.university.model.domain.AppUser;
-import ua.foxminded.university.model.domain.Course;
-import ua.foxminded.university.model.domain.Student;
-import ua.foxminded.university.model.domain.StudyGroup;
-import ua.foxminded.university.model.domain.Teacher;
 import ua.foxminded.university.model.domain.enums.AcademicRank;
 import ua.foxminded.university.model.domain.enums.UserRole;
 import ua.foxminded.university.model.repository.AppUserRepository;
@@ -27,268 +19,339 @@ import ua.foxminded.university.model.repository.StudentRepository;
 import ua.foxminded.university.model.repository.TeacherRepository;
 import ua.foxminded.university.service.dto.request.rolechange.ToStudentRoleChangeDto;
 import ua.foxminded.university.service.dto.request.rolechange.ToTeacherRoleChangeDto;
-import ua.foxminded.university.service.rolechange.current.CurrentRoleProfileHandlerRegistry;
-import ua.foxminded.university.service.rolechange.current.strategy.AdminCurrentRoleProfileHandler;
-import ua.foxminded.university.service.rolechange.current.strategy.StudentCurrentRoleProfileHandler;
-import ua.foxminded.university.service.rolechange.current.strategy.TeacherCurrentRoleProfileHandler;
 import ua.foxminded.university.service.rolechange.exception.RoleChangeException;
 import ua.foxminded.university.service.rolechange.target.strategy.StudentTargetRoleProfileHandler;
 import ua.foxminded.university.service.rolechange.target.strategy.TeacherTargetRoleProfileHandler;
-import ua.foxminded.university.service.util.validation.EntityValidatior;
-import ua.foxminded.university.service.util.validation.config.ValidatorConfig;
-import ua.foxminded.university.testutil.TestDataInitializer;
 
-@DataJpaTest
+
+@SpringBootTest
 @ActiveProfiles("test")
-@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@Import({
-        TestcontainersConfiguration.class,
-        TestDataInitializer.class,
-
-        RoleChangeService.class,
-
-        CurrentRoleProfileHandlerRegistry.class,
-        AdminCurrentRoleProfileHandler.class,
-        StudentCurrentRoleProfileHandler.class,
-        TeacherCurrentRoleProfileHandler.class,
-
-        StudentTargetRoleProfileHandler.class,
-        TeacherTargetRoleProfileHandler.class,
-
-        ValidatorConfig.class,
-        EntityValidatior.class
-})
+@Import(TestcontainersConfiguration.class)
+@SqlMergeMode(SqlMergeMode.MergeMode.MERGE)
+@Sql(
+        statements = {
+                """
+                insert into app_user (id, email, password, role, first_name, last_name, enabled)
+                values (1001, 'role.student@example.com', 'Abcd1234!', 'STUDENT', 'Role', 'Changer', true);
+                """,
+                """
+                insert into app_user (id, email, password, role, first_name, last_name, enabled)
+                values (1002, 'role.teacher@example.com', 'Abcd1234!', 'TEACHER', 'Role', 'Changer', true);
+                """,
+                """
+                insert into groups (id, name)
+                values (2001, 'RC-101');
+                """,
+                """
+                insert into student (id, group_id, enrollment_year)
+                values (1001, 2001, 2024);
+                """,
+                """
+                insert into teacher (id, academic_rank, office)
+                values (1002, 'LECTURER', 'A-101');
+                """,
+                """
+                insert into app_user (id, email, password, role, first_name, last_name, enabled)
+                values (1003, 'role.admin@example.com', 'Abcd1234!', 'ADMIN', 'Role', 'Admin', true);
+                """
+        },
+        executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD
+)
+@Sql(
+        scripts = "/sql/cleanup-database.sql",
+        executionPhase = Sql.ExecutionPhase.AFTER_TEST_METHOD
+)
 class RoleChangeServiceTest {
+    
+    static final long STUDENT_USER_ID = 1001L;
+    static final long TEACHER_USER_ID = 1002L;
+    static final long ADMIN_USER_ID   = 1003L;
+    static final long ACTIVE_GROUP_ID = 2001L;
 
-    private static final String PASSWORD = "Abcd1234!";
-    private static final String FIRST_NAME = "Role";
-    private static final String LAST_NAME = "Changer";
+    static final String OFFICE_A = "A-101";
+    static final String OFFICE_B = "B-202";
 
-    private static final String OFFICE_A = "T-101";
-    private static final String OFFICE_B = "T-202";
-
-    private static final Integer ENROLLMENT_YEAR = 2024;
-
-    @PersistenceContext EntityManager em;
+    static final Integer ENROLLMENT_YEAR = 2024;
+    
+    @Autowired RoleChangeService roleChangeService;
 
     @Autowired AppUserRepository userRepository;
     @Autowired StudentRepository studentRepository;
     @Autowired TeacherRepository teacherRepository;
-    @Autowired TestDataInitializer initializer;
 
-    @Autowired RoleChangeService roleChangeService;
     @Autowired StudentTargetRoleProfileHandler studentTargetHandler;
     @Autowired TeacherTargetRoleProfileHandler teacherTargetHandler;
 
     @Test
     @DisplayName("performRoleChange: student -> teacher creates teacher profile, soft-deletes student profile, updates user role")
     void performRoleChange_studentToTeacher_createsTeacher_softDeletesStudent_updatesRole() {
-        var student = activeStudent("role.student.to.teacher.create@example.com", "RC-101");
         var form = toTeacherForm(AcademicRank.LECTURER, OFFICE_A);
 
-        commitSetupBeforeRequiresNewServiceCall();
-
         roleChangeService.performRoleChange(
-                student.getId(),
+                STUDENT_USER_ID,
                 UserRole.STUDENT,
                 teacherTargetHandler,
                 form
         );
 
-        assertUserRole(student.getId(), UserRole.TEACHER);
+        assertUserRole(STUDENT_USER_ID, UserRole.TEACHER);
 
-        assertTrue(studentRepository.findById(student.getId()).isEmpty());
-        assertTrue(teacherRepository.findById(student.getId()).isPresent());
+        assertTrue(studentRepository.findById(STUDENT_USER_ID).isEmpty());
+        assertTrue(studentRepository.findRestorableDeletedById(STUDENT_USER_ID).isPresent());
+        assertTrue(teacherRepository.findById(STUDENT_USER_ID).isPresent());
 
-        assertProfileDeleted("student", student.getId());
-        assertProfileActive("teacher", student.getId());
-
-        var teacher = teacherRepository.findById(student.getId()).orElseThrow();
+        var teacher = teacherRepository.findById(STUDENT_USER_ID).orElseThrow();
         assertEquals(AcademicRank.LECTURER, teacher.getAcademicRank());
         assertEquals(OFFICE_A, teacher.getOffice());
     }
 
     @Test
-    @DisplayName("performRoleChange: student -> teacher restores deleted teacher profile without submitted data")
-    void performRoleChange_studentToTeacher_restoresDeletedTeacher_softDeletesStudent_updatesRole() {
-        var student = activeStudent("role.student.to.teacher.restore@example.com", "RC-102");
-
-        insertDeletedTeacherProfile(student.getId(), AcademicRank.PROFESSOR, OFFICE_B);
-
-        commitSetupBeforeRequiresNewServiceCall();
-
-        roleChangeService.performRoleChange(
-                student.getId(),
-                UserRole.STUDENT,
-                teacherTargetHandler,
-                null
-        );
-
-        assertUserRole(student.getId(), UserRole.TEACHER);
-
-        assertTrue(studentRepository.findById(student.getId()).isEmpty());
-        assertTrue(teacherRepository.findById(student.getId()).isPresent());
-
-        assertProfileDeleted("student", student.getId());
-        assertProfileActive("teacher", student.getId());
-
-        var teacher = teacherRepository.findById(student.getId()).orElseThrow();
-        assertEquals(AcademicRank.PROFESSOR, teacher.getAcademicRank());
-        assertEquals(OFFICE_B, teacher.getOffice());
-    }
-
-    @Test
     @DisplayName("performRoleChange: teacher -> student creates student profile, soft-deletes teacher profile, updates user role")
     void performRoleChange_teacherToStudent_createsStudent_softDeletesTeacher_updatesRole() {
-        var teacher = activeTeacher("role.teacher.to.student.create@example.com");
-        var group = activeGroup("RC-201");
-        var form = toStudentForm(group.getId(), ENROLLMENT_YEAR);
-
-        commitSetupBeforeRequiresNewServiceCall();
+        var form = toStudentForm(ACTIVE_GROUP_ID, ENROLLMENT_YEAR);
 
         roleChangeService.performRoleChange(
-                teacher.getId(),
+                TEACHER_USER_ID,
                 UserRole.TEACHER,
                 studentTargetHandler,
                 form
         );
 
-        assertUserRole(teacher.getId(), UserRole.STUDENT);
+        assertUserRole(TEACHER_USER_ID, UserRole.STUDENT);
 
-        assertTrue(teacherRepository.findById(teacher.getId()).isEmpty());
-        assertTrue(studentRepository.findById(teacher.getId()).isPresent());
+        assertTrue(teacherRepository.findById(TEACHER_USER_ID).isEmpty());
+        assertTrue(teacherRepository.findDeletedById(TEACHER_USER_ID).isPresent());
+        assertTrue(studentRepository.findById(TEACHER_USER_ID).isPresent());
 
-        assertProfileDeleted("teacher", teacher.getId());
-        assertProfileActive("student", teacher.getId());
-
-        var student = studentRepository.findById(teacher.getId()).orElseThrow();
-        assertEquals(group.getId(), student.getGroup().getId());
+        var student = studentRepository.findById(TEACHER_USER_ID).orElseThrow();
+        assertEquals(ACTIVE_GROUP_ID, student.getGroup().getId());
         assertEquals(ENROLLMENT_YEAR, student.getEnrollmentYear());
     }
 
     @Test
+    @Sql(
+            statements = """
+                    insert into teacher (id, academic_rank, office, deleted_at)
+                    values (1001, 'PROFESSOR', 'B-202', now());
+                    """,
+            executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD
+    )
+    @DisplayName("performRoleChange: student -> teacher restores deleted teacher profile, soft-deletes student profile, updates user role")
+    void performRoleChange_studentToTeacher_restoresDeletedTeacher_softDeletesStudent_updatesRole() {
+        roleChangeService.performRoleChange(
+                STUDENT_USER_ID,
+                UserRole.STUDENT,
+                teacherTargetHandler,
+                null
+        );
+
+        assertUserRole(STUDENT_USER_ID, UserRole.TEACHER);
+
+        assertTrue(studentRepository.findById(STUDENT_USER_ID).isEmpty());
+        assertTrue(studentRepository.findRestorableDeletedById(STUDENT_USER_ID).isPresent());
+
+        assertTrue(teacherRepository.findDeletedById(STUDENT_USER_ID).isEmpty());
+
+        var teacher = teacherRepository.findById(STUDENT_USER_ID).orElseThrow();
+        assertEquals(AcademicRank.PROFESSOR, teacher.getAcademicRank());
+        assertEquals(OFFICE_B, teacher.getOffice());
+    }
+
+    @Test
+    @Sql(
+            statements = """
+                    insert into student (id, group_id, enrollment_year, deleted_at)
+                    values (1002, 2001, 2024, now());
+                    """,
+            executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD
+    )
     @DisplayName("performRoleChange: teacher -> student restores deleted student profile when previous group is active")
     void performRoleChange_teacherToStudent_restoresDeletedStudentWithActiveGroup_updatesRole() {
-        var teacher = activeTeacher("role.teacher.to.student.restore@example.com");
-        var group = activeGroup("RC-202");
-
-        insertDeletedStudentProfile(teacher.getId(), group.getId(), ENROLLMENT_YEAR);
-
-        commitSetupBeforeRequiresNewServiceCall();
-
         roleChangeService.performRoleChange(
-                teacher.getId(),
+                TEACHER_USER_ID,
                 UserRole.TEACHER,
                 studentTargetHandler,
                 null
         );
 
-        assertUserRole(teacher.getId(), UserRole.STUDENT);
+        assertUserRole(TEACHER_USER_ID, UserRole.STUDENT);
 
-        assertTrue(teacherRepository.findById(teacher.getId()).isEmpty());
-        assertTrue(studentRepository.findById(teacher.getId()).isPresent());
+        assertTrue(teacherRepository.findById(TEACHER_USER_ID).isEmpty());
+        assertTrue(teacherRepository.findDeletedById(TEACHER_USER_ID).isPresent());
 
-        assertProfileDeleted("teacher", teacher.getId());
-        assertProfileActive("student", teacher.getId());
+        assertTrue(studentRepository.findRestorableDeletedById(TEACHER_USER_ID).isEmpty());
 
-        var student = studentRepository.findById(teacher.getId()).orElseThrow();
-        assertEquals(group.getId(), student.getGroup().getId());
+        var student = studentRepository.findById(TEACHER_USER_ID).orElseThrow();
+        assertEquals(ACTIVE_GROUP_ID, student.getGroup().getId());
         assertEquals(ENROLLMENT_YEAR, student.getEnrollmentYear());
     }
 
     @Test
-    @DisplayName("performRoleChange: teacher -> student with archived previous group -> RoleChangeException")
-    void performRoleChange_teacherToStudent_archivedPreviousGroup_fails() {
-        var teacher = activeTeacher("role.teacher.to.student.archived.group@example.com");
-        var group = activeGroup("RC-203");
-
-        insertDeletedStudentProfile(teacher.getId(), group.getId(), ENROLLMENT_YEAR);
-        softDeleteGroup(group.getId());
-
-        commitSetupBeforeRequiresNewServiceCall();
-
+    @Sql(
+            statements = {
+                    """
+                    insert into groups (id, name, deleted_at)
+                    values (2002, 'RC-ARCHIVED', now());
+                    """,
+                    """
+                    insert into student (id, group_id, enrollment_year, deleted_at)
+                    values (1002, 2002, 2024, now());
+                    """
+            },
+            executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD
+    )
+    @DisplayName("performRoleChange: teacher -> student with archived previous group fails and leaves DB unchanged")
+    void performRoleChange_teacherToStudent_archivedPreviousGroup_failsAndLeavesDbUnchanged() {
         assertThrows(RoleChangeException.class,
                 () -> roleChangeService.performRoleChange(
-                        teacher.getId(),
+                        TEACHER_USER_ID,
                         UserRole.TEACHER,
                         studentTargetHandler,
                         null
                 ));
+
+        assertUserRole(TEACHER_USER_ID, UserRole.TEACHER);
+
+        assertTrue(teacherRepository.findById(TEACHER_USER_ID).isPresent());
+        assertTrue(teacherRepository.findDeletedById(TEACHER_USER_ID).isEmpty());
+
+        assertTrue(studentRepository.findById(TEACHER_USER_ID).isEmpty());
+        assertTrue(studentRepository.findRestorableDeletedById(TEACHER_USER_ID).isEmpty());
     }
 
     @Test
-    @DisplayName("performRoleChange: teacher -> student with assigned courses -> rollback, teacher remains active")
+    @Sql(
+            statements = """
+                    insert into courses (id, code, name, description, teacher_id)
+                    values (3001, 'RC-COURSE-204', 'Role Change Locked Course', null, 1002);
+                    """,
+            executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD
+    )
+    @DisplayName("performRoleChange: teacher -> student with assigned courses fails and rolls back")
     void performRoleChange_teacherToStudent_teacherWithCourses_failsAndRollsBack() {
-        var teacher = activeTeacher("role.teacher.with.course@example.com");
-        var group = activeGroup("RC-204");
-        var form = toStudentForm(group.getId(), ENROLLMENT_YEAR);
-
-        initializer.persistAll(Course.builder()
-                .code(uniqueValue("RC-COURSE-204"))
-                .name("Role Change Locked Course")
-                .description(null)
-                .teacher(teacher)
-                .build());
-
-        commitSetupBeforeRequiresNewServiceCall();
+        var form = toStudentForm(ACTIVE_GROUP_ID, ENROLLMENT_YEAR);
 
         assertThrows(RoleChangeException.class,
                 () -> roleChangeService.performRoleChange(
-                        teacher.getId(),
+                        TEACHER_USER_ID,
                         UserRole.TEACHER,
                         studentTargetHandler,
                         form
                 ));
 
-        assertUserRole(teacher.getId(), UserRole.TEACHER);
+        assertUserRole(TEACHER_USER_ID, UserRole.TEACHER);
 
-        assertTrue(teacherRepository.findById(teacher.getId()).isPresent());
-        assertTrue(studentRepository.findById(teacher.getId()).isEmpty());
+        assertTrue(teacherRepository.findById(TEACHER_USER_ID).isPresent());
+        assertTrue(teacherRepository.findDeletedById(TEACHER_USER_ID).isEmpty());
 
-        assertProfileActive("teacher", teacher.getId());
+        assertTrue(studentRepository.findById(TEACHER_USER_ID).isEmpty());
+        assertTrue(studentRepository.findRestorableDeletedById(TEACHER_USER_ID).isEmpty());
     }
 
     @Test
-    @DisplayName("performRoleChange: source role mismatch -> RoleChangeException")
-    void performRoleChange_sourceRoleMismatch_fails() {
-        var student = activeStudent("role.student.mismatch.source@example.com", "RC-301");
+    @DisplayName("performRoleChange: source role mismatch fails and leaves DB unchanged")
+    void performRoleChange_sourceRoleMismatch_failsAndLeavesDbUnchanged() {
         var form = toTeacherForm(AcademicRank.LECTURER, OFFICE_A);
-
-        commitSetupBeforeRequiresNewServiceCall();
 
         assertThrows(RoleChangeException.class,
                 () -> roleChangeService.performRoleChange(
-                        student.getId(),
+                        STUDENT_USER_ID,
                         UserRole.TEACHER,
                         teacherTargetHandler,
                         form
                 ));
 
-        assertUserRole(student.getId(), UserRole.STUDENT);
-        assertTrue(studentRepository.findById(student.getId()).isPresent());
-        assertTrue(teacherRepository.findById(student.getId()).isEmpty());
+        assertUserRole(STUDENT_USER_ID, UserRole.STUDENT);
+
+        assertTrue(studentRepository.findById(STUDENT_USER_ID).isPresent());
+        assertTrue(studentRepository.findRestorableDeletedById(STUDENT_USER_ID).isEmpty());
+
+        assertTrue(teacherRepository.findById(STUDENT_USER_ID).isEmpty());
+        assertTrue(teacherRepository.findDeletedById(STUDENT_USER_ID).isEmpty());
     }
 
     @Test
-    @DisplayName("performRoleChange: target role same as current role -> RoleChangeException")
-    void performRoleChange_sameTargetRole_fails() {
-        var student = activeStudent("role.student.same.target@example.com", "RC-303");
-        var group = activeGroup("RC-304");
-        var form = toStudentForm(group.getId(), ENROLLMENT_YEAR);
-
-        commitSetupBeforeRequiresNewServiceCall();
+    @DisplayName("performRoleChange: target role same as current role fails and leaves DB unchanged")
+    void performRoleChange_sameTargetRole_failsAndLeavesDbUnchanged() {
+        var form = toStudentForm(ACTIVE_GROUP_ID, ENROLLMENT_YEAR);
 
         assertThrows(RoleChangeException.class,
                 () -> roleChangeService.performRoleChange(
-                        student.getId(),
+                        STUDENT_USER_ID,
                         UserRole.STUDENT,
                         studentTargetHandler,
                         form
                 ));
 
-        assertUserRole(student.getId(), UserRole.STUDENT);
-        assertTrue(studentRepository.findById(student.getId()).isPresent());
-        assertTrue(teacherRepository.findById(student.getId()).isEmpty());
+        assertUserRole(STUDENT_USER_ID, UserRole.STUDENT);
+
+        assertTrue(studentRepository.findById(STUDENT_USER_ID).isPresent());
+        assertTrue(studentRepository.findRestorableDeletedById(STUDENT_USER_ID).isEmpty());
+
+        assertTrue(teacherRepository.findById(STUDENT_USER_ID).isEmpty());
+        assertTrue(teacherRepository.findDeletedById(STUDENT_USER_ID).isEmpty());
+    }
+
+    @Test
+    @DisplayName("performRoleChange: admin -> student fails and leaves admin role unchanged")
+    void performRoleChange_adminToStudent_failsAndLeavesAdminRoleUnchanged() {
+        var form = toStudentForm(ACTIVE_GROUP_ID, ENROLLMENT_YEAR);
+
+        assertThrows(IllegalStateException.class,
+                () -> roleChangeService.performRoleChange(
+                        ADMIN_USER_ID,
+                        UserRole.ADMIN,
+                        studentTargetHandler,
+                        form
+                ));
+
+        assertUserRole(ADMIN_USER_ID, UserRole.ADMIN);
+
+        assertTrue(studentRepository.findById(ADMIN_USER_ID).isEmpty());
+        assertTrue(studentRepository.findRestorableDeletedById(ADMIN_USER_ID).isEmpty());
+
+        assertTrue(teacherRepository.findById(ADMIN_USER_ID).isEmpty());
+        assertTrue(teacherRepository.findDeletedById(ADMIN_USER_ID).isEmpty());
+    }
+
+    @Test
+    @DisplayName("performRoleChange: student -> teacher without form and deleted teacher profile fails and leaves DB unchanged")
+    void performRoleChange_studentToTeacher_noFormAndNoDeletedTeacher_failsAndLeavesDbUnchanged() {
+        assertThrows(RoleChangeException.class,
+                () -> roleChangeService.performRoleChange(
+                        STUDENT_USER_ID,
+                        UserRole.STUDENT,
+                        teacherTargetHandler,
+                        null
+                ));
+
+        assertUserRole(STUDENT_USER_ID, UserRole.STUDENT);
+
+        assertTrue(studentRepository.findById(STUDENT_USER_ID).isPresent());
+        assertTrue(studentRepository.findRestorableDeletedById(STUDENT_USER_ID).isEmpty());
+
+        assertTrue(teacherRepository.findById(STUDENT_USER_ID).isEmpty());
+        assertTrue(teacherRepository.findDeletedById(STUDENT_USER_ID).isEmpty());
+    }
+
+    @Test
+    @DisplayName("performRoleChange: teacher -> student without form and deleted student profile fails and leaves DB unchanged")
+    void performRoleChange_teacherToStudent_noFormAndNoDeletedStudent_failsAndLeavesDbUnchanged() {
+        assertThrows(RoleChangeException.class,
+                () -> roleChangeService.performRoleChange(
+                        TEACHER_USER_ID,
+                        UserRole.TEACHER,
+                        studentTargetHandler,
+                        null
+                ));
+
+        assertUserRole(TEACHER_USER_ID, UserRole.TEACHER);
+
+        assertTrue(teacherRepository.findById(TEACHER_USER_ID).isPresent());
+        assertTrue(teacherRepository.findDeletedById(TEACHER_USER_ID).isEmpty());
+
+        assertTrue(studentRepository.findById(TEACHER_USER_ID).isEmpty());
+        assertTrue(studentRepository.findRestorableDeletedById(TEACHER_USER_ID).isEmpty());
     }
 
     private ToTeacherRoleChangeDto toTeacherForm(AcademicRank rank, String office) {
@@ -299,143 +362,9 @@ class RoleChangeServiceTest {
         return new ToStudentRoleChangeDto(groupId, enrollmentYear);
     }
 
-    private Student activeStudent(String email, String groupName) {
-        var group = activeGroup(groupName);
-        var user = activeUser(email, UserRole.STUDENT);
-
-        return initializer.persistAll(Student.builder()
-                .user(user)
-                .group(group)
-                .enrollmentYear(ENROLLMENT_YEAR)
-                .build()).getFirst();
-    }
-
-    private Teacher activeTeacher(String email) {
-        var user = activeUser(email, UserRole.TEACHER);
-
-        return initializer.persistAll(Teacher.builder()
-                .user(user)
-                .academicRank(AcademicRank.LECTURER)
-                .office(OFFICE_A)
-                .build()).getFirst();
-    }
-
-    private AppUser activeUser(String email, UserRole role) {
-        return initializer.persistAll(AppUser.builder()
-                .email(uniqueEmail(email))
-                .password(PASSWORD)
-                .role(role)
-                .firstName(FIRST_NAME)
-                .lastName(LAST_NAME)
-                .enabled(true)
-                .build()).getFirst();
-    }
-
-    private StudyGroup activeGroup(String name) {
-        return initializer.persistAll(StudyGroup.builder()
-                .name(uniqueValue(name))
-                .build()).getFirst();
-    }
-
-    private void insertDeletedTeacherProfile(long userId, AcademicRank rank, String office) {
-        em.createNativeQuery("""
-                insert into teacher (id, academic_rank, office, deleted_at)
-                values (:id, :rank, :office, now())
-                """)
-                .setParameter("id", userId)
-                .setParameter("rank", rank.name())
-                .setParameter("office", office)
-                .executeUpdate();
-
-        em.flush();
-        em.clear();
-    }
-
-    private void insertDeletedStudentProfile(long userId, long groupId, Integer enrollmentYear) {
-        em.createNativeQuery("""
-                insert into student (id, group_id, enrollment_year, deleted_at)
-                values (:id, :groupId, :enrollmentYear, now())
-                """)
-                .setParameter("id", userId)
-                .setParameter("groupId", groupId)
-                .setParameter("enrollmentYear", enrollmentYear)
-                .executeUpdate();
-
-        em.flush();
-        em.clear();
-    }
-
-    private void softDeleteGroup(long groupId) {
-        em.createNativeQuery("""
-                update groups
-                set deleted_at = now()
-                where id = :id
-                """)
-                .setParameter("id", groupId)
-                .executeUpdate();
-
-        em.flush();
-        em.clear();
-    }
-
-    // RoleChangeService uses REQUIRES_NEW, so setup data must be committed
-    // before calling the service; otherwise the new transaction may not see it.
-    private void commitSetupBeforeRequiresNewServiceCall() {
-        assertTrue(TestTransaction.isActive(), "Test transaction must be active before setup commit");
-
-        em.flush();
-        em.clear();
-
-        TestTransaction.flagForCommit();
-        TestTransaction.end();
-    }
-
     private void assertUserRole(long userId, UserRole expectedRole) {
-        em.clear();
-
         var user = userRepository.findById(userId).orElseThrow();
+
         assertEquals(expectedRole, user.getRole());
-    }
-
-    private void assertProfileActive(String tableName, long id) {
-        em.clear();
-
-        var deletedAt = em.createNativeQuery("""
-                select deleted_at
-                from %s
-                where id = :id
-                """.formatted(tableName))
-                .setParameter("id", id)
-                .getSingleResult();
-
-        assertNull(deletedAt, tableName + " profile should be active");
-    }
-
-    private void assertProfileDeleted(String tableName, long id) {
-        em.clear();
-
-        var deletedAt = em.createNativeQuery("""
-                select deleted_at
-                from %s
-                where id = :id
-                """.formatted(tableName))
-                .setParameter("id", id)
-                .getSingleResult();
-
-        assertNotNull(deletedAt, tableName + " profile should be soft-deleted");
-    }
-
-    private String uniqueEmail(String email) {
-        var at = email.indexOf('@');
-
-        if (at < 0) {
-            return uniqueValue(email);
-        }
-
-        return email.substring(0, at) + "." + System.nanoTime() + email.substring(at);
-    }
-
-    private String uniqueValue(String value) {
-        return value + "-" + System.nanoTime();
     }
 }

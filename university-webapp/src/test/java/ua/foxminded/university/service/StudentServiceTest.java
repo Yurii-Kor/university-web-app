@@ -133,12 +133,22 @@ class StudentServiceTest {
 	            VALID_ENROLLMENT_YEAR
 	    );
 
-        var saved = studentService.createAll(List.of(createDto)).getFirst();
+	    var saved = studentService.createAll(List.of(createDto)).getFirst();
 
-        studentService.deleteById(saved.getId());
+	    studentService.deleteById(saved.getId());
 
-        assertTrue(studentService.findByIds(List.of(saved.getId())).isEmpty());
-        assertThrows(EntityNotFoundException.class, () -> studentService.getStudentProfileView(saved.getId()));
+	    assertTrue(studentService.findByIds(List.of(saved.getId())).isEmpty());
+	    assertThrows(EntityNotFoundException.class, () -> studentService.getStudentProfileView(saved.getId()));
+
+	    var deleted = studentService.listDeletedStudentCardsForAdmin(PageRequest.of(0, 10))
+	            .getContent()
+	            .stream()
+	            .filter(card -> card.id().equals(saved.getId()))
+	            .findFirst()
+	            .orElseThrow();
+
+	    assertEquals(EMAIL_DELETE_BY_ID, deleted.email());
+	    assertNotNull(deleted.deletedAt());
 	}
 	
 	@Test
