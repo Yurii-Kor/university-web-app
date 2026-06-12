@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+  <meta charset="utf-8" />
+  <title>Create course</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="icon" th:href="@{/favicon.ico}" href="/favicon.ico" />
+  <link rel="stylesheet" th:href="@{/css/app.css}" href="/css/app.css" />
+  <link rel="stylesheet" th:href="@{/css/pages/forms.css}" href="/css/pages/forms.css" />
+</head>
+
+<body class="ou-page course-create-page">
+  <div th:replace="~{fragments/header :: ouHeader('courses')}"></div>
+
+  <main class="ou-form-main">
+    <section class="ou-card" aria-label="Create course">
+
+      <div class="ou-form-toolbar">
+        <div>
+          <h1 class="ou-card__title">Create course</h1>
+          <p class="ou-form-subtitle">Add a new course to the system.</p>
+        </div>
+
+        <a class="ou-btn ou-btn--ghost" th:href="@{/courses}">
+          ← Back to courses
+        </a>
+      </div>
+
+      <form class="form-grid form-grid--kv"
+            th:action="@{/courses/create}"
+            th:object="${form}"
+            method="post"
+            novalidate>
+
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
+
+        <div class="ou-alert ou-alert--error"
+             th:if="${err != null}"
+             th:text="${err}">
+          Something went wrong.
+        </div>
+
+        <div class="ou-alert ou-alert--error"
+             th:if="${err == null and #fields.hasAnyErrors()}">
+          Please fix the errors below and try again.
+        </div>
+
+        <!-- Code -->
+        <div class="form-row-kv">
+          <label for="code">Course code</label>
+          <div class="form-field">
+            <input id="code"
+                   class="ou-input"
+                   type="text"
+                   placeholder="CS-101"
+                   th:field="*{code}" />
+
+            <p class="form-help">Use uppercase letters/digits with your format (e.g., CS-101).</p>
+
+            <p class="form-error"
+               th:if="${#fields.hasErrors('code')}"
+               th:errors="*{code}">
+              Code error
+            </p>
+          </div>
+        </div>
+
+        <div class="form-row-kv">
+          <label for="name">Course name</label>
+          <div class="form-field">
+            <input id="name"
+                   class="ou-input"
+                   type="text"
+                   placeholder="Introduction to Programming"
+                   th:field="*{name}" />
+
+            <p class="form-error"
+               th:if="${#fields.hasErrors('name')}"
+               th:errors="*{name}">
+              Name error
+            </p>
+          </div>
+        </div>
+
+        <div class="form-row-kv">
+          <label for="description">Description</label>
+          <div class="form-field">
+            <textarea id="description"
+                      class="ou-input ou-input--textarea"
+                      rows="6"
+                      maxlength="10000"
+                      placeholder="Optional description…"
+                      th:field="*{description}"></textarea>
+
+            <p class="form-help">Optional. You can edit it later from the Courses page.</p>
+
+            <p class="form-error"
+               th:if="${#fields.hasErrors('description')}"
+               th:errors="*{description}">
+              Description error
+            </p>
+          </div>
+        </div>
+
+        <div class="form-row-kv">
+          <label for="teacherId">Teacher</label>
+          <div class="form-field">
+
+            <select id="teacherId"
+                    class="ou-input"
+                    th:field="*{teacherId}">
+              <option value="" disabled th:selected="*{teacherId} == null">— Select teacher —</option>
+
+              <option th:each="t : ${all_teachers}"
+			          th:value="${t.id}"
+			          th:text="${t.firstName + ' ' + t.lastName + (t.email != null ? ' (' + t.email + ')' : '')}">
+			 </option>
+            </select>
+
+            <p class="form-error"
+               th:if="${#fields.hasErrors('teacherId')}"
+               th:errors="*{teacherId}">
+              Teacher error
+            </p>
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <a class="ou-btn ou-btn--ghost" th:href="@{/courses}">Cancel</a>
+          <button class="ou-btn" type="submit">Create</button>
+        </div>
+
+      </form>
+
+    </section>
+  </main>
+</body>
+</html>

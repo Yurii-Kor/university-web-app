@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en"
+      xmlns:th="http://www.thymeleaf.org">
+<body>
+
+<th:block th:fragment="courseCard(c, courseId, ok, err, showTeacherInfo, allowDescriptionEdit, showAdminActions, currentPage)">
+  <article class="ou-card course-card"
+           th:attr="data-id=${c.id}"
+           th:with="
+             hasDesc=${c.description != null and !c.description.isBlank()},
+             hasEmail=${c.teacherEmail != null and !c.teacherEmail.isBlank()},
+             isTarget=${courseId != null and courseId == c.id}
+           ">
+
+    <div class="course-card__head">
+      <div class="course-card__who">
+        <div class="course-card__code">
+          <span th:text="${c.code}">CS-101</span>
+        </div>
+
+        <div class="course-card__name">
+          <span th:text="${c.name}">Course name</span>
+        </div>
+      </div>
+    </div>
+
+    <dl class="course-kv">
+      <dt>ID</dt>
+      <dd th:text="${c.id}">1</dd>
+
+      <th:block th:if="${showTeacherInfo}">
+        <dt>Teacher</dt>
+        <dd>
+          <div class="course-teacher">
+            <span class="course-teacher__name"
+                  th:text="${c.teacherFirstName + ' ' + c.teacherLastName}">
+              Teacher Name
+            </span>
+
+            <a class="course-teacher__email"
+               th:if="${hasEmail}"
+               th:href="|mailto:${c.teacherEmail}|"
+               th:text="${c.teacherEmail}">
+              teacher@example.com
+            </a>
+          </div>
+        </dd>
+      </th:block>
+    </dl>
+
+    <th:block th:if="${isTarget and (ok != null or err != null)}">
+      <div class="ou-alert ou-alert--success"
+           th:if="${ok != null}"
+           th:text="${ok}">
+        Done.
+      </div>
+
+      <div class="ou-alert ou-alert--error"
+           th:if="${err != null}"
+           th:text="${err}">
+        Something went wrong.
+      </div>
+    </th:block>
+
+    <div class="course-desc-wrap">
+      <th:block th:replace="~{courses/fragments/course-description :: courseDescription(${c}, ${hasDesc}, ${allowDescriptionEdit}, ${currentPage})}"></th:block>
+    </div>
+
+    <div class="course-actions" th:if="${showAdminActions}">
+      <div class="course-actions__row">
+        <th:block th:replace="~{courses/fragments/course-actions :: courseAdminActions(${c}, ${currentPage})}"></th:block>
+      </div>
+    </div>
+
+  </article>
+</th:block>
+
+</body>
+</html>

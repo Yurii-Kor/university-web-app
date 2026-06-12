@@ -1,0 +1,20 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: uni_postgres
+    environment:
+      POSTGRES_DB: university
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5434:5432"
+    volumes:
+      - uni_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d university"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  uni_pg_data:

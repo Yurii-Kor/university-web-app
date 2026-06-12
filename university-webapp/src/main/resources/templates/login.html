@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+<meta charset="utf-8" />
+<title>Login</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="icon" th:href="@{/favicon.ico}" href="/favicon.ico" />
+<link rel="stylesheet" th:href="@{/css/app.css}" href="/css/app.css" />
+<link rel="stylesheet" th:href="@{/css/pages/login.css}" href="/css/pages/login.css" />
+</head>
+
+<body class="login-page">
+
+	<header class="ou-header">
+		<div class="ou-header__logo">
+			<img th:src="@{/images/ou-logo.png}" src="/images/ou-logo.png"
+				alt="Open University logo">
+		</div>
+		
+		<div class="ou-header__text ou-header__text--with-actions">
+    		<div class="ou-header__brand" aria-label="Open University">
+      			<span class="ou-brand-ou">O</span><span class="ou-brand-rest">pen</span>
+      			<span class="ou-brand-ou">U</span><span class="ou-brand-rest">niversity</span>
+    		</div>
+
+    		<div class="ou-header__page" aria-label="Current page">Log In</div>
+
+    		<div class="ou-header__actions" aria-label="Header actions">
+      			<a th:href="@{/}" href="/" class="ou-btn ou-btn--ghost">Home</a>
+    		</div>
+  		</div>
+	</header>
+
+	<main class="login-main">
+		<div class="login-grid">
+			<section class="ou-card login-card" role="region" aria-labelledby="login-title">
+				<h1 id="login-title" class="ou-card__title">Sign in</h1>
+				
+				<div class="ou-alert ou-alert--error" th:if="${loginMsg == 'BAD_CREDENTIALS'}">
+  					Invalid email or password.
+				</div>
+
+				<div class="ou-alert ou-alert--warn" th:if="${loginMsg == 'ACCOUNT_BLOCKED'}">
+  					Your account is disabled. Please contact an administrator.
+				</div>
+
+				<div class="ou-alert ou-alert--warn" th:if="${loginMsg == 'AUTH_REQUIRED'}">
+  					Login required.
+				</div>
+
+				<div class="ou-alert ou-alert--warn" th:if="${loginMsg == 'SESSION_EXPIRED'}">
+  					Your session expired. Please log in again.
+				</div>
+
+				<div class="ou-alert ou-alert--success" th:if="${loginMsg == 'LOGGED_OUT'}">
+  					You have been logged out.
+				</div>
+
+
+				<form class="login-form" th:action="@{/login}" method="post"
+					novalidate>
+					
+					<input type="hidden" th:name="${_csrf.parameterName}"
+						th:value="${_csrf.token}" />
+						
+					<div class="login-field">
+						<label for="username" class="login-label">Email</label> <input
+							id="username" name="username" type="email" class="ou-input"
+							placeholder="teacherN@mail.com" autocomplete="username" required>
+					</div>
+
+					<div class="login-field">
+						<label for="password" class="login-label">Password</label>
+						<div class="password-wrap">
+							<input id="password" name="password" type="password"
+								class="ou-input ou-input--password" placeholder="Tch-N!dev"
+								autocomplete="current-password" required>
+							<button type="button" id="togglePassword" class="show-btn"
+								aria-label="Show password" aria-pressed="false"
+								title="Show password">👁</button>
+						</div>
+					</div>
+
+					<div class="login-actions">
+						<button type="submit" class="ou-btn">Log in</button>
+					</div>
+				</form>
+			</section>
+
+			<aside class="ou-card tips-card" role="complementary" aria-labelledby="tips-title">
+				<h2 id="tips-title" class="ou-card__title">Test accounts</h2>
+
+				<div class="tips-section">
+					<div class="tips-subtitle">Active</div>
+					<ul class="tips-list">
+  						<li class="tips-item">
+    						<span class="tips-label">Teacher:</span>
+    						
+    						<code class="tips-code" id="acc-teacher2-email">teacher2@mail.com</code>
+    						<button type="button" class="tips-copy" data-copy="#acc-teacher2-email" title="Copy email" aria-label="Copy email">📋</button>
+    						
+    						<code class="tips-code" id="acc-teacher2-pass">Tch-2!dev</code>
+    						<button type="button" class="tips-copy" data-copy="#acc-teacher2-pass" title="Copy password" aria-label="Copy password">📋</button>
+  						</li>
+
+  						<li class="tips-item">
+    						<span class="tips-label">Student:</span>
+    						
+    						<code class="tips-code" id="acc-student2-email">student2@mail.com</code>
+    						<button type="button" class="tips-copy" data-copy="#acc-student2-email" title="Copy email" aria-label="Copy email">📋</button>
+    						
+    						<code class="tips-code" id="acc-student2-pass">Std-2!dev</code>
+    						<button type="button" class="tips-copy" data-copy="#acc-student2-pass" title="Copy password" aria-label="Copy password">📋</button>
+  						</li>
+
+  						<li class="tips-item">
+    						<span class="tips-label">Admin:</span>
+    						
+    						<code class="tips-code" id="acc-admin2-email">admin2@mail.com</code>
+    						<button type="button" class="tips-copy" data-copy="#acc-admin2-email" title="Copy email" aria-label="Copy email">📋</button>
+    						
+    						<code class="tips-code" id="acc-admin2-pass">Adm-2!dev</code>
+    						<button type="button" class="tips-copy" data-copy="#acc-admin2-pass" title="Copy password" aria-label="Copy password">📋</button>
+  						</li>
+					</ul>
+				</div>
+
+				<div class="tips-section">
+					<div class="tips-subtitle">Blocked (for testing)</div>
+					<ul class="tips-list">
+						<li class="tips-item">
+    						<span class="tips-label">Teacher:</span>
+    						
+    						<code class="tips-code" id="acc-teacher1-email">teacher1@mail.com</code>
+    						<button type="button" class="tips-copy" data-copy="#acc-teacher1-email" title="Copy email" aria-label="Copy email">📋</button>
+    						
+    						<code class="tips-code" id="acc-teacher1-pass">Tch-1!dev</code>
+    						<button type="button" class="tips-copy" data-copy="#acc-teacher1-pass" title="Copy password" aria-label="Copy password">📋</button>
+  						</li>
+
+  						<li class="tips-item">
+    						<span class="tips-label">Student:</span>
+    						
+    						<code class="tips-code" id="acc-student1-email">student1@mail.com</code>
+    						<button type="button" class="tips-copy" data-copy="#acc-student1-email" title="Copy email" aria-label="Copy email">📋</button>
+    						
+    						<code class="tips-code" id="acc-student1-pass">Std-1!dev</code>
+    						<button type="button" class="tips-copy" data-copy="#acc-student1-pass" title="Copy password" aria-label="Copy password">📋</button>
+  						</li>
+
+  						<li class="tips-item">
+    						<span class="tips-label">Admin:</span>
+    						
+    						<code class="tips-code" id="acc-admin1-email">admin1@mail.com</code>
+    						<button type="button" class="tips-copy" data-copy="#acc-admin1-email" title="Copy email" aria-label="Copy email">📋</button>
+    						
+    						<code class="tips-code" id="acc-admin1-pass">Adm-1!dev</code>
+    						<button type="button" class="tips-copy" data-copy="#acc-admin1-pass" title="Copy password" aria-label="Copy password">📋</button>
+  						</li>
+					</ul>
+				</div>
+			</aside>
+		</div>
+	</main>
+
+	<script th:src="@{/js/login.js}" src="/js/login.js" defer></script>
+
+</body>
+
+</html>

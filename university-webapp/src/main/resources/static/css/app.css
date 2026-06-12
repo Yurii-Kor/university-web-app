@@ -1,0 +1,366 @@
+@import url('https://fonts.googleapis.com/css2?family=Abel&display=swap');
+
+/* ===== Design tokens (shared project variables) ===== */
+:root {
+  --bg: #ffddaa;
+  --surface: #ffffff;
+
+  --accent: #0055aa;
+  --text: #1f2937;
+  --text-muted: #6b7280;
+  --placeholder: #9aa3af;
+
+  --shadow-1: 0 8px 20px rgba(0, 0, 0, 0.12);
+  --shadow-2: 12px 14px 28px rgba(0, 0, 0, 0.18);
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+
+  --header-height: 96px;
+  --logo-col-w: 72px;
+
+  --space-1: 6px;
+  --space-2: 12px;
+  --space-3: 16px;
+  --space-4: 20px;
+  --space-5: 24px;
+}
+
+/* ===== Base ===== */
+* { box-sizing: border-box; }
+
+html, body { height: 100%; }
+
+body {
+  margin: 0;
+  color: var(--text);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+}
+
+/* Page background variants */
+body.login-page,
+body.home-page {
+  background: var(--bg);
+}
+
+/* ===== Header (shared component) ===== */
+.ou-header {
+  height: var(--header-height);
+  width: 100%;
+  background: var(--surface);
+  box-shadow: var(--shadow-1);
+  display: grid;
+  grid-template-columns: var(--logo-col-w) 1fr;
+  align-items: center;
+}
+
+.ou-header__logo {
+  height: 100%;
+  display: grid;
+  place-items: center;
+  padding-inline: var(--space-2);
+}
+
+.ou-header__logo img {
+  display: block;
+  max-height: calc(var(--header-height) - 24px);
+  max-width: calc(var(--logo-col-w) - 24px);
+}
+
+.ou-header__text {
+  display: grid;
+  grid-template-rows: 1fr 1fr;
+  align-content: center;
+  padding-right: var(--space-3);
+  line-height: 1;
+}
+
+.ou-header__brand {
+  font-family: 'Abel', system-ui, sans-serif;
+  font-size: 1.5rem;
+  letter-spacing: 0.2px;
+}
+
+.ou-brand-ou { color: var(--accent); }
+.ou-brand-rest { color: var(--text); }
+
+.ou-header__page {
+  margin-top: 4px;
+  font-family: 'Abel', system-ui, sans-serif;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+/* Header actions layout (right-side actions) */
+.ou-header__text--with-actions {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-rows: 1fr 1fr;
+  align-items: center;
+  column-gap: var(--space-3);
+}
+
+.ou-header__text--with-actions .ou-header__brand { grid-column: 1; grid-row: 1; }
+.ou-header__text--with-actions .ou-header__page  { grid-column: 1; grid-row: 2; }
+
+.ou-header__actions {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  justify-content: flex-end;
+}
+
+/* ===== Reusable components ===== */
+
+/* Card — shared base style for all cards */
+.ou-card {
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-2);
+  padding: var(--space-4);
+}
+
+.ou-card__title {
+  margin: 0 0 var(--space-2) 0;
+  font-family: 'Abel', system-ui, sans-serif;
+  font-size: 1.4rem;
+  letter-spacing: 0.2px;
+}
+
+/* Inputs */
+.ou-input {
+  width: 100%;
+  padding: 12px 14px;
+  border: 2px solid var(--accent);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--text);
+  outline: none;
+  transition: box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.ou-input::placeholder { color: var(--placeholder); }
+
+.ou-input:focus {
+  box-shadow: 0 0 0 3px rgba(0, 85, 170, 0.20);
+  border-color: var(--accent);
+}
+
+/* Buttons */
+.ou-btn {
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+  padding: 10px 16px;
+  cursor: pointer;
+  transition: transform 0.06s ease, filter 0.15s ease;
+
+  /* Make .ou-btn usable for <a> and <button> consistently */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  line-height: 1;
+}
+
+.ou-btn:hover { filter: brightness(1.05); }
+.ou-btn:active { transform: translateY(1px); }
+
+/* Ghost button (nice for header on white background) */
+.ou-btn--ghost {
+  background: transparent;
+  color: var(--accent);
+  border: 2px solid var(--accent);
+  padding: 8px 14px;
+}
+
+.ou-btn--ghost:hover {
+  filter: none;
+  background: rgba(0, 85, 170, 0.08);
+}
+
+/* Danger button (shared modifier) */
+.ou-btn--danger {
+  background: rgba(220, 38, 38, 1);
+}
+
+/* Inline form helper (for logout form in header) */
+.ou-inline-form {
+  display: inline;
+  margin: 0;
+}
+
+/* Password "eye" — can be treated as a shared component */
+.password-wrap { position: relative; }
+
+.ou-input--password { padding-right: 40px; }
+
+.show-btn {
+  position: absolute;
+  top: 50%;
+  right: 8px;
+  transform: translateY(-50%);
+  border: 0;
+  background: transparent;
+  font-size: 1rem;
+  padding: 4px;
+  border-radius: var(--radius-sm);
+}
+
+.show-btn:hover { filter: brightness(1.1); }
+.show-btn[disabled] { opacity: 0.5; cursor: default; }
+
+/* Alert */
+.ou-alert {
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  margin: 0 0 var(--space-3) 0;
+  border: 2px solid transparent;
+  box-shadow: var(--shadow-1);
+  font-size: 0.95rem;
+}
+
+.ou-alert--error {
+  background: rgba(220, 38, 38, 0.10);
+  border-color: rgba(220, 38, 38, 0.35);
+}
+
+.ou-alert--warn {
+  background: rgba(245, 158, 11, 0.12);
+  border-color: rgba(245, 158, 11, 0.35);
+}
+
+.ou-alert--success {
+  background: rgba(34, 197, 94, 0.12);
+  border-color: rgba(34, 197, 94, 0.35);
+}
+
+/* ===== Header tabs (profile area) ===== */
+.ou-tabs {
+  margin-top: 6px;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;           /* large screen */
+}
+
+.ou-tab {
+  font-family: 'Abel', system-ui, sans-serif;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-decoration: none;
+
+  padding: 6px 10px;
+  border-radius: var(--radius-md);
+  border: 2px solid transparent;
+
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.ou-tab:hover {
+  color: var(--accent);
+  background: rgba(0, 85, 170, 0.08);
+}
+
+.ou-tab--active {
+  color: var(--accent);
+  background: rgba(0, 85, 170, 0.12);
+  border-color: rgba(0, 85, 170, 0.28);
+  font-weight: 800;
+}
+
+/* small screen */
+@media (max-width: 680px) {
+  .ou-tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .ou-tab {
+    white-space: nowrap;
+  }
+}
+
+/* ===== Header: signed-in info ===== */
+.ou-userchip {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: var(--radius-md);
+  background: rgba(0, 0, 0, 0.04);
+  border: 1px solid rgba(0,0,0,0.08);
+  color: var(--text-muted);
+  max-width: 420px;
+}
+
+.ou-userchip__label {
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+
+.ou-userchip__value {
+  color: var(--text);
+  font-weight: 700;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ou-userchip__meta {
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+/* On small screens: hide roles to save space */
+@media (max-width: 720px) {
+  .ou-userchip__meta { display: none; }
+}
+
+/* ===== Profile edit messages spacing ===== */
+.profile-edit-block {
+  margin-top: var(--space-3);
+}
+
+.profile-edit-block__msg {
+  margin-bottom: var(--space-3);
+}
+
+.profile-edit__body {
+  padding-top: var(--space-3);
+}
+
+.profile-edit__msg {
+  margin-bottom: var(--space-3);
+}
+
+/* ===== Badges (shared) ===== */
+.ou-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-weight: 800;
+  font-size: 0.85rem;
+  border: 2px solid transparent;
+}
+
+.ou-badge--success {
+  background: rgba(34, 197, 94, 0.12);
+  border-color: rgba(34, 197, 94, 0.35);
+}
+
+.ou-badge--warn {
+  background: rgba(245, 158, 11, 0.12);
+  border-color: rgba(245, 158, 11, 0.35);
+}

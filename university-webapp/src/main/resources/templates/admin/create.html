@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+  <meta charset="utf-8" />
+  <title>Create admin</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="icon" th:href="@{/favicon.ico}" href="/favicon.ico" />
+  <link rel="stylesheet" th:href="@{/css/app.css}" href="/css/app.css" />
+  <link rel="stylesheet" th:href="@{/css/pages/forms.css}" href="/css/pages/forms.css" />
+</head>
+
+<body class="ou-page admin-create-page">
+  <div th:replace="~{fragments/header :: ouHeader('admin')}"></div>
+
+  <main class="ou-form-main">
+    <section class="ou-card" aria-label="Create admin">
+
+      <div class="ou-form-toolbar">
+        <div>
+          <h1 class="ou-card__title">Create admin</h1>
+          <p class="ou-form-subtitle">Add a new admin account to the system.</p>
+        </div>
+
+        <a class="ou-btn ou-btn--ghost" th:href="@{/admin}">
+          ← Back to admins
+        </a>
+      </div>
+      
+	 
+
+      <form class="form-grid form-grid--kv"
+            th:action="@{/admin/create}"
+            th:object="${form}"
+            method="post"
+            novalidate>
+
+        <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
+        
+        <div class="ou-alert ou-alert--error"
+		     th:if="${err != null}"
+		     th:text="${err}">
+		  Something went wrong.
+		</div>
+		
+		<div class="ou-alert ou-alert--error"
+		     th:if="${err == null and #fields.hasAnyErrors()}">
+		  Please fix the errors below and try again.
+		</div>
+
+        <div class="form-row-kv">
+          <label for="email">Email</label>
+          <div class="form-field">
+            <input id="email" class="ou-input"
+                   type="email" placeholder="admin@example.com"
+                   th:field="*{email}" />
+            <p class="form-error"
+               th:if="${#fields.hasErrors('email')}"
+               th:errors="*{email}">
+              Email error
+            </p>
+          </div>
+        </div>
+
+        <div class="form-row-kv">
+          <label for="firstName">First name</label>
+          <div class="form-field">
+            <input id="firstName" class="ou-input"
+                   type="text" placeholder="Enter first name"
+                   th:field="*{firstName}" />
+            <p class="form-error"
+               th:if="${#fields.hasErrors('firstName')}"
+               th:errors="*{firstName}">
+              First name error
+            </p>
+          </div>
+        </div>
+
+        <div class="form-row-kv">
+          <label for="lastName">Last name</label>
+          <div class="form-field">
+            <input id="lastName" class="ou-input"
+                   type="text" placeholder="Enter last name"
+                   th:field="*{lastName}" />
+            <p class="form-error"
+               th:if="${#fields.hasErrors('lastName')}"
+               th:errors="*{lastName}">
+              Last name error
+            </p>
+          </div>
+        </div>
+
+        <div class="form-row-kv">
+          <label for="newPassword">Password</label>
+          <div class="form-field">
+            <input id="newPassword" class="ou-input"
+                   type="password" placeholder="Enter password"
+                   th:field="*{newPassword}" />
+            <p class="form-help">Use a strong password that matches your policy requirements.</p>
+            <p class="form-error"
+               th:if="${#fields.hasErrors('newPassword')}"
+               th:errors="*{newPassword}">
+              Password error
+            </p>
+          </div>
+        </div>
+
+        <div class="form-row-kv">
+          <label for="confirmPassword">Confirm password</label>
+          <div class="form-field">
+            <input id="confirmPassword" class="ou-input"
+                   type="password" placeholder="Repeat password"
+                   th:field="*{confirmPassword}"
+                   autocomplete="new-password" />
+            <p class="form-error"
+               th:if="${#fields.hasErrors('confirmPassword')}"
+               th:errors="*{confirmPassword}">
+              Passwords do not match
+            </p>
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <a class="ou-btn ou-btn--ghost" th:href="@{/admin}">Cancel</a>
+          <button class="ou-btn" type="submit">Create</button>
+        </div>
+
+      </form>
+
+    </section>
+  </main>
+</body>
+</html>

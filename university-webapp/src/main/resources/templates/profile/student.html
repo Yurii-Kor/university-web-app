@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+	<meta charset="utf-8" />
+	<title>Profile • Student</title>
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<link rel="icon" th:href="@{/favicon.ico}" href="/favicon.ico" />
+	<link rel="stylesheet" th:href="@{/css/app.css}" href="/css/app.css" />
+	<link rel="stylesheet" th:href="@{/css/pages/profile.css}"
+		href="/css/pages/profile.css" />
+</head>
+
+<body class="profile-page">
+<div th:replace="~{fragments/header :: ouHeader('profile')}"></div>
+
+<main class="profile-main"
+      th:with="hasError=${err != null},
+               hasUpdated=${updated == true}">
+               						
+	<div class="profile-wrap">
+    	<section class="ou-card profile-grid" aria-labelledby="profile-title">
+    		<div class="profile-card-inner">
+	      		<h1 id="profile-title" class="ou-card__title">Student profile</h1>
+	      		
+	      		<div th:replace="~{profile/fragments/profile-notices :: profileNotices(${profileMsg})}"></div>
+	
+	      		<dl class="kv" aria-label="Account details">
+	        		<dt class="kv-key">Email</dt>
+	        		<dd class="kv-val" th:text="${profile.email}">student@example.com</dd>
+	
+	        		<dt class="kv-key">First name</dt>
+	        		<dd class="kv-val" th:text="${profile.firstName}">John</dd>
+	
+		        	<dt class="kv-key">Last name</dt>
+		        	<dd class="kv-val" th:text="${profile.lastName}">Doe</dd>
+		
+		        	<dt class="kv-key">Created at</dt>
+		        	<dd class="kv-val" th:text="${profile.createdAt}">2025-01-01T12:00Z</dd>
+		
+		        	<dt class="kv-key">Enrollment year</dt>
+		        	<dd class="kv-val" th:text="${profile.enrollmentYear}">2024</dd>
+		
+		        	<dt class="kv-key">Group</dt>
+		        	<dd class="kv-val" th:text="${profile.groupName}">CS-101</dd>
+		      	</dl>
+		
+		      	<p class="profile-note">
+			        Role: <strong>STUDENT</strong>
+			    </p>
+			      	
+			    <div th:replace="~{profile/fragments/profile-edit :: selfEdit(
+                	${profile},
+                	${hasError},
+                	${hasUpdated},
+                	${err} )}">
+                </div>
+    		</div>
+	    </section>
+	</div>
+</main>
+
+</body>
+</html>
