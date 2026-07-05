@@ -1,0 +1,41 @@
+# Build output
+/target/
+/bin/
+/logs/
+
+target/
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+# Maven Wrapper
+# Keep .mvn/wrapper files tracked so ./mvnw works after cloning the repo.
+# If you intentionally do not want to commit the wrapper jar, uncomment the next line.
+# .mvn/wrapper/maven-wrapper.jar
+
+# STS / Eclipse
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings/
+.springBeans
+.sts4-cache
+
+# IntelliJ IDEA
+.idea/
+*.iws
+*.iml
+*.ipr
+
+# NetBeans
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+build/
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+# VS Code
+.vscode/
