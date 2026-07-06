@@ -32,7 +32,7 @@ def inspect_docker_image(
     inspect_data = json.loads(inspect_result.stdout)[0]
 
     java_result = runner.run_capture(
-        ["docker", "run", "--rm", image_tag, "java", "-version"],
+        ["docker", "run", "--rm", "--entrypoint", "java", image_tag, "-version"],
         cwd=cwd,
     )
 
