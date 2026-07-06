@@ -19,6 +19,7 @@ env:
   PYTHON_VERSION: '3.12'
   DOCKER_IMAGE_NAME: university-web-app
   JAR_ARTIFACT_NAME: university-web-app-jar
+  TEST_REPORTS_ARTIFACT_NAME: university-web-app-test-reports
 
 jobs:
   run-tests:
@@ -44,6 +45,15 @@ jobs:
 
       - name: Run Maven tests
         run: python "${CI_SCRIPT}" test
+
+      - name: Upload test reports artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.TEST_REPORTS_ARTIFACT_NAME }}
+          path: ${{ env.PROJECT_DIR }}/target/surefire-reports/**
+          if-no-files-found: warn
+          retention-days: 7
 
   build-jar:
     name: Build Spring Boot JAR

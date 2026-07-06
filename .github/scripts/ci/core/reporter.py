@@ -20,33 +20,30 @@ class Reporter:
         print(f"::error::{self._escape_workflow_command(message)}")
         print(f"ERROR: {message}")
 
-    def add_summary_line(self, line: str = "") -> None:
-        self.summary_lines.append(line)
+    def add_heading(self, title: str, level: int = 3) -> None:
+        self.summary_lines.append(f"{'#' * level} {title}")
+        self.summary_lines.append("")
 
-    def write_job_summary(
-        self,
-        job_name: str,
-        errors: list[str],
-        warnings: list[str],
-    ) -> None:
-        self.add_summary_line(f"### {job_name}")
-        self.add_summary_line()
+    def add_paragraph(self, text: str) -> None:
+        self.summary_lines.append(text)
+        self.summary_lines.append("")
 
-        if errors:
-            self.add_summary_line("**Status:** failed")
-            self.add_summary_line()
-            self.add_summary_line("#### Errors")
-            for error in errors:
-                self.add_summary_line(f"- {error}")
-        else:
-            self.add_summary_line("**Status:** passed")
+    def add_table(self, headers: tuple[str, ...], rows: list[tuple[str, ...]]) -> None:
+        self.summary_lines.append("| " + " | ".join(headers) + " |")
+        self.summary_lines.append("| " + " | ".join("---" for _ in headers) + " |")
 
-        if warnings:
-            self.add_summary_line()
-            self.add_summary_line("#### Warnings")
-            for warning in warnings:
-                self.add_summary_line(f"- {warning}")
+        for row in rows:
+            self.summary_lines.append("| " + " | ".join(row) + " |")
 
+        self.summary_lines.append("")
+
+    def add_bullet_list(self, items: list[str]) -> None:
+        for item in items:
+            self.summary_lines.append(f"- {item}")
+
+        self.summary_lines.append("")
+
+    def write(self) -> None:
         if self.summary_path is None:
             return
 

@@ -42,8 +42,19 @@ class CiContext:
         return self.project_dir / "target"
 
     @property
+    def surefire_reports_dir(self) -> Path:
+        return self.target_dir / "surefire-reports"
+
+    @property
     def dockerfile_path(self) -> Path:
         return self.project_dir / "Dockerfile"
+
+    @property
+    def ci_docker_image_tag(self) -> str:
+        if self.sha == "local":
+            return f"{self.docker_image_name}:ci-local"
+
+        return f"{self.docker_image_name}:ci-{self.sha}"
 
     def relative_to_workspace(self, path: Path) -> str:
         try:

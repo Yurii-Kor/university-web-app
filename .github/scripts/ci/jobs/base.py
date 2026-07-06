@@ -32,12 +32,31 @@ class BaseJob:
             traceback.print_exc()
             self.add_error("Unexpected CI script failure. See traceback above.")
         finally:
-            self.print_summary()
+            self.print_console_summary()
+            self.write_summary()
 
         return 1 if self.errors else 0
 
     def execute(self) -> None:
         raise NotImplementedError
+
+    def write_summary(self) -> None:
+        self.reporter.add_heading(f"{self.name} summary")
+
+        rows = [("Status", "failed" if self.errors else "passed")]
+
+        self.reporter.add_table(("Property", "Value"), rows)
+
+        if self.errors:
+            self.reporter.add_heading("Errors", level=4)
+            self.reporter.add_bullet_list(self.errors)
+
+        if self.warnings:
+            self.reporter.add_heading("Warnings", level=4)
+            self.reporter.add_bullet_list(self.warnings)
+
+        self.reporter.add_paragraph("Job summary generated at run-time")
+        self.reporter.write()
 
     def validate_context(self) -> None:
         if not self.context.workspace.exists():
@@ -96,7 +115,7 @@ class BaseJob:
 
         return application_jars or jars
 
-    def print_summary(self) -> None:
+    def print_console_summary(self) -> None:
         print()
         print("=" * 80)
         print(f"CI job: {self.name}")
@@ -119,9 +138,3 @@ class BaseJob:
         else:
             print()
             print("Validation passed.")
-
-        self.reporter.write_job_summary(
-            job_name=self.name,
-            errors=self.errors,
-            warnings=self.warnings,
-        )
