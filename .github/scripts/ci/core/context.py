@@ -18,7 +18,7 @@ class CiContext:
     @staticmethod
     def from_env() -> "CiContext":
         workspace = Path(os.environ.get("GITHUB_WORKSPACE", ".")).resolve()
-        project_dir_name = os.environ.get("PROJECT_DIR", "university-webapp")
+        project_dir_name = os.environ.get("PROJECT_DIR", ".")
 
         summary_file = os.environ.get("GITHUB_STEP_SUMMARY")
         summary_path = Path(summary_file) if summary_file else None
