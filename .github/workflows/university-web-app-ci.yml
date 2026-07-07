@@ -14,7 +14,7 @@ permissions:
 
 env:
   PROJECT_DIR: .
-  CI_SCRIPT: .github/scripts/ci/main.py
+  AUTOMATION_SCRIPT: .github/script/main.py
   JAVA_VERSION: '21'
   PYTHON_VERSION: '3.12'
   DOCKER_IMAGE_NAME: university-web-app
@@ -44,7 +44,7 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Run Maven tests
-        run: python "${CI_SCRIPT}" test
+        run: python "${AUTOMATION_SCRIPT}" test
 
       - name: Upload test reports artifact
         if: always()
@@ -78,7 +78,7 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Build JAR
-        run: python "${CI_SCRIPT}" build-jar
+        run: python "${AUTOMATION_SCRIPT}" build-jar
 
       - name: Upload JAR artifact
         uses: actions/upload-artifact@v4
@@ -109,4 +109,4 @@ jobs:
           path: ${{ env.PROJECT_DIR }}/target
 
       - name: Build Docker image
-        run: python "${CI_SCRIPT}" build-docker-image
+        run: python "${AUTOMATION_SCRIPT}" build-docker-image

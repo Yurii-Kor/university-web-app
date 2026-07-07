@@ -1,6 +1,6 @@
-from ci.core.docker import inspect_docker_image
-from ci.core.formatting import format_size
-from ci.jobs.base import BaseJob
+from core.docker import inspect_docker_image
+from core.formatting import format_size
+from jobs.base import BaseJob
 
 
 class DockerBuildJob(BaseJob):

@@ -1,6 +1,6 @@
-from ci.core.formatting import format_size
-from ci.core.jar import read_jar_summary
-from ci.jobs.base import BaseJob
+from core.formatting import format_size
+from core.jar import read_jar_summary
+from jobs.base import BaseJob
 
 
 class BuildJarJob(BaseJob):

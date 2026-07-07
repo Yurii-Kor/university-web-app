@@ -1,6 +1,6 @@
-from ci.core.formatting import format_duration
-from ci.core.test_reports import read_surefire_reports
-from ci.jobs.base import BaseJob
+from core.formatting import format_duration
+from core.test_reports import read_surefire_reports
+from jobs.base import BaseJob
 
 
 class TestJob(BaseJob):

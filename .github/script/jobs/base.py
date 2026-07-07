@@ -4,16 +4,18 @@ import traceback
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from ci.core.context import CiContext
-from ci.core.errors import CiError
-from ci.core.reporter import Reporter
-from ci.core.runner import CommandRunner
+from core.context import CiContext
+from core.errors import CiError
+from core.options import CiOptions
+from core.reporter import Reporter
+from core.runner import CommandRunner
 
 
 @dataclass
 class BaseJob:
     context: CiContext
     reporter: Reporter
+    options: CiOptions = field(default_factory=CiOptions)
     runner: CommandRunner = field(default_factory=CommandRunner)
     errors: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
@@ -55,7 +57,6 @@ class BaseJob:
             self.reporter.add_heading("Warnings", level=4)
             self.reporter.add_bullet_list(self.warnings)
 
-        self.reporter.add_paragraph("Job summary generated at run-time")
         self.reporter.write()
 
     def validate_context(self) -> None:
