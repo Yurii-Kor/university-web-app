@@ -4,37 +4,29 @@ from __future__ import annotations
 
 import argparse
 import sys
-from pathlib import Path
 
-
-SCRIPTS_ROOT = Path(__file__).resolve().parents[1]
-
-if str(SCRIPTS_ROOT) not in sys.path:
-    sys.path.insert(0, str(SCRIPTS_ROOT))
-
-
-from ci.core.context import CiContext
-from ci.core.errors import UnknownCommandError
-from ci.core.options import CiOptions
-from ci.core.reporter import Reporter
-from ci.jobs.base import BaseJob
-from ci.jobs.registry import JOBS
+from core.context import CiContext
+from core.errors import UnknownCommandError
+from core.options import CiOptions
+from core.reporter import Reporter
+from jobs.base import BaseJob
+from jobs.registry import JOBS
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="CI helper for university-web-app GitHub Actions."
+        description="GitHub workflow automation helper for university-web-app."
     )
 
     parser.add_argument(
         "command",
         choices=sorted(JOBS.keys()),
-        help="CI command to run.",
+        help="Automation command to run.",
     )
 
     parser.add_argument(
         "--version",
-        help="Project version for release-related commands.",
+        help="Project version for versioning and release commands.",
     )
 
     return parser.parse_args()

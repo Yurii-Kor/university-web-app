@@ -13,7 +13,7 @@ permissions:
 
 env:
   PROJECT_DIR: .
-  CI_SCRIPT: .github/scripts/ci/main.py
+  AUTOMATION_SCRIPT: .github/script/main.py
   JAVA_VERSION: '21'
   PYTHON_VERSION: '3.12'
 
@@ -44,4 +44,4 @@ jobs:
           python-version: ${{ env.PYTHON_VERSION }}
 
       - name: Update project version
-        run: python "${CI_SCRIPT}" update-version --version "${{ inputs.version }}"
+        run: python "${AUTOMATION_SCRIPT}" update-version --version "${{ inputs.version }}"

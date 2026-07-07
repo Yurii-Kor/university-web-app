@@ -4,11 +4,11 @@ import traceback
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from ci.core.context import CiContext
-from ci.core.errors import CiError
-from ci.core.options import CiOptions
-from ci.core.reporter import Reporter
-from ci.core.runner import CommandRunner
+from core.context import CiContext
+from core.errors import CiError
+from core.options import CiOptions
+from core.reporter import Reporter
+from core.runner import CommandRunner
 
 
 @dataclass

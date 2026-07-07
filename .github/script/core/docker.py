@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 
-from ci.core.runner import CommandRunner
+from core.runner import CommandRunner
 
 
 @dataclass(frozen=True)

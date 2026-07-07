@@ -4,7 +4,7 @@ import re
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
-from ci.core.errors import CiError
+from core.errors import CiError
 
 
 VERSION_PATTERN = re.compile(r"^\d+\.\d+\.\d+([.-][A-Za-z0-9][A-Za-z0-9.-]*)?$")

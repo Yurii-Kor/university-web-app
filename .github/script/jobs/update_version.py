@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from ci.core.errors import CiError
-from ci.core.version import read_project_version, validate_release_version
-from ci.jobs.base import BaseJob
+from core.errors import CiError
+from core.version import read_project_version, validate_release_version
+from jobs.base import BaseJob
 
 
 class UpdateVersionJob(BaseJob):

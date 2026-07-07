@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import os
 
-from ci.core.docker import inspect_docker_image
-from ci.core.formatting import format_size
-from ci.core.version import read_project_version, validate_release_version
-from ci.jobs.base import BaseJob
+from core.docker import inspect_docker_image
+from core.formatting import format_size
+from core.version import read_project_version, validate_release_version
+from jobs.base import BaseJob
 
 
 class PublishDockerJob(BaseJob):

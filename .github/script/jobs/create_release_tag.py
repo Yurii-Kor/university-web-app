@@ -3,8 +3,8 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from ci.core.version import read_project_version, validate_release_version
-from ci.jobs.base import BaseJob
+from core.version import read_project_version, validate_release_version
+from jobs.base import BaseJob
 
 
 class CreateReleaseTagJob(BaseJob):

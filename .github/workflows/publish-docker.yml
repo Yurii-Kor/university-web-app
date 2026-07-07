@@ -8,7 +8,7 @@ permissions:
 
 env:
   PROJECT_DIR: .
-  CI_SCRIPT: .github/scripts/ci/main.py
+  AUTOMATION_SCRIPT: .github/script/main.py
   JAVA_VERSION: '21'
   PYTHON_VERSION: '3.12'
   DOCKER_IMAGE_NAME: university-web-app
@@ -38,7 +38,7 @@ jobs:
 
       - name: Create release tag
         id: create_release_tag
-        run: python "${CI_SCRIPT}" create-release-tag
+        run: python "${AUTOMATION_SCRIPT}" create-release-tag
 
   publish-docker:
     name: Publish Docker image
@@ -72,7 +72,7 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Publish Docker image
-        run: python "${CI_SCRIPT}" publish-docker --version "${{ needs.create-release-tag.outputs.version }}"
+        run: python "${AUTOMATION_SCRIPT}" publish-docker --version "${{ needs.create-release-tag.outputs.version }}"
         env:
           DOCKERHUB_USERNAME: ${{ vars.DOCKERHUB_USERNAME }}
 
