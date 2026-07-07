@@ -15,6 +15,7 @@ if str(SCRIPTS_ROOT) not in sys.path:
 
 from ci.core.context import CiContext
 from ci.core.errors import UnknownCommandError
+from ci.core.options import CiOptions
 from ci.core.reporter import Reporter
 from ci.jobs.base import BaseJob
 from ci.jobs.registry import JOBS
@@ -31,27 +32,43 @@ def parse_args() -> argparse.Namespace:
         help="CI command to run.",
     )
 
+    parser.add_argument(
+        "--version",
+        help="Project version for release-related commands.",
+    )
+
     return parser.parse_args()
 
 
-def create_job(command: str, context: CiContext, reporter: Reporter) -> BaseJob:
+def create_job(
+    command: str,
+    context: CiContext,
+    reporter: Reporter,
+    options: CiOptions,
+) -> BaseJob:
     job_class = JOBS.get(command)
 
     if job_class is None:
         raise UnknownCommandError(command)
 
-    return job_class(context=context, reporter=reporter)
+    return job_class(
+        context=context,
+        reporter=reporter,
+        options=options,
+    )
 
 
 def main() -> int:
     args = parse_args()
     context = CiContext.from_env()
     reporter = Reporter(summary_path=context.summary_path)
+    options = CiOptions(version=args.version)
 
     job = create_job(
         command=args.command,
         context=context,
         reporter=reporter,
+        options=options,
     )
 
     return job.run()
