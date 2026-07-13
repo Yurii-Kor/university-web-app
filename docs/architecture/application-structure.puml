@@ -1,0 +1,135 @@
+@startuml
+
+top to bottom direction
+
+skinparam backgroundColor transparent
+skinparam shadowing false
+skinparam packageStyle folder
+skinparam defaultTextAlignment center
+
+skinparam package {
+    BackgroundColor transparent
+    BorderThickness 2
+    FontColor Black
+}
+
+skinparam rectangle {
+    BackgroundColor transparent
+    BorderColor Gray
+    BorderThickness 1
+    RoundCorner 6
+    FontColor Black
+}
+
+skinparam package<<layout>> {
+    BackgroundColor transparent
+    BorderColor transparent
+    FontColor transparent
+}
+
+together {
+    rectangle "<b>Project Structure</b>\nMain package\nua.foxminded.university" as HEADER_INFO
+
+    rectangle "<b>UniversityWebAppApplication</b>\nSpring Boot application\nentry point" as RUNNER
+
+    rectangle "<b>Security</b>\nAuthentication and authorization\nConfiguration and access handlers" as SECURITY #line:LightBlue;back:transparent
+
+    HEADER_INFO -[hidden]right- RUNNER
+    RUNNER -[hidden]right- SECURITY
+}
+
+package " " as LAYER_STACK <<layout>> {
+
+    package "<b>model</b>\nDomain model and data persistence" as MODEL #line:GreenYellow;back:transparent {
+
+        package "<b>domain</b>\nJPA-managed domain entities" as DOMAIN #line:ForestGreen;back:transparent {
+
+            together {
+                package "<b>AppUser</b>\nUser account\nand role" as D_APPUSER
+                package "<b>Student</b>\nStudent profile" as D_STUDENT
+                package "<b>Teacher</b>\nTeacher profile" as D_TEACHER
+                package "<b>StudyGroup</b>\nUniversity group" as D_GROUP
+                package "<b>Course</b>\nUniversity course" as D_COURSE
+                package "<b>Lesson</b>\nScheduled lesson" as D_LESSON
+
+                D_APPUSER -[hidden]right- D_STUDENT
+                D_STUDENT -[hidden]right- D_TEACHER
+                D_TEACHER -[hidden]right- D_GROUP
+                D_GROUP -[hidden]right- D_COURSE
+                D_COURSE -[hidden]right- D_LESSON
+            }
+        }
+
+        package "<b>persistence</b>\nSpring Data repositories and query projections" as PERSISTENCE #line:GoldenRod;back:transparent {
+
+            together {
+                package "<b>App User</b>\nAccount data access" as P_APPUSER
+                package "<b>Student</b>\nStudent data access" as P_STUDENT
+                package "<b>Teacher</b>\nTeacher data access" as P_TEACHER
+                package "<b>Study Group</b>\nGroup data access" as P_GROUP
+                package "<b>Course</b>\nCourse data access" as P_COURSE
+                package "<b>Lesson</b>\nLesson data access" as P_LESSON
+
+                P_APPUSER -[hidden]right- P_STUDENT
+                P_STUDENT -[hidden]right- P_TEACHER
+                P_TEACHER -[hidden]right- P_GROUP
+                P_GROUP -[hidden]right- P_COURSE
+                P_COURSE -[hidden]right- P_LESSON
+            }
+        }
+
+        DOMAIN -[hidden]down- PERSISTENCE
+    }
+
+    package "<b>service</b>\nBusiness logic and application workflows" as SERVICE #line:DarkOrange;back:transparent {
+
+        together {
+            package "<b>App User</b>\nAccount management" as S_APPUSER
+            package "<b>Student</b>\nStudent operations" as S_STUDENT
+            package "<b>Teacher</b>\nTeacher operations" as S_TEACHER
+            package "<b>Study Group</b>\nGroup management" as S_GROUP
+            package "<b>Course</b>\nCourse management" as S_COURSE
+            package "<b>Lesson</b>\nTimetable management" as S_LESSON
+            package "<b>Role Change</b>\nRole transition workflow" as S_ROLE_CHANGE
+
+            S_APPUSER -[hidden]right- S_STUDENT
+            S_STUDENT -[hidden]right- S_TEACHER
+            S_TEACHER -[hidden]right- S_GROUP
+            S_GROUP -[hidden]right- S_COURSE
+            S_COURSE -[hidden]right- S_LESSON
+            S_LESSON -[hidden]right- S_ROLE_CHANGE
+        }
+    }
+
+    package "<b>web</b>\nSpring MVC presentation layer" as WEB #line:MediumPurple;back:transparent {
+
+        together {
+            package "<b>Account</b>\nAccount actions" as W_ACCOUNT
+            package "<b>Admin</b>\nAdministrative operations" as W_ADMIN
+            package "<b>Course</b>\nCourse pages" as W_COURSE
+            package "<b>Group</b>\nStudy-group pages" as W_GROUP
+            package "<b>Profile</b>\nProfile pages" as W_PROFILE
+            package "<b>Student</b>\nStudent-facing pages" as W_STUDENT
+            package "<b>Teacher</b>\nTeacher-facing pages" as W_TEACHER
+
+            W_ACCOUNT -[hidden]right- W_ADMIN
+            W_ADMIN -[hidden]right- W_COURSE
+            W_COURSE -[hidden]right- W_GROUP
+            W_GROUP -[hidden]right- W_PROFILE
+            W_PROFILE -[hidden]right- W_STUDENT
+            W_STUDENT -[hidden]right- W_TEACHER
+        }
+    }
+
+    MODEL -[hidden]down- SERVICE
+    SERVICE -[hidden]down- WEB
+
+    P_APPUSER -[hidden]down- S_APPUSER
+    S_APPUSER -[hidden]down- W_ACCOUNT
+}
+
+HEADER_INFO -[hidden]down- D_APPUSER
+RUNNER -[hidden]down- D_STUDENT
+SECURITY -[hidden]down- D_TEACHER
+
+@enduml
