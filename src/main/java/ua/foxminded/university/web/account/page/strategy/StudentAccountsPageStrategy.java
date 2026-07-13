@@ -6,7 +6,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
 import lombok.RequiredArgsConstructor;
-import ua.foxminded.university.service.StudentService;
+import ua.foxminded.university.service.student.StudentService;
 import ua.foxminded.university.web.account.page.AccountsPage;
 import ua.foxminded.university.web.account.page.AccountsPageStrategy;
 import ua.foxminded.university.web.account.page.AccountsPageView;

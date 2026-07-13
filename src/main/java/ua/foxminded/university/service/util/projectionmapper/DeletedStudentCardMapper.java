@@ -3,8 +3,8 @@ package ua.foxminded.university.service.util.projectionmapper;
 import org.springframework.stereotype.Component;
 
 import lombok.RequiredArgsConstructor;
-import ua.foxminded.university.model.repository.dto.DeletedStudentCardProjection;
-import ua.foxminded.university.service.dto.response.DeletedStudentCardView;
+import ua.foxminded.university.model.persistence.student.projection.DeletedStudentCardProjection;
+import ua.foxminded.university.service.student.dto.DeletedStudentCardView;
 
 @Component
 @RequiredArgsConstructor

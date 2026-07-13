@@ -14,8 +14,8 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import ua.foxminded.university.service.CourseService;
-import ua.foxminded.university.service.dto.request.course.CourseCreateDto;
+import ua.foxminded.university.service.course.CourseService;
+import ua.foxminded.university.service.course.dto.CourseCreateDto;
 import ua.foxminded.university.web.bind.TrimToNullUppercaseEditor;
 
 @Controller

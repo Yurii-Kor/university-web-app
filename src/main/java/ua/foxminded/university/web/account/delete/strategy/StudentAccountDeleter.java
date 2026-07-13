@@ -4,7 +4,7 @@ import org.springframework.stereotype.Component;
 
 import lombok.RequiredArgsConstructor;
 import ua.foxminded.university.model.domain.enums.UserRole;
-import ua.foxminded.university.service.StudentService;
+import ua.foxminded.university.service.student.StudentService;
 
 @Component
 @RequiredArgsConstructor

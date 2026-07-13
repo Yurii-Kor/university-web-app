@@ -11,8 +11,8 @@ import ua.foxminded.university.model.domain.AppUser;
 import ua.foxminded.university.model.domain.Student;
 import ua.foxminded.university.model.domain.StudyGroup;
 import ua.foxminded.university.model.domain.enums.UserRole;
-import ua.foxminded.university.model.repository.StudentRepository;
-import ua.foxminded.university.model.repository.StudyGroupRepository;
+import ua.foxminded.university.model.persistence.student.StudentRepository;
+import ua.foxminded.university.model.persistence.studygroup.StudyGroupRepository;
 import ua.foxminded.university.service.rolechange.exception.RoleChangeException;
 import ua.foxminded.university.service.rolechange.target.strategy.data.ToStudentRoleProfileData;
 

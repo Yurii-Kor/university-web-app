@@ -5,8 +5,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Component;
 
 import lombok.RequiredArgsConstructor;
-import ua.foxminded.university.model.repository.dto.CourseCardView;
-import ua.foxminded.university.service.CourseService;
+import ua.foxminded.university.model.persistence.course.projection.CourseCardView;
+import ua.foxminded.university.service.course.CourseService;
 import ua.foxminded.university.web.course.page.CoursesPageMode;
 import ua.foxminded.university.web.course.page.CoursesPageStrategy;
 

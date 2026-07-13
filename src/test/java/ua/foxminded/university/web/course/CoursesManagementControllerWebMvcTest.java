@@ -28,11 +28,11 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
-import ua.foxminded.university.model.repository.dto.CourseCardView;
-import ua.foxminded.university.service.CourseService;
-import ua.foxminded.university.service.TeacherService;
-import ua.foxminded.university.service.dto.request.course.CourseDescriptionUpdateDto;
-import ua.foxminded.university.service.dto.request.course.CourseSelfUpdateDto;
+import ua.foxminded.university.model.persistence.course.projection.CourseCardView;
+import ua.foxminded.university.service.course.CourseService;
+import ua.foxminded.university.service.course.dto.CourseDescriptionUpdateDto;
+import ua.foxminded.university.service.course.dto.CourseSelfUpdateDto;
+import ua.foxminded.university.service.teacher.TeacherService;
 import ua.foxminded.university.service.util.validation.ContextConstraintViolationException;
 import ua.foxminded.university.web.course.page.CoursesPageModel;
 import ua.foxminded.university.web.course.page.CoursesPageModelFactory;

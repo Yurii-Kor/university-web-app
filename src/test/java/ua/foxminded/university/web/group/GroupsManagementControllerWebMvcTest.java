@@ -22,9 +22,9 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-import ua.foxminded.university.model.repository.dto.GroupView;
-import ua.foxminded.university.service.StudyGroupService;
-import ua.foxminded.university.service.TeacherService;
+import ua.foxminded.university.model.persistence.studygroup.projection.GroupView;
+import ua.foxminded.university.service.studygroup.StudyGroupService;
+import ua.foxminded.university.service.teacher.TeacherService;
 import ua.foxminded.university.web.testconfig.MethodSecurityTestConfig;
 import ua.foxminded.university.web.util.ExceptionMessageReader;
 

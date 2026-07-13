@@ -2,8 +2,8 @@ package ua.foxminded.university.web.account.page;
 
 import java.util.List;
 
-import ua.foxminded.university.model.repository.dto.StudentCardView;
-import ua.foxminded.university.model.repository.dto.TeacherCardView;
+import ua.foxminded.university.model.persistence.student.projection.StudentCardView;
+import ua.foxminded.university.model.persistence.teacher.projection.TeacherCardView;
 
 public record AccountsPage(
         String pageTitle,

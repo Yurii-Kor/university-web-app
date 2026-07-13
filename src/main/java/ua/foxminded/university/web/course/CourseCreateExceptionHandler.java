@@ -7,8 +7,9 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
-import ua.foxminded.university.service.dto.request.course.CourseCreateDto;
-import ua.foxminded.university.service.exception.course.CourseCreateException;
+
+import ua.foxminded.university.service.course.dto.CourseCreateDto;
+import ua.foxminded.university.service.course.exception.CourseCreateException;
 import ua.foxminded.university.web.util.ExceptionMessageReader;
 
 @ControllerAdvice(assignableTypes = CourseCreateController.class)

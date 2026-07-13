@@ -7,7 +7,7 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.ConstraintViolationException;
 import lombok.RequiredArgsConstructor;
-import ua.foxminded.university.service.exception.appuser.AdminCreateException;
+import ua.foxminded.university.service.appuser.exception.AdminCreateException;
 import ua.foxminded.university.web.util.ExceptionMessageReader;
 
 @ControllerAdvice(assignableTypes = AdminManagementController.class)

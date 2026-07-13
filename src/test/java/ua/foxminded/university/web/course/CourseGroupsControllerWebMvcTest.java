@@ -22,12 +22,12 @@ import org.springframework.dao.DataAccessException;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-import ua.foxminded.university.model.repository.dto.CourseHeaderView;
-import ua.foxminded.university.model.repository.dto.GroupView;
-import ua.foxminded.university.service.CourseService;
-import ua.foxminded.university.service.TeacherService;
-import ua.foxminded.university.service.dto.response.CourseGroupsView;
-import ua.foxminded.university.service.exception.course.CourseGroupsOpException;
+import ua.foxminded.university.model.persistence.course.projection.CourseHeaderView;
+import ua.foxminded.university.model.persistence.studygroup.projection.GroupView;
+import ua.foxminded.university.service.course.CourseService;
+import ua.foxminded.university.service.course.dto.CourseGroupsView;
+import ua.foxminded.university.service.course.exception.CourseGroupsOpException;
+import ua.foxminded.university.service.teacher.TeacherService;
 import ua.foxminded.university.web.testconfig.MethodSecurityTestConfig;
 import ua.foxminded.university.web.util.ExceptionMessageReader;
 

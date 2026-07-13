@@ -8,7 +8,7 @@ import jakarta.transaction.Transactional;
 import jakarta.transaction.Transactional.TxType;
 import lombok.RequiredArgsConstructor;
 import ua.foxminded.university.model.domain.enums.UserRole;
-import ua.foxminded.university.model.repository.StudentRepository;
+import ua.foxminded.university.model.persistence.student.StudentRepository;
 import ua.foxminded.university.service.rolechange.exception.RoleChangeException;
 
 @Component

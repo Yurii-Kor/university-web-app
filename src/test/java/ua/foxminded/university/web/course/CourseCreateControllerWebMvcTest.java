@@ -26,11 +26,11 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-import ua.foxminded.university.model.repository.dto.TeacherOptionView;
-import ua.foxminded.university.service.CourseService;
-import ua.foxminded.university.service.TeacherService;
-import ua.foxminded.university.service.dto.request.course.CourseCreateDto;
-import ua.foxminded.university.service.exception.course.CourseCreateException;
+import ua.foxminded.university.model.persistence.teacher.projection.TeacherOptionView;
+import ua.foxminded.university.service.course.CourseService;
+import ua.foxminded.university.service.course.dto.CourseCreateDto;
+import ua.foxminded.university.service.course.exception.CourseCreateException;
+import ua.foxminded.university.service.teacher.TeacherService;
 import ua.foxminded.university.web.testconfig.MethodSecurityTestConfig;
 import ua.foxminded.university.web.util.ExceptionMessageReader;
 

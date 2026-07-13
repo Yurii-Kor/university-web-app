@@ -2,7 +2,8 @@ package ua.foxminded.university.web.profile.page.strategy;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
-import ua.foxminded.university.service.TeacherService;
+
+import ua.foxminded.university.service.teacher.TeacherService;
 import ua.foxminded.university.web.profile.page.ProfilePageModel;
 import ua.foxminded.university.web.profile.page.ProfilePageStrategy;
 

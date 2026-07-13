@@ -14,12 +14,12 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import ua.foxminded.university.service.appuser.AppUserService;
 import ua.foxminded.university.web.admin.dto.AdminCreateForm;
 import ua.foxminded.university.web.admin.dto.AdminCreateFormMapper;
 import ua.foxminded.university.web.admin.validation.AdminCreateFormValidator;
 import ua.foxminded.university.web.bind.TrimToNullLowercaseEditor;
 import ua.foxminded.university.web.util.PrincipalHandler;
-import ua.foxminded.university.service.AppUserService;
 
 @Controller
 @RequestMapping("/admin")

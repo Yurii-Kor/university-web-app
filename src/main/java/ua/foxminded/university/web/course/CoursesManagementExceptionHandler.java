@@ -11,8 +11,8 @@ import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
-import ua.foxminded.university.service.dto.request.course.CourseSelfUpdateDto;
-import ua.foxminded.university.service.exception.course.CourseSelfUpdateException;
+import ua.foxminded.university.service.course.dto.CourseSelfUpdateDto;
+import ua.foxminded.university.service.course.exception.CourseSelfUpdateException;
 import ua.foxminded.university.service.util.validation.ContextConstraintViolationException;
 import ua.foxminded.university.web.util.ExceptionMessageReader;
 

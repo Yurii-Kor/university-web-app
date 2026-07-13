@@ -28,11 +28,11 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-import ua.foxminded.university.model.repository.dto.AdminRowView;
-import ua.foxminded.university.service.AppUserService;
-import ua.foxminded.university.service.TeacherService;
-import ua.foxminded.university.service.dto.request.appuser.AppUserCreateDto;
-import ua.foxminded.university.service.exception.appuser.AdminCreateException;
+import ua.foxminded.university.model.persistence.appuser.projection.AdminRowView;
+import ua.foxminded.university.service.appuser.AppUserService;
+import ua.foxminded.university.service.appuser.dto.AppUserCreateDto;
+import ua.foxminded.university.service.appuser.exception.AdminCreateException;
+import ua.foxminded.university.service.teacher.TeacherService;
 import ua.foxminded.university.web.admin.dto.AdminCreateForm;
 import ua.foxminded.university.web.admin.dto.AdminCreateFormMapper;
 import ua.foxminded.university.web.admin.validation.AdminCreateFormValidator;
