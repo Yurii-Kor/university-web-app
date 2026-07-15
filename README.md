@@ -1,21 +1,24 @@
-# University Schedule
+# University Timetable Management System
 
-A minimal university **timetable** app for Students and Teachers with **Course** and **Group** viewes.
+### Java 21 · Spring Boot 3.5.5 · Spring MVC · Spring Security · Thymeleaf · Spring Data JPA
 
+![Java](https://img.shields.io/badge/Java-21-orange)
+![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5.5-brightgreen)
+![Spring MVC](https://img.shields.io/badge/Web-Spring%20MVC-brightgreen)
+![Spring Security](https://img.shields.io/badge/Security-Spring%20Security-brightgreen)
+![Thymeleaf](https://img.shields.io/badge/Views-Thymeleaf-green)
+![Spring Data JPA](https://img.shields.io/badge/Persistence-Spring%20Data%20JPA-blue)
+![PostgreSQL](https://img.shields.io/badge/Database-PostgreSQL-blue)
+![Docker](https://img.shields.io/badge/Docker-ready-blue)
+![Application](https://img.shields.io/badge/Type-Web%20Application-lightgrey)
 
+A role-based university timetable and academic management web application built with [Spring Boot](https://www.baeldung.com/spring-boot-start), Spring MVC, Thymeleaf, Spring Data JPA, and PostgreSQL.
 
-## Domain
+The application provides dedicated workflows for students, teachers, and administrators. It supports user and profile management, study groups, courses, scheduled lessons, timetable views, account role transitions, and soft deletion with restoration of supported records.
 
-- **Teacher** teaches one or more **Course**.
+Authentication is implemented through Spring Security [form login](https://www.baeldung.com/spring-security-login). Authorization is enforced both at the HTTP configuration level and through [method-level security](https://www.baeldung.com/spring-security-method-security), while [Spring Security integration with Thymeleaf](https://www.baeldung.com/spring-security-thymeleaf) controls role-dependent navigation and page content.
 
-- Each **Course** has `0..\*` **Group** (study groups within a course).
-
-- **Student** can belong to many **Group**, but **at most one group per course** (service rule).
-
-- **ScheduleEntry** is a class slot for a **Group**: `start`, `end`, `room`.
-
-- Main feature: **timetable** for month/day with optional filters by course/group.
-
+The project follows a layered package structure that separates the domain model, Spring Data JPA persistence, application services, web presentation, and security concerns. Its test suite combines unit and integration testing with focused Spring MVC tests using [`@WebMvcTest`](https://www.baeldung.com/spring-boot-testing#unit-testing-with-webmvctest).
 
 
 ---
