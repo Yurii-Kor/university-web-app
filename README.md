@@ -34,6 +34,41 @@ The project follows a layered package structure that separates the domain model,
 ---
 
 
+<details open>
+<summary><h2>Project Structure</h2></summary>
+
+The application source code is organized under the main package
+[`src/main/java/ua/foxminded/university`](src/main/java/ua/foxminded/university).
+
+`UniversityWebAppApplication` is the Spring Boot entry point. Security-related configuration, authentication services, password policies, and access handlers are grouped separately in the `security` package as a cross-cutting application concern.
+
+The project follows a layered structure:
+
+1. **Model layer**
+   - **`domain`** — contains the JPA-managed entities and enums that represent the university domain: users, students, teachers, study groups, courses, and lessons.
+   - **`persistence`** — contains Spring Data JPA repositories and their query projections, grouped by the corresponding domain entity.
+
+2. **Service layer**
+   - Contains the application business logic and use-case orchestration.
+   - Services are grouped by functional area, together with their related DTOs and exceptions.
+   - The separate `rolechange` package implements the workflow for transitioning users between student and teacher roles.
+
+3. **Web layer**
+   - Contains Spring MVC controllers, request binding, exception handling, and web configuration.
+   - Web components are grouped by user-facing areas such as accounts, administration, courses, groups, profiles, students, and teachers.
+
+Supporting DTOs, projections, validators, mappers, configuration classes, and exceptions are omitted from the diagram where necessary to keep the overall structure readable.
+
+![Application package structure](docs/architecture/application-structure.svg)
+
+[View the PlantUML source](docs/architecture/application-structure.puml)
+
+</details>
+
+
+---
+
+
 
 ## User Stories
 
