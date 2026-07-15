@@ -1,22 +1,32 @@
 # University Timetable Management System
 
-### Java 21 · Spring Boot 3.5.5 · Spring MVC · Spring Security · Thymeleaf · Spring Data JPA
+### GitHub Actions · Continuous Integration · Docker Publishing · Project Versioning · Python Scripts
 
-![Java](https://img.shields.io/badge/Java-21-orange)
-![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5.5-brightgreen)
-![Spring MVC](https://img.shields.io/badge/Web-Spring%20MVC-brightgreen)
-![Spring Security](https://img.shields.io/badge/Security-Spring%20Security-brightgreen)
-![Thymeleaf](https://img.shields.io/badge/Views-Thymeleaf-green)
-![Spring Data JPA](https://img.shields.io/badge/Persistence-Spring%20Data%20JPA-blue)
-![PostgreSQL](https://img.shields.io/badge/Database-PostgreSQL-blue)
-![Docker](https://img.shields.io/badge/Docker-ready-blue)
-![Application](https://img.shields.io/badge/Type-Web%20Application-lightgrey)
+[![University Web App CI](https://github.com/Yurii-Kor/university-web-app/actions/workflows/university-web-app-ci.yml/badge.svg)](https://github.com/Yurii-Kor/university-web-app/actions/workflows/university-web-app-ci.yml)
+[![Publish Docker](https://github.com/Yurii-Kor/university-web-app/actions/workflows/publish-docker.yml/badge.svg)](https://github.com/Yurii-Kor/university-web-app/actions/workflows/publish-docker.yml)
+[![Update Project Version](https://github.com/Yurii-Kor/university-web-app/actions/workflows/update-project-version.yml/badge.svg)](https://github.com/Yurii-Kor/university-web-app/actions/workflows/update-project-version.yml)
+![Python Scripts](https://img.shields.io/badge/Scripts-Python-3776AB?logo=python&logoColor=white)
+
+### Java 21 · Spring Boot 3.5.5 · Spring MVC · Spring Security · Thymeleaf · Spring Data JPA · PostgreSQL · HTML5 · CSS3
+
+![Java 21](https://img.shields.io/badge/Java-21-E76F00?logo=openjdk&logoColor=white)
+![Spring Boot 3.5.5](https://img.shields.io/badge/Spring%20Boot-3.5.5-6DB33F?logo=springboot&logoColor=white)
+![Spring MVC](https://img.shields.io/badge/Web-Spring%20MVC-6DB33F?logo=spring&logoColor=white)
+![Spring Security](https://img.shields.io/badge/Security-Spring%20Security-6DB33F?logo=springsecurity&logoColor=white)
+![Thymeleaf](https://img.shields.io/badge/Views-Thymeleaf-005F0F?logo=thymeleaf&logoColor=white)
+![Spring Data JPA](https://img.shields.io/badge/Persistence-Spring%20Data%20JPA-59666C?logo=hibernate&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/Database-PostgreSQL-4169E1?logo=postgresql&logoColor=white)
+![HTML5](https://img.shields.io/badge/Markup-HTML5-E34F26?logo=html5&logoColor=white)
+![CSS3](https://img.shields.io/badge/Styles-CSS3-1572B6?logo=css&logoColor=white)
+![Docker](https://img.shields.io/badge/Containers-Docker-2496ED?logo=docker&logoColor=white)
+![Application](https://img.shields.io/badge/Type-Web%20Application-6C757D)
+
 
 A role-based university timetable and academic management web application built with [Spring Boot](https://www.baeldung.com/spring-boot-start), Spring MVC, Thymeleaf, Spring Data JPA, and PostgreSQL.
 
-The application provides dedicated workflows for students, teachers, and administrators. It supports user and profile management, study groups, courses, scheduled lessons, timetable views, account role transitions, and soft deletion with restoration of supported records.
+The application provides role-specific workflows for students, teachers, and administrators. It supports account and profile management, study groups, courses, scheduled lessons, timetable views, user role transitions, and soft deletion with restoration of supported records.
 
-Authentication is implemented through Spring Security [form login](https://www.baeldung.com/spring-security-login). Authorization is enforced both at the HTTP configuration level and through [method-level security](https://www.baeldung.com/spring-security-method-security), while [Spring Security integration with Thymeleaf](https://www.baeldung.com/spring-security-thymeleaf) controls role-dependent navigation and page content.
+Authentication is implemented through Spring Security [form login](https://www.baeldung.com/spring-security-login). Authorization is enforced through both HTTP security configuration and [method-level security](https://www.baeldung.com/spring-security-method-security), while [Spring Security integration with Thymeleaf](https://www.baeldung.com/spring-security-thymeleaf) controls role-dependent navigation, available actions, and page content.
 
 The project follows a layered package structure that separates the domain model, Spring Data JPA persistence, application services, web presentation, and security concerns. Its test suite combines unit and integration testing with focused Spring MVC tests using [`@WebMvcTest`](https://www.baeldung.com/spring-boot-testing#unit-testing-with-webmvctest).
 
