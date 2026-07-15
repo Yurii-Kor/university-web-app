@@ -5,7 +5,7 @@ import org.springframework.security.core.userdetails.*;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.stereotype.Service;
 import ua.foxminded.university.model.domain.AppUser;
-import ua.foxminded.university.model.repository.AppUserRepository;
+import ua.foxminded.university.model.persistence.appuser.AppUserRepository;
 
 import java.util.List;
 

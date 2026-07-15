@@ -1,11 +1,11 @@
 package ua.foxminded.university.web.admin.dto;
 
+import static ua.foxminded.university.service.util.validation.ValidationConstants.*;
+
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
-
-import static ua.foxminded.university.service.dto.request.ValidationConstants.*;
 
 public record AdminCreateForm(
 

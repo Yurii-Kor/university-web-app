@@ -2,7 +2,7 @@ package ua.foxminded.university.web.course;
 
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
-import ua.foxminded.university.service.exception.course.CourseGroupsOpException;
+import ua.foxminded.university.service.course.exception.CourseGroupsOpException;
 import ua.foxminded.university.web.util.ExceptionMessageReader;
 
 import org.springframework.dao.DataAccessException;

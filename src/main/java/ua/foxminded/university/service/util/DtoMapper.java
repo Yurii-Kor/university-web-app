@@ -12,12 +12,12 @@ import ua.foxminded.university.model.domain.Student;
 import ua.foxminded.university.model.domain.StudyGroup;
 import ua.foxminded.university.model.domain.Teacher;
 import ua.foxminded.university.model.domain.enums.UserRole;
-import ua.foxminded.university.service.dto.request.appuser.AppUserCreateDto;
-import ua.foxminded.university.service.dto.request.course.CourseCreateDto;
-import ua.foxminded.university.service.dto.request.lesson.LessonCreateDto;
-import ua.foxminded.university.service.dto.request.student.StudentCreateDto;
-import ua.foxminded.university.service.dto.request.studygroup.StudyGroupCreateDto;
-import ua.foxminded.university.service.dto.request.teacher.TeacherCreateDto;
+import ua.foxminded.university.service.appuser.dto.AppUserCreateDto;
+import ua.foxminded.university.service.course.dto.CourseCreateDto;
+import ua.foxminded.university.service.lesson.dto.LessonCreateDto;
+import ua.foxminded.university.service.student.dto.StudentCreateDto;
+import ua.foxminded.university.service.studygroup.dto.StudyGroupCreateDto;
+import ua.foxminded.university.service.teacher.dto.TeacherCreateDto;
 
 @Component
 public class DtoMapper {

@@ -1,0 +1,12 @@
+package ua.foxminded.university.model.persistence.course.projection;
+
+public record CourseCardView(
+	    Long id,
+	    String code,
+	    String name,
+	    String description,
+	    Long teacherId,
+	    String teacherEmail,
+	    String teacherFirstName,
+	    String teacherLastName
+	) {}

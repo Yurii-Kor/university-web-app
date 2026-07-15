@@ -23,9 +23,9 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-import ua.foxminded.university.model.repository.dto.StudentCardView;
-import ua.foxminded.university.service.StudentService;
-import ua.foxminded.university.service.TeacherService;
+import ua.foxminded.university.model.persistence.student.projection.StudentCardView;
+import ua.foxminded.university.service.student.StudentService;
+import ua.foxminded.university.service.teacher.TeacherService;
 import ua.foxminded.university.web.testconfig.MethodSecurityTestConfig;
 import ua.foxminded.university.web.util.ExceptionMessageReader;
 

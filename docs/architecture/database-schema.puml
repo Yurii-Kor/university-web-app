@@ -1,0 +1,119 @@
+@startuml
+
+title Database Schema
+
+left to right direction
+hide empty members
+hide stereotypes
+skinparam shadowing false
+skinparam linetype ortho
+skinparam classAttributeIconSize 0
+skinparam defaultTextAlignment left
+
+skinparam class {
+    BackgroundColor #F2F2F2
+    HeaderBackgroundColor #FCE5CD
+    BorderColor #7A7A7A
+    ArrowColor #6E6E6E
+    FontColor Black
+    FontStyle plain
+    BorderThickness 1.5
+}
+
+class "app_user" as app_user <<table>> {
+  + id : bigserial <<PK>>
+  --
+  email : varchar(255)
+  password : varchar(100)
+  role : varchar(16)
+  first_name : varchar(64)
+  last_name : varchar(64)
+  enabled : boolean
+  created_at : timestamptz
+  deleted_at : timestamptz
+}
+
+class "groups" as groups <<table>> {
+  + id : bigserial <<PK>>
+  --
+  name : varchar(255)
+  deleted_at : timestamptz
+}
+
+class "student" as student <<table>> {
+  + <u>id</u> : bigint <<PK, FK>>
+  --
+  <u>group_id</u> : bigint <<FK>>
+  enrollment_year : int
+  deleted_at : timestamptz
+}
+
+class "teacher" as teacher <<table>> {
+  + <u>id</u> : bigint <<PK, FK>>
+  --
+  academic_rank : varchar(64)
+  office : varchar(64)
+  deleted_at : timestamptz
+}
+
+class "courses" as courses <<table>> {
+  + id : bigserial <<PK>>
+  --
+  code : varchar(32)
+  name : varchar(255)
+  description : text
+  <u>teacher_id</u> : bigint <<FK>>
+}
+
+class "group_courses" as group_courses <<table>> {
+  + <u>group_id</u> : bigint <<PK, FK>>
+  + <u>course_id</u> : bigint <<PK, FK>>
+}
+
+class "lessons" as lessons <<table>> {
+  + id : bigserial <<PK>>
+  --
+  <u>group_id</u> : bigint <<FK>>
+  <u>course_id</u> : bigint <<FK>>
+  start_time : timestamptz
+  end_time : timestamptz
+  room : varchar(64)
+  lesson_type : varchar(32)
+  description : text
+}
+
+app_user -[hidden]right- groups
+groups -[hidden]right- courses
+
+student -[hidden]up- app_user
+group_courses -[hidden]up- groups
+teacher -[hidden]up- courses
+
+group_courses -[hidden]left- student
+group_courses -[hidden]right- teacher
+
+lessons -[hidden]up- group_courses
+
+app_user "1" -- "0..1" student
+app_user "1" -- "0..1" teacher
+
+groups "1" -- "0..*" student
+
+teacher "0..*" -- "0..1" courses
+
+groups "1" -- "0..*" group_courses
+courses "1" -- "0..*" group_courses
+
+groups "1" -- "0..*" lessons
+courses "1" -- "0..*" lessons
+
+group_courses "1" .. "0..*" lessons : valid pair
+
+legend bottom
+  |= Notation |= Meaning |
+  | <<PK>> | Primary key |
+  | <<FK>> | Foreign key |
+  | Underlined field | Foreign key column |
+endlegend
+
+@enduml

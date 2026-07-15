@@ -2,7 +2,7 @@ package ua.foxminded.university.web.course.page;
 
 import java.util.List;
 
-import ua.foxminded.university.model.repository.dto.CourseCardView;
+import ua.foxminded.university.model.persistence.course.projection.CourseCardView;
 
 public record CoursesPageModel(
         String pageTitle,

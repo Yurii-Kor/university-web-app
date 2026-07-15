@@ -7,7 +7,7 @@ import jakarta.transaction.Transactional;
 import jakarta.transaction.Transactional.TxType;
 import lombok.RequiredArgsConstructor;
 import ua.foxminded.university.model.domain.enums.UserRole;
-import ua.foxminded.university.model.repository.AppUserRepository;
+import ua.foxminded.university.model.persistence.appuser.AppUserRepository;
 import ua.foxminded.university.service.rolechange.assessment.RoleChangeAssessment;
 import ua.foxminded.university.service.rolechange.assessment.TargetRoleChangeAssessorRegistry;
 

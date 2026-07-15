@@ -16,12 +16,12 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import lombok.RequiredArgsConstructor;
 import ua.foxminded.university.model.domain.enums.AcademicRank;
 import ua.foxminded.university.model.domain.enums.UserRole;
-import ua.foxminded.university.service.AppUserService;
-import ua.foxminded.university.service.StudyGroupService;
-import ua.foxminded.university.service.dto.request.rolechange.ToStudentRoleChangeDto;
-import ua.foxminded.university.service.dto.request.rolechange.ToTeacherRoleChangeDto;
+import ua.foxminded.university.service.appuser.AppUserService;
 import ua.foxminded.university.service.rolechange.RoleChangeFacade;
 import ua.foxminded.university.service.rolechange.assessment.RoleChangeAssessment;
+import ua.foxminded.university.service.rolechange.dto.ToStudentRoleChangeDto;
+import ua.foxminded.university.service.rolechange.dto.ToTeacherRoleChangeDto;
+import ua.foxminded.university.service.studygroup.StudyGroupService;
 import ua.foxminded.university.web.account.delete.AccountDeleterRegistry;
 import ua.foxminded.university.web.account.page.AccountsPageModelFactory;
 

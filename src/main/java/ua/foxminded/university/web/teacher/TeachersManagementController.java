@@ -10,8 +10,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
 import lombok.RequiredArgsConstructor;
-import ua.foxminded.university.model.repository.dto.TeacherCardView;
-import ua.foxminded.university.service.TeacherService;
+import ua.foxminded.university.model.persistence.teacher.projection.TeacherCardView;
+import ua.foxminded.university.service.teacher.TeacherService;
 
 @Controller
 @RequestMapping("/teachers")

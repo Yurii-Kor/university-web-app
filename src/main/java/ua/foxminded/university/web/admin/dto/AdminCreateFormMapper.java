@@ -2,7 +2,7 @@ package ua.foxminded.university.web.admin.dto;
 
 import org.springframework.stereotype.Component;
 
-import ua.foxminded.university.service.dto.request.appuser.AppUserCreateDto;
+import ua.foxminded.university.service.appuser.dto.AppUserCreateDto;
 
 @Component
 public class AdminCreateFormMapper {

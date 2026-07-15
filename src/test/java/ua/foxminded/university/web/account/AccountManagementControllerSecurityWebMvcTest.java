@@ -23,11 +23,11 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
 import ua.foxminded.university.model.domain.enums.AcademicRank;
-import ua.foxminded.university.service.AppUserService;
-import ua.foxminded.university.service.StudentService;
-import ua.foxminded.university.service.StudyGroupService;
-import ua.foxminded.university.service.TeacherService;
+import ua.foxminded.university.service.appuser.AppUserService;
 import ua.foxminded.university.service.rolechange.RoleChangeFacade;
+import ua.foxminded.university.service.student.StudentService;
+import ua.foxminded.university.service.studygroup.StudyGroupService;
+import ua.foxminded.university.service.teacher.TeacherService;
 import ua.foxminded.university.web.account.delete.AccountDeleterRegistry;
 import ua.foxminded.university.web.account.delete.strategy.AccountDeleter;
 import ua.foxminded.university.web.account.page.AccountsPageModelFactory;

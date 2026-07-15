@@ -4,7 +4,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.security.access.AccessDeniedException;
 
 import lombok.RequiredArgsConstructor;
-import ua.foxminded.university.model.repository.dto.CourseCardView;
+import ua.foxminded.university.model.persistence.course.projection.CourseCardView;
 
 @RequiredArgsConstructor
 public enum CoursesPageMode {

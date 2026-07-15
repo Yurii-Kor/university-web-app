@@ -11,9 +11,9 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import lombok.RequiredArgsConstructor;
-import ua.foxminded.university.service.CourseService;
-import ua.foxminded.university.service.dto.request.course.CourseDescriptionUpdateDto;
-import ua.foxminded.university.service.dto.request.course.CourseSelfUpdateDto;
+import ua.foxminded.university.service.course.CourseService;
+import ua.foxminded.university.service.course.dto.CourseDescriptionUpdateDto;
+import ua.foxminded.university.service.course.dto.CourseSelfUpdateDto;
 import ua.foxminded.university.web.bind.TrimToNullUppercaseEditor;
 import ua.foxminded.university.web.course.page.CoursesPageModelFactory;
 

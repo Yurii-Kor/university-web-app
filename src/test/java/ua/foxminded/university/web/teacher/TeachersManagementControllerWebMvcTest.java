@@ -24,8 +24,8 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import ua.foxminded.university.model.domain.enums.AcademicRank;
-import ua.foxminded.university.model.repository.dto.TeacherCardView;
-import ua.foxminded.university.service.TeacherService;
+import ua.foxminded.university.model.persistence.teacher.projection.TeacherCardView;
+import ua.foxminded.university.service.teacher.TeacherService;
 import ua.foxminded.university.web.testconfig.MethodSecurityTestConfig;
 import ua.foxminded.university.web.util.ExceptionMessageReader;
 

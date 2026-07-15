@@ -16,8 +16,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import jakarta.validation.Valid;
-import ua.foxminded.university.service.AppUserService;
-import ua.foxminded.university.service.dto.request.appuser.AppUserSelfUpdateDto;
+import ua.foxminded.university.service.appuser.AppUserService;
+import ua.foxminded.university.service.appuser.dto.AppUserSelfUpdateDto;
 import ua.foxminded.university.web.bind.TrimToNullLowercaseEditor;
 import ua.foxminded.university.web.profile.dto.SelfUpdateForm;
 import ua.foxminded.university.web.profile.page.ProfilePageModelFactory;

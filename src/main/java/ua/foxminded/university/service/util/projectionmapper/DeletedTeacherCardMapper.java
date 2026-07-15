@@ -4,8 +4,8 @@ import org.springframework.stereotype.Component;
 
 import lombok.RequiredArgsConstructor;
 import ua.foxminded.university.model.domain.enums.AcademicRank;
-import ua.foxminded.university.model.repository.dto.DeletedTeacherCardProjection;
-import ua.foxminded.university.service.dto.response.DeletedTeacherCardView;
+import ua.foxminded.university.model.persistence.teacher.projection.DeletedTeacherCardProjection;
+import ua.foxminded.university.service.teacher.dto.DeletedTeacherCardView;
 
 @Component
 @RequiredArgsConstructor

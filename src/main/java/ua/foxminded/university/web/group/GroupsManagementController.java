@@ -10,8 +10,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
 import lombok.RequiredArgsConstructor;
-import ua.foxminded.university.model.repository.dto.GroupView;
-import ua.foxminded.university.service.StudyGroupService;
+import ua.foxminded.university.model.persistence.studygroup.projection.GroupView;
+import ua.foxminded.university.service.studygroup.StudyGroupService;
 
 @Controller
 @RequestMapping("/groups")
