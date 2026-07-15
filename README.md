@@ -69,6 +69,58 @@ Supporting DTOs, projections, validators, mappers, configuration classes, and ex
 ---
 
 
+<details open>
+<summary><h2>Database</h2></summary>
+
+The application uses PostgreSQL as its relational database. Database connectivity, JPA integration, and transaction infrastructure are configured through Spring Boot.
+
+The database layer is built around the following tools and responsibilities:
+
+- **[Flyway migrations](src/main/resources/db/migration)** — create the database schema, define constraints and indexes, and populate the development environment with reproducible sample data.
+- **[Hibernate-managed entities](src/main/java/ua/foxminded/university/model/domain)** — map the application domain model to relational tables through Jakarta Persistence annotations.
+- **[Spring Data JPA repositories](src/main/java/ua/foxminded/university/model/persistence)** — provide repository interfaces, derived queries, JPQL queries, and query projections for database access.
+- **[Service-layer transactions](src/main/java/ua/foxminded/university/service)** — combine repository operations into transactional business workflows.
+- **PostgreSQL `pgcrypto`** — hashes generated development passwords with bcrypt-compatible `crypt()` and `gen_salt()` functions.
+
+### Database Schema
+
+The schema models application accounts, role-specific student and teacher profiles, study groups, courses, group-course assignments, and scheduled lessons.
+
+![Database schema](docs/architecture/database-schema.svg)
+
+[View the PlantUML source](docs/architecture/database-schema.puml)
+
+### Generated Development Data
+
+The seed migration creates a repeatable development dataset for running and demonstrating the application locally. Insert operations use conflict handling where appropriate, allowing the migration logic to avoid duplicating existing records.
+
+| Entity / table | Generated records | Description |
+|---|---:|---|
+| `app_user` | 108 | Creates 100 student accounts, 6 teacher accounts, and 2 administrator accounts. One account of each role is disabled for authorization and account-state testing. |
+| `student` | 100 | Creates one student profile for every student account and distributes the students across the five study groups. The enrollment year is set to the current year. |
+| `teacher` | 6 | Creates one teacher profile for every teacher account, with a generated office and an academic rank selected from `LECTURER`, `SENIOR_LECTURER`, or `PROFESSOR`. |
+| `groups` | 5 | Creates the study groups `CS-101`, `CS-102`, `CS-103`, `CS-104`, and `CS-105`. |
+| `courses` | 10 | Creates courses covering Java, databases, networking, operating systems, Spring Boot, frontend development, machine learning, computer graphics, and application security. |
+| `group_courses` | 15 | Assigns three courses to each study group and defines the valid group-course combinations used by the timetable. |
+| `lessons` | 0 | The base seed migration does not create scheduled lessons; they can be added through the application workflows or dedicated test data. |
+
+Generated accounts follow predictable development-only credential patterns:
+
+| Role | Email pattern | Password pattern |
+|---|---|---|
+| Teacher | `teacherN@mail.com` | `Tch-N!dev` |
+| Student | `studentN@mail.com` | `Std-N!dev` |
+| Administrator | `adminN@mail.com` | `Adm-N!dev` |
+
+> [!IMPORTANT]
+> These credentials are intended only for local development, demonstrations, and automated tests. They must not be used in a production environment.
+
+</details>
+
+
+---
+
+
 
 ## User Stories
 
