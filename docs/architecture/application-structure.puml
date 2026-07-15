@@ -2,7 +2,7 @@
 
 top to bottom direction
 
-skinparam backgroundColor transparent
+skinparam backgroundColor white
 skinparam shadowing false
 skinparam packageStyle folder
 skinparam defaultTextAlignment center
