@@ -57,9 +57,9 @@ The project follows a layered structure:
    - Contains Spring MVC controllers, request binding, exception handling, and web configuration.
    - Web components are grouped by user-facing areas such as accounts, administration, courses, groups, profiles, students, and teachers.
 
-Supporting DTOs, projections, validators, mappers, configuration classes, and exceptions are omitted from the diagram where necessary to keep the overall structure readable.
-
 ![Application package structure](docs/architecture/application-structure.svg)
+
+Supporting DTOs, projections, validators, mappers, configuration classes, and exceptions are omitted from the diagram where necessary to keep the overall structure readable.
 
 [View the PlantUML source](docs/architecture/application-structure.puml)
 
@@ -114,6 +114,29 @@ Generated accounts follow predictable development-only credential patterns:
 
 > [!IMPORTANT]
 > These credentials are intended only for local development, demonstrations, and automated tests. They must not be used in a production environment.
+
+</details>
+
+
+---
+
+
+<details open>
+<summary><h2>🐳 Dockerization</h2></summary>
+
+The application is containerized with Docker and published as a versioned image to Docker Hub.
+
+- **Project versioning** — the [`update-project-version.yml`](.github/workflows/update-project-version.yml) workflow updates the Maven project version in `pom.xml` on the `dev` branch.
+- **Release publishing** — after the completed changes are merged into `main`, the [`publish-docker.yml`](.github/workflows/publish-docker.yml) workflow is started manually. It creates a Git tag from the current Maven version and publishes the Docker image with both the version-specific tag and `latest`.
+- **Container image** — published in the [University Web App Docker Hub repository](https://hub.docker.com/repository/docker/yuriikorolkov/university-web-app/general).
+
+[![Docker Hub](https://img.shields.io/badge/Docker%20Hub-yuriikorolkov%2Funiversity--web--app-2496ED?logo=docker&logoColor=white)](https://hub.docker.com/repository/docker/yuriikorolkov/university-web-app/general)
+
+Latest image:
+
+```bash
+docker pull yuriikorolkov/university-web-app:latest
+```
 
 </details>
 
@@ -283,17 +306,4 @@ Generated accounts follow predictable development-only credential patterns:
 - **Sorting:** by `start` (then `end`, then `courseName`).
 
 - **Access:** Students see only their groups; Teachers only their own courses/groups.
-
-
-
----
-
-
-
-## Repo structure (docs)
-
-- `docs/uml/uml-diagram.png`
-
-- *(This README)*
-
 
