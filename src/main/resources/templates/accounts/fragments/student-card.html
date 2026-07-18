@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en"
+      xmlns:th="http://www.thymeleaf.org">
+<body>
+
+<th:block th:fragment="studentCard(s, accountId, ok, err, currentPage)">
+  <article class="ou-card account-card"
+           th:attr="data-id=${s.id}"
+           th:with="isTarget=${accountId != null and accountId == s.id}">
+
+    <div class="account-card__head">
+      <div class="account-card__who">
+        <div class="account-card__kind">
+          Student
+        </div>
+
+        <div class="account-card__name">
+          <span th:text="${s.firstName + ' ' + s.lastName}">Student Name</span>
+        </div>
+      </div>
+
+      <span class="ou-badge"
+            th:classappend="${s.enabled} ? ' ou-badge--success' : ' ou-badge--warn'"
+            th:text="${s.enabled} ? 'ACTIVE' : 'BLOCKED'">
+        ACTIVE
+      </span>
+    </div>
+
+    <dl class="account-kv">
+      <dt>ID</dt>
+      <dd th:text="${s.id}">1</dd>
+
+      <dt>Email</dt>
+      <dd>
+        <a class="account-email"
+           th:href="|mailto:${s.email}|"
+           th:text="${s.email}">
+          student@example.com
+        </a>
+      </dd>
+
+      <dt>Created</dt>
+      <dd th:text="${#temporals.format(s.createdAt, 'yyyy-MM-dd HH:mm')}">2026-01-01 10:00</dd>
+
+      <dt>Group</dt>
+      <dd th:text="${s.groupName}">QA-11</dd>
+
+      <dt>Enrollment</dt>
+      <dd th:text="${s.enrollmentYear}">2024</dd>
+    </dl>
+
+    <th:block th:if="${isTarget and (ok != null or err != null)}">
+      <div class="ou-alert ou-alert--success"
+           th:if="${ok != null}"
+           th:text="${ok}">
+        Done.
+      </div>
+
+      <div class="ou-alert ou-alert--error"
+           th:if="${err != null}"
+           th:text="${err}">
+        Something went wrong.
+      </div>
+    </th:block>
+
+    <div class="account-actions">
+      <div class="account-actions__row">
+        <th:block th:replace="~{accounts/fragments/student-actions :: studentActions(
+            ${s},
+            ${currentPage}
+        )}"></th:block>
+      </div>
+    </div>
+
+  </article>
+</th:block>
+
+</body>
+</html>

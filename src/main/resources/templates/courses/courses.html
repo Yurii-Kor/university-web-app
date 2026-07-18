@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+  <meta charset="utf-8" />
+  <title th:text="${page.pageTitle}">Courses</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link rel="icon" th:href="@{/favicon.ico}" href="/favicon.ico" />
+  <link rel="stylesheet" th:href="@{/css/app.css}" href="/css/app.css" />
+  <link rel="stylesheet" th:href="@{/css/pages/courses.css}" href="/css/pages/courses.css" />
+</head>
+
+<body class="ou-page courses-page">
+<div th:replace="~{fragments/header :: ouHeader('courses')}"></div>
+
+<main class="courses-main">
+  <section class="ou-card courses-shell" aria-label="Courses">
+
+    <div class="courses-toolbar">
+      <div>
+        <h1 class="ou-card__title" th:text="${page.pageTitle}">Courses</h1>
+        <p class="courses-subtitle" th:text="${page.pageSubtitle}">...</p>
+      </div>
+
+      <div class="courses-toolbar__actions">
+        <button type="button"
+                class="ou-btn ou-btn--ghost"
+                id="toggleDescriptions"
+                th:if="${!#lists.isEmpty(page.courses)}">
+          Show descriptions
+        </button>
+
+        <a class="ou-btn ou-btn--ghost"
+           th:if="${page.showCreateButton}"
+           th:href="@{/courses/create}">
+          + Create course
+        </a>
+      </div>
+    </div>
+
+    <div class="ou-alert ou-alert--success"
+         th:if="${ok != null and courseId == null}"
+         th:text="${ok}">
+      Done.
+    </div>
+
+    <div class="ou-alert ou-alert--error"
+         th:if="${err != null and courseId == null}"
+         th:text="${err}">
+      Something went wrong.
+    </div>
+
+    <div class="courses-grid" th:if="${!#lists.isEmpty(page.courses)}">
+      <th:block th:each="c : ${page.courses}">
+        <th:block th:replace="~{courses/fragments/course-card :: courseCard(
+            ${c},
+            ${courseId},
+            ${ok},
+            ${err},
+            ${page.showTeacherInfo},
+            ${page.allowDescriptionEdit},
+            ${page.showAdminActions},
+            ${page.currentPage}
+        )}"></th:block>
+      </th:block>
+    </div>
+
+    <div class="ou-alert ou-alert--warn" th:if="${#lists.isEmpty(page.courses)}">
+      No courses found.
+    </div>
+
+    <nav class="courses-pager"
+         th:if="${page.totalPages > 1}"
+         aria-label="Courses pages">
+
+      <a class="ou-btn ou-btn--ghost"
+         th:if="${page.hasPrevious}"
+         th:href="@{/courses(page=${page.currentPage - 1})}">
+        ← Previous
+      </a>
+
+      <th:block th:each="p : ${#numbers.sequence(0, page.totalPages - 1)}">
+        <a class="ou-btn"
+           th:classappend="${p == page.currentPage} ? '' : ' ou-btn--ghost'"
+           th:href="@{/courses(page=${p})}"
+           th:text="${p + 1}">
+          1
+        </a>
+      </th:block>
+
+      <a class="ou-btn ou-btn--ghost"
+         th:if="${page.hasNext}"
+         th:href="@{/courses(page=${page.currentPage + 1})}">
+        Next →
+      </a>
+    </nav>
+
+  </section>
+</main>
+
+<script th:src="@{/js/courses-toggle-descriptions.js}" src="/js/courses-toggle-descriptions.js"></script>
+<script th:src="@{/js/courses-description-inline-edit.js}" src="/js/courses-description-inline-edit.js"></script>
+<script th:src="@{/js/details-form-cancel.js}" src="/js/details-form-cancel.js"></script>
+
+</body>
+</html>

@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<body>
+
+<div th:fragment="studentActions(s, currentPage)" class="account-actions-bar">
+
+  <details class="account-self-edit">
+    <summary class="ou-btn ou-btn--ghost"
+             th:attr="
+               data-role-change-assessment-url=@{/accounts/{id}/role-change/assessment(
+                 id=${s.id},
+                 sourceRole='STUDENT',
+                 targetRole='TEACHER'
+               )},
+               data-role-change-restore-form-id=|restore_student_to_teacher_${s.id}|
+             ">
+      To Teacher
+    </summary>
+
+    <form th:id="|restore_student_to_teacher_${s.id}|"
+          method="post"
+          th:action="@{/accounts/{id}/role-change/restore(
+            id=${s.id},
+            sourceRole='STUDENT',
+            targetRole='TEACHER'
+          )}"
+          hidden>
+      <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
+    </form>
+
+    <form class="account-self-edit__form"
+          method="post"
+          th:action="@{/accounts/{id}/role-change(
+            id=${s.id},
+            sourceRole='STUDENT',
+            targetRole='TEACHER'
+          )}"
+          onsubmit="return confirm('Apply role change from student to teacher?');">
+
+      <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
+
+      <div class="account-self-edit__divider" aria-hidden="true"></div>
+
+      <div class="account-self-edit__fields">
+        <div>
+          <label class="account-self-edit__label" th:for="|rank_${s.id}|">Academic rank</label>
+          <select class="ou-input" th:id="|rank_${s.id}|" name="academicRank">
+            <option value="" selected disabled>— Select rank —</option>
+            <option th:each="rank : ${all_ranks}" th:value="${rank}" th:text="${rank}">
+              Rank
+            </option>
+          </select>
+        </div>
+
+        <div>
+          <label class="account-self-edit__label" th:for="|office_${s.id}|">Office</label>
+          <input class="ou-input"
+                 th:id="|office_${s.id}|"
+                 name="office"
+                 type="text"
+                 placeholder="e.g. T-301" />
+        </div>
+      </div>
+
+      <div class="account-self-edit__actions">
+        <button type="button" class="ou-btn ou-btn--ghost" data-details-form-cancel>
+          Cancel
+        </button>
+
+        <button type="submit" class="ou-btn">
+          Apply
+        </button>
+      </div>
+    </form>
+  </details>
+
+  <div class="account-actions-bar__other">
+    <span aria-hidden="true"></span>
+
+    <form class="ou-inline-form"
+          method="post"
+          th:action="${s.enabled} ? @{/accounts/{id}/disable(id=${s.id}, role='STUDENT', page=${currentPage})} : @{/accounts/{id}/enable(id=${s.id}, role='STUDENT', page=${currentPage})}"
+          onsubmit="return confirm('Change account status?');">
+      <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
+
+      <button type="submit"
+              class="ou-btn ou-btn--ghost"
+              th:text="${s.enabled} ? 'Disable' : 'Enable'">
+        Disable
+      </button>
+    </form>
+
+    <form class="ou-inline-form account-actions-bar__delete"
+          method="post"
+          th:action="@{/accounts/{id}/delete(id=${s.id}, role='STUDENT', page=${currentPage})}"
+          onsubmit="return confirm('Delete this student account?');">
+      <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
+
+      <button type="submit" class="ou-btn ou-btn--danger">
+        Soft Delete
+      </button>
+    </form>
+  </div>
+
+</div>
+
+</body>
+</html>

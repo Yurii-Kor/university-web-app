@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en"
+      xmlns:th="http://www.thymeleaf.org">
+<body>
+
+<th:block th:fragment="teacherCard(t, accountId, ok, err, currentPage)">
+  <article class="ou-card account-card"
+           th:attr="data-id=${t.id}"
+           th:with="isTarget=${accountId != null and accountId == t.id}">
+
+    <div class="account-card__head">
+      <div class="account-card__who">
+        <div class="account-card__kind">
+          Teacher
+        </div>
+
+        <div class="account-card__name">
+          <span th:text="${t.firstName + ' ' + t.lastName}">Teacher Name</span>
+        </div>
+      </div>
+
+      <span class="ou-badge"
+            th:classappend="${t.enabled} ? ' ou-badge--success' : ' ou-badge--warn'"
+            th:text="${t.enabled} ? 'ACTIVE' : 'BLOCKED'">
+        ACTIVE
+      </span>
+    </div>
+
+    <dl class="account-kv">
+      <dt>ID</dt>
+      <dd th:text="${t.id}">1</dd>
+
+      <dt>Email</dt>
+      <dd>
+        <a class="account-email"
+           th:href="|mailto:${t.email}|"
+           th:text="${t.email}">
+          teacher@example.com
+        </a>
+      </dd>
+
+      <dt>Created</dt>
+      <dd th:text="${#temporals.format(t.createdAt, 'yyyy-MM-dd HH:mm')}">2026-01-01 10:00</dd>
+
+      <dt>Rank</dt>
+      <dd th:text="${t.academicRank}">LECTURER</dd>
+
+      <dt>Office</dt>
+      <dd th:text="${t.office}">T-101</dd>
+    </dl>
+
+    <th:block th:if="${isTarget and (ok != null or err != null)}">
+      <div class="ou-alert ou-alert--success"
+           th:if="${ok != null}"
+           th:text="${ok}">
+        Done.
+      </div>
+
+      <div class="ou-alert ou-alert--error"
+           th:if="${err != null}"
+           th:text="${err}">
+        Something went wrong.
+      </div>
+    </th:block>
+
+    <div class="account-actions">
+      <div class="account-actions__row">
+        <th:block th:replace="~{accounts/fragments/teacher-actions :: teacherActions(
+            ${t},
+            ${currentPage}
+        )}"></th:block>
+      </div>
+    </div>
+
+  </article>
+</th:block>
+
+</body>
+</html>

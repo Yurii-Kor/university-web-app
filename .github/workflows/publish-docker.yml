@@ -1,0 +1,85 @@
+name: Publish Docker Image
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  PROJECT_DIR: .
+  AUTOMATION_SCRIPT: .github/script/main.py
+  JAVA_VERSION: '21'
+  PYTHON_VERSION: '3.12'
+  DOCKER_IMAGE_NAME: university-web-app
+  RELEASE_JAR_ARTIFACT_NAME: university-web-app-release-jar
+
+jobs:
+  create-release-tag:
+    name: Create release tag
+    runs-on: ubuntu-latest
+
+    if: github.ref_name == 'main'
+
+    outputs:
+      version: ${{ steps.create_release_tag.outputs.version }}
+      git_tag: ${{ steps.create_release_tag.outputs.git_tag }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Create release tag
+        id: create_release_tag
+        run: python "${AUTOMATION_SCRIPT}" create-release-tag
+
+  publish-docker:
+    name: Publish Docker image
+    runs-on: ubuntu-latest
+    needs: create-release-tag
+    environment: docker-hub
+
+    if: github.ref_name == 'main'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: maven
+          cache-dependency-path: pom.xml
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ vars.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Publish Docker image
+        run: python "${AUTOMATION_SCRIPT}" publish-docker --version "${{ needs.create-release-tag.outputs.version }}"
+        env:
+          DOCKERHUB_USERNAME: ${{ vars.DOCKERHUB_USERNAME }}
+
+      - name: Upload release JAR artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.RELEASE_JAR_ARTIFACT_NAME }}
+          path: target/*.jar
+          if-no-files-found: error
+          retention-days: 7
