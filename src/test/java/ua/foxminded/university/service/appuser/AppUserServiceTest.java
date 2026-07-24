@@ -4,50 +4,70 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.Optional;
 
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.validation.ConstraintViolationException;
 
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
-import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
-import org.springframework.data.domain.PageRequest;
+import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.jdbc.Sql;
+import org.springframework.test.context.jdbc.SqlMergeMode;
 
 import ua.foxminded.university.TestcontainersConfiguration;
-import ua.foxminded.university.model.domain.AppUser;
 import ua.foxminded.university.model.domain.enums.UserRole;
 import ua.foxminded.university.security.PasswordPolicy;
-import ua.foxminded.university.security.config.PasswordEncoderConfig;
 import ua.foxminded.university.service.appuser.dto.AppUserCreateDto;
 import ua.foxminded.university.service.appuser.dto.AppUserPasswordChangeDto;
 import ua.foxminded.university.service.appuser.dto.AppUserSelfUpdateDto;
 import ua.foxminded.university.service.appuser.exception.AdminCreateException;
-import ua.foxminded.university.service.util.DtoMapper;
-import ua.foxminded.university.service.util.DuplicateGuard;
-import ua.foxminded.university.service.util.validation.EntityValidatior;
-import ua.foxminded.university.service.util.validation.config.ValidatorConfig;
-import ua.foxminded.university.testutil.TestDataInitializer;
 
-@DataJpaTest
+@SpringBootTest
 @ActiveProfiles("test")
-@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
-@Import({ 
-	TestcontainersConfiguration.class,
-	AppUserService.class,
-	ValidatorConfig.class,
-	EntityValidatior.class,
-	PasswordPolicy.class,
-	PasswordEncoderConfig.class,
-	TestDataInitializer.class,
-	DtoMapper.class,
-	DuplicateGuard.class
-})
+@Import(TestcontainersConfiguration.class)
+@SqlMergeMode(SqlMergeMode.MergeMode.MERGE)
+@Sql(
+	statements = {
+		"""
+		insert into app_user (id, email, password, role, first_name, last_name, enabled)
+		values (
+			1001,
+			'admin.test@example.com',
+			'$2a$10$zuVKu2I7XCxtiSIIJIcWUurJKhS9FMsanCH50hsN4paQ2VzFqnpNm',
+			'ADMIN',
+			'Alice',
+			'Cooper',
+			true
+		);
+		""",
+		"""
+		insert into app_user (id, email, password, role, first_name, last_name, enabled)
+		values (
+			1002,
+			'student.taken@example.com',
+			'$2a$10$zuVKu2I7XCxtiSIIJIcWUurJKhS9FMsanCH50hsN4paQ2VzFqnpNm',
+			'STUDENT',
+			'Bob',
+			'User',
+			true
+		);
+		"""
+	},
+	executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD
+)
+@Sql(
+	scripts = "/sql/cleanup-database.sql",
+	executionPhase = Sql.ExecutionPhase.AFTER_TEST_METHOD
+)
 class AppUserServiceTest {
+
+	static final Long TEST_ADMIN_ID = 1001L;
+	static final Long STUDENT_USER_ID = 1002L;
+	static final Long MISSING_ID = 999_999L;
 
 	static final String TEST_ADMIN_EMAIL = "admin.test@example.com";
 	static final String TAKEN_EMAIL = "student.taken@example.com";
@@ -70,24 +90,11 @@ class AppUserServiceTest {
 
 	static final Integer ONE_USER = 1;
 
-	static final Long MISSING_ID = 999_999L;
+	@Autowired
+	PasswordPolicy passwordPolicy;
 
-	@Autowired PasswordPolicy passwordPolicy;
-	@Autowired AppUserService appUserService;
-	@Autowired TestDataInitializer initializer;
-
-	AppUser testAdmin, userStudent, tempAdmin;
-
-	AppUser draftAdminEntity(String email) {
-		return AppUser.builder()
-				.email(email)
-				.password(passwordPolicy.encodePassword(PWD))
-				.role(UserRole.ADMIN)
-				.firstName(FIRST_NAME)
-				.lastName(LAST_NAME)
-				.enabled(true)
-				.build();
-	}
+	@Autowired
+	AppUserService appUserService;
 
 	AppUserCreateDto newAdminDto(String email) {
 		return new AppUserCreateDto(email, PWD, "Alice", "Admin");
@@ -101,231 +108,334 @@ class AppUserServiceTest {
 		return new AppUserPasswordChangeDto(id, current, next);
 	}
 
-	@BeforeAll
-	void setup() {
-		testAdmin = initializer.persistAll(draftAdminEntity(TEST_ADMIN_EMAIL)).getFirst();
-
-		userStudent = initializer.persistAll(AppUser.builder()
-				.email(TAKEN_EMAIL)
-				.password(PWD)
-				.role(UserRole.STUDENT)
-				.firstName("Bob")
-				.lastName("User")
-				.enabled(true)
-				.build()).getFirst();
-	}
-
-	@AfterEach
-	void cleanup() {
-		Optional.ofNullable(tempAdmin)
-				.filter(user -> !appUserService.findByIds(List.of(user.getId())).isEmpty())
-				.ifPresent(user -> appUserService.deleteAdmin(user.getId()));
-	}
-
 	@Test
 	@DisplayName("createAdmin: happy path — creates enabled ADMIN with encoded password")
-	void createAdmins_happyPath_success() {
-	    tempAdmin = appUserService.createAdmin(newAdminDto(ADMIN_CREATE_EMAIL));
+	void createAdmin_happyPath_success() {
+		var createdAdmin = appUserService.createAdmin(
+				newAdminDto(ADMIN_CREATE_EMAIL));
 
-	    assertNotNull(tempAdmin.getId());
-	    assertEquals(ADMIN_CREATE_EMAIL, tempAdmin.getEmail());
-	    assertEquals(UserRole.ADMIN, tempAdmin.getRole());
-	    assertTrue(tempAdmin.isEnabled());
+		assertNotNull(createdAdmin.getId());
+		assertEquals(ADMIN_CREATE_EMAIL, createdAdmin.getEmail());
+		assertEquals(UserRole.ADMIN, createdAdmin.getRole());
+		assertTrue(createdAdmin.isEnabled());
 
-	    passwordPolicy.assertCurrentMatches(PWD, tempAdmin.getPassword());
+		passwordPolicy.assertCurrentMatches(
+				PWD,
+				createdAdmin.getPassword());
 	}
 
 	@Test
 	@DisplayName("createAdmin: null email -> ConstraintViolationException")
 	void createAdmin_nullEmail_fails() {
-		var bad = new AppUserCreateDto(null, PWD, "Alice", "Admin");
-		assertThrows(ConstraintViolationException.class, () -> appUserService.createAdmin(bad));
+		var bad = new AppUserCreateDto(
+				null,
+				PWD,
+				"Alice",
+				"Admin");
+
+		assertThrows(
+				ConstraintViolationException.class,
+				() -> appUserService.createAdmin(bad));
 	}
 
 	@Test
 	@DisplayName("createAdmin: null password -> ConstraintViolationException")
 	void createAdmin_nullPassword_fails() {
-	    var bad = new AppUserCreateDto(ADMIN_NULL_PASSWORD_EMAIL, null, "Alice", "Admin");
-	    assertThrows(ConstraintViolationException.class, () -> appUserService.createAdmin(bad));
+		var bad = new AppUserCreateDto(
+				ADMIN_NULL_PASSWORD_EMAIL,
+				null,
+				"Alice",
+				"Admin");
+
+		assertThrows(
+				ConstraintViolationException.class,
+				() -> appUserService.createAdmin(bad));
 	}
 
 	@Test
 	@DisplayName("createAdmin: duplicate email ignoring case -> AdminCreateException")
 	void createAdmin_duplicateEmailIgnoreCase_fails() {
-		var dup = newAdminDto(TEST_ADMIN_EMAIL.toUpperCase());
-		assertThrows(AdminCreateException.class, () -> appUserService.createAdmin(dup));
+		var duplicate = newAdminDto(
+				TEST_ADMIN_EMAIL.toUpperCase());
+
+		assertThrows(
+				AdminCreateException.class,
+				() -> appUserService.createAdmin(duplicate));
 	}
-	
+
 	@Test
 	@DisplayName("listAdmins: returns paged admin rows only")
 	void listAdmins_returnsAdminsOnly() {
-	    tempAdmin = appUserService.createAdmin(newAdminDto(ADMIN_LIST_EMAIL));
+		var createdAdmin = appUserService.createAdmin(
+				newAdminDto(ADMIN_LIST_EMAIL));
 
-	    var adminsPage = appUserService.listAdminsForView(tempAdmin.getId(), PageRequest.of(0, 10));
-	    var admins = adminsPage.getContent();
+		var adminsPage = appUserService.listAdminsForView(
+				createdAdmin.getId(),
+				PageRequest.of(0, 10));
 
-	    assertNotNull(adminsPage);
-	    assertNotNull(admins);
-	    assertEquals(2, adminsPage.getTotalElements());
-	    assertEquals(1, adminsPage.getTotalPages());
+		var admins = adminsPage.getContent();
 
-	    var adminEmails = admins.stream()
-	            .map(admin -> admin.email())
-	            .toList();
+		assertNotNull(adminsPage);
+		assertNotNull(admins);
+		assertEquals(2, adminsPage.getTotalElements());
+		assertEquals(1, adminsPage.getTotalPages());
 
-	    assertTrue(adminEmails.contains(TEST_ADMIN_EMAIL));
-	    assertTrue(adminEmails.contains(ADMIN_LIST_EMAIL));
-	    assertFalse(adminEmails.contains(TAKEN_EMAIL));
+		var adminEmails = admins.stream()
+				.map(admin -> admin.email())
+				.toList();
+
+		assertTrue(adminEmails.contains(TEST_ADMIN_EMAIL));
+		assertTrue(adminEmails.contains(ADMIN_LIST_EMAIL));
+		assertFalse(adminEmails.contains(TAKEN_EMAIL));
 	}
-	
+
 	@Test
 	@DisplayName("getAdminProfileView: student id -> EntityNotFoundException")
 	void getAdminProfileView_studentId_fails() {
-		assertThrows(EntityNotFoundException.class,
-				() -> appUserService.getAdminProfileView(userStudent.getId()));
+		assertThrows(
+				EntityNotFoundException.class,
+				() -> appUserService.getAdminProfileView(STUDENT_USER_ID));
 	}
 
 	@Test
 	@DisplayName("updateProfileFields: happy path — email + first/last name updated")
-    void updateProfileFields_happyPath_success() {
-        tempAdmin = appUserService.createAdmin(newAdminDto(ADMIN_UPDATE_EMAIL));
+	void updateProfileFields_happyPath_success() {
+		var createdAdmin = appUserService.createAdmin(
+				newAdminDto(ADMIN_UPDATE_EMAIL));
 
-        appUserService.updateProfileFields(
-                patchProfileDto(tempAdmin.getId(), ADMIN_UPDATED_EMAIL, UPDATED_FIRST_NAME, UPDATED_LAST_NAME));
+		appUserService.updateProfileFields(
+				patchProfileDto(
+						createdAdmin.getId(),
+						ADMIN_UPDATED_EMAIL,
+						UPDATED_FIRST_NAME,
+						UPDATED_LAST_NAME));
 
-        var reloaded = appUserService.findByIds(List.of(tempAdmin.getId())).getFirst();
+		var reloaded = appUserService.findByIds(
+				List.of(createdAdmin.getId()))
+				.getFirst();
 
-        assertEquals(ADMIN_UPDATED_EMAIL, reloaded.getEmail());
-        assertEquals(UPDATED_FIRST_NAME, reloaded.getFirstName());
-        assertEquals(UPDATED_LAST_NAME, reloaded.getLastName());
-    }
+		assertEquals(ADMIN_UPDATED_EMAIL, reloaded.getEmail());
+		assertEquals(UPDATED_FIRST_NAME, reloaded.getFirstName());
+		assertEquals(UPDATED_LAST_NAME, reloaded.getLastName());
+	}
 
 	@Test
-	@DisplayName("updateProfileFields: no-op — same email (trim/case-insensitive) and null names")
+	@DisplayName("updateProfileFields: no-op — same email and null names")
 	void updateProfileFields_noop_sameEmail_ok() {
-		var patch = patchProfileDto(testAdmin.getId(), testAdmin.getEmail(), null, null);
+		var patch = patchProfileDto(
+				TEST_ADMIN_ID,
+				TEST_ADMIN_EMAIL,
+				null,
+				null);
+
 		appUserService.updateProfileFields(patch);
 
-		var found = appUserService.findByIds(List.of(testAdmin.getId())).getFirst();
+		var found = appUserService.findByIds(
+				List.of(TEST_ADMIN_ID))
+				.getFirst();
 
-		assertEquals(testAdmin.getEmail(), found.getEmail(), "Email must remain unchanged");
-		assertEquals(testAdmin.getFirstName(), found.getFirstName(), "First name must remain unchanged");
-		assertEquals(testAdmin.getLastName(), found.getLastName(), "Last name must remain unchanged");
+		assertEquals(
+				TEST_ADMIN_EMAIL,
+				found.getEmail(),
+				"Email must remain unchanged");
+
+		assertEquals(
+				FIRST_NAME,
+				found.getFirstName(),
+				"First name must remain unchanged");
+
+		assertEquals(
+				LAST_NAME,
+				found.getLastName(),
+				"Last name must remain unchanged");
 	}
-	
+
 	@Test
 	@DisplayName("updateProfileFields: null id -> ConstraintViolationException")
 	void updateProfileFields_nullId_fails() {
-		assertThrows(ConstraintViolationException.class,
+		assertThrows(
+				ConstraintViolationException.class,
 				() -> appUserService.updateProfileFields(
-						patchProfileDto(null, UPDATED_EMAIL, UPDATED_FIRST_NAME, UPDATED_LAST_NAME)));
+						patchProfileDto(
+								null,
+								UPDATED_EMAIL,
+								UPDATED_FIRST_NAME,
+								UPDATED_LAST_NAME)));
 	}
 
 	@Test
 	@DisplayName("updateProfileFields: user not found -> EntityNotFoundException")
 	void updateProfileFields_notFound_fails() {
-		var patchMissing = patchProfileDto(MISSING_ID, UPDATED_EMAIL, null, null);
-		assertThrows(EntityNotFoundException.class, () -> appUserService.updateProfileFields(patchMissing));
+		var patchMissing = patchProfileDto(
+				MISSING_ID,
+				UPDATED_EMAIL,
+				null,
+				null);
+
+		assertThrows(
+				EntityNotFoundException.class,
+				() -> appUserService.updateProfileFields(patchMissing));
 	}
 
 	@Test
 	@DisplayName("updateProfileFields: set email that belongs to another user -> IllegalArgumentException")
 	void updateProfileFields_emailTaken_fails() {
-		var patchWithTakenEmail = patchProfileDto(testAdmin.getId(), TAKEN_EMAIL, null, null);
-		assertThrows(IllegalArgumentException.class, () -> appUserService.updateProfileFields(patchWithTakenEmail));
+		var patchWithTakenEmail = patchProfileDto(
+				TEST_ADMIN_ID,
+				TAKEN_EMAIL,
+				null,
+				null);
+
+		assertThrows(
+				IllegalArgumentException.class,
+				() -> appUserService.updateProfileFields(patchWithTakenEmail));
 	}
 
 	@Test
 	@DisplayName("enableUserByIds: contains missing id -> EntityNotFoundException")
 	void enableUserByIds_containsMissingId_fails() {
-		assertThrows(EntityNotFoundException.class, () -> appUserService.enableUserByIds(MISSING_ID));
+		assertThrows(
+				EntityNotFoundException.class,
+				() -> appUserService.enableUserByIds(MISSING_ID));
 	}
 
 	@Test
 	@DisplayName("disableUserByIds: can disable non-admin user")
 	void disableUserByIds_student_ok() {
-		appUserService.disableUserByIds(userStudent.getId());
+		appUserService.disableUserByIds(STUDENT_USER_ID);
 
-		var reloaded = appUserService.findByIds(List.of(userStudent.getId())).getFirst();
-		assertFalse(reloaded.isEnabled(), "Student must become disabled");
+		var reloaded = appUserService.findByIds(
+				List.of(STUDENT_USER_ID))
+				.getFirst();
+
+		assertFalse(
+				reloaded.isEnabled(),
+				"Student must become disabled");
 	}
 
 	@Test
-	@DisplayName("disableUserByIds: can enable non-admin user")
+	@DisplayName("enableUserByIds: can enable non-admin user")
 	void enableUserByIds_student_ok() {
-		appUserService.enableUserByIds(userStudent.getId());
+		appUserService.enableUserByIds(STUDENT_USER_ID);
 
-		var reloaded = appUserService.findByIds(List.of(userStudent.getId())).getFirst();
-		assertTrue(reloaded.isEnabled(), "Student must become disabled");
+		var reloaded = appUserService.findByIds(
+				List.of(STUDENT_USER_ID))
+				.getFirst();
+
+		assertTrue(
+				reloaded.isEnabled(),
+				"Student must remain enabled");
 	}
 
 	@Test
 	@DisplayName("disableUserByIds: guard — cannot disable the last enabled admin")
 	void disableUserByIds_lastEnabledAdmin_guard_fails() {
-		assertThrows(IllegalStateException.class,
-				() -> appUserService.disableUserByIds(testAdmin.getId()),
+		assertThrows(
+				IllegalStateException.class,
+				() -> appUserService.disableUserByIds(TEST_ADMIN_ID),
 				"must fail when trying to disable the last enabled admin");
 	}
 
 	@Test
 	@DisplayName("disableUserByIds: contains missing id -> EntityNotFoundException")
 	void disableUserByIds_containsMissingId_fails() {
-		assertThrows(EntityNotFoundException.class, () -> appUserService.disableUserByIds(MISSING_ID));
+		assertThrows(
+				EntityNotFoundException.class,
+				() -> appUserService.disableUserByIds(MISSING_ID));
 	}
 
 	@Test
-	@DisplayName("changePasswordSelf: happy path — пароль changed and encoded")
+	@DisplayName("changePasswordSelf: happy path — password changed and encoded")
 	void changePasswordSelf_happyPath_success() {
-		appUserService.changePasswordSelf(changePasswordDto(testAdmin.getId(), PWD, PWD_NEW));
+		appUserService.changePasswordSelf(
+				changePasswordDto(
+						TEST_ADMIN_ID,
+						PWD,
+						PWD_NEW));
 
-		var updated = appUserService.findByIds(List.of(testAdmin.getId())).getFirst();
+		var updated = appUserService.findByIds(
+				List.of(TEST_ADMIN_ID))
+				.getFirst();
 
-		assertNotEquals(passwordPolicy.encodePassword(PWD), updated.getPassword());
-		passwordPolicy.assertCurrentMatches(PWD_NEW, updated.getPassword());
+		passwordPolicy.assertCurrentMatches(
+				PWD_NEW,
+				updated.getPassword());
 	}
 
 	@Test
 	@DisplayName("changePasswordSelf: missing required fields -> ConstraintViolationException")
 	void changePasswordSelf_missingFields_fails() {
-		// id=null
-		assertThrows(ConstraintViolationException.class,
-				() -> appUserService.changePasswordSelf(new AppUserPasswordChangeDto(null, PWD, PWD_NEW)));
+		assertThrows(
+				ConstraintViolationException.class,
+				() -> appUserService.changePasswordSelf(
+						new AppUserPasswordChangeDto(
+								null,
+								PWD,
+								PWD_NEW)));
 
-		// currentPassword=null
-		assertThrows(ConstraintViolationException.class,
-				() -> appUserService.changePasswordSelf(changePasswordDto(testAdmin.getId(), null, PWD_NEW)));
+		assertThrows(
+				ConstraintViolationException.class,
+				() -> appUserService.changePasswordSelf(
+						changePasswordDto(
+								TEST_ADMIN_ID,
+								null,
+								PWD_NEW)));
 
-		// newPassword=null
-		assertThrows(ConstraintViolationException.class,
-				() -> appUserService.changePasswordSelf(changePasswordDto(testAdmin.getId(), PWD, null)));
+		assertThrows(
+				ConstraintViolationException.class,
+				() -> appUserService.changePasswordSelf(
+						changePasswordDto(
+								TEST_ADMIN_ID,
+								PWD,
+								null)));
 	}
-	
+
 	@Test
 	@DisplayName("changePasswordSelf: new password same as current -> IllegalArgumentException")
 	void changePasswordSelf_samePassword_fails() {
-		assertThrows(IllegalArgumentException.class,
-				() -> appUserService.changePasswordSelf(changePasswordDto(testAdmin.getId(), PWD, PWD)));
+		assertThrows(
+				IllegalArgumentException.class,
+				() -> appUserService.changePasswordSelf(
+						changePasswordDto(
+								TEST_ADMIN_ID,
+								PWD,
+								PWD)));
 	}
-	
+
 	@Test
 	@DisplayName("changePasswordSelf: user not found -> EntityNotFoundException")
 	void changePasswordSelf_notFound_fails() {
-		assertThrows(EntityNotFoundException.class,
-				() -> appUserService.changePasswordSelf(changePasswordDto(MISSING_ID, PWD, PWD_NEW)));
+		assertThrows(
+				EntityNotFoundException.class,
+				() -> appUserService.changePasswordSelf(
+						changePasswordDto(
+								MISSING_ID,
+								PWD,
+								PWD_NEW)));
 	}
 
 	@Test
 	@DisplayName("changePasswordSelf: wrong current password -> IllegalArgumentException")
 	void changePasswordSelf_wrongCurrent_fails() {
-		assertThrows(IllegalArgumentException.class,
-				() -> appUserService.changePasswordSelf(changePasswordDto(testAdmin.getId(), PWD_NEW, PWD_NEW)));
+		assertThrows(
+				IllegalArgumentException.class,
+				() -> appUserService.changePasswordSelf(
+						changePasswordDto(
+								TEST_ADMIN_ID,
+								PWD_NEW,
+								PWD_NEW)));
 	}
 
 	@Test
 	@DisplayName("changePasswordSelf: new password violates pattern -> ConstraintViolationException")
 	void changePasswordSelf_badNewPassword_fails() {
-		assertThrows(ConstraintViolationException.class,
-				() -> appUserService.changePasswordSelf(changePasswordDto(testAdmin.getId(), PWD, PWD_BAD)));
+		assertThrows(
+				ConstraintViolationException.class,
+				() -> appUserService.changePasswordSelf(
+						changePasswordDto(
+								TEST_ADMIN_ID,
+								PWD,
+								PWD_BAD)));
 	}
 
 	@Test
@@ -334,44 +444,59 @@ class AppUserServiceTest {
 		assertTrue(appUserService.findByIds(null).isEmpty());
 		assertTrue(appUserService.findByIds(List.of()).isEmpty());
 
-		var found = appUserService.findByIds(Arrays.asList(null, testAdmin.getId(), testAdmin.getId()));
+		var found = appUserService.findByIds(
+				Arrays.asList(
+						null,
+						TEST_ADMIN_ID,
+						TEST_ADMIN_ID));
+
 		assertEquals(ONE_USER, found.size());
-		assertEquals(testAdmin.getId(), found.getFirst().getId());
+		assertEquals(TEST_ADMIN_ID, found.getFirst().getId());
 	}
 
 	@Test
 	@DisplayName("getAdminProfileView: happy path — returns AdminProfileView for existing ADMIN")
 	void getAdminProfileView_happyPath_success() {
-		var view = appUserService.getAdminProfileView(testAdmin.getId());
+		var view = appUserService.getAdminProfileView(TEST_ADMIN_ID);
 
 		assertNotNull(view);
-		assertEquals(testAdmin.getEmail(), view.email());
-		assertEquals(testAdmin.getFirstName(), view.firstName());
-		assertEquals(testAdmin.getLastName(), view.lastName());
-		assertNotNull(view.createdAt(), "createdAt must be populated by DB");
+		assertEquals(TEST_ADMIN_EMAIL, view.email());
+		assertEquals(FIRST_NAME, view.firstName());
+		assertEquals(LAST_NAME, view.lastName());
+		assertNotNull(
+				view.createdAt(),
+				"createdAt must be populated by DB");
 	}
 
 	@Test
 	@DisplayName("getAdminProfileView: missing id -> EntityNotFoundException")
 	void getAdminProfileView_missingId_fails() {
-		assertThrows(EntityNotFoundException.class, () -> appUserService.getAdminProfileView(MISSING_ID));
+		assertThrows(
+				EntityNotFoundException.class,
+				() -> appUserService.getAdminProfileView(MISSING_ID));
 	}
-	
+
 	@Test
-	@DisplayName("delete: non-admin user -> IllegalStateException")
-	void delete_student_guard_fails() {
-	    assertThrows(IllegalStateException.class, () -> appUserService.deleteAdmin(userStudent.getId()));
+	@DisplayName("deleteAdmin: non-admin user -> IllegalStateException")
+	void deleteAdmin_student_guard_fails() {
+		assertThrows(
+				IllegalStateException.class,
+				() -> appUserService.deleteAdmin(STUDENT_USER_ID));
 	}
-	
+
 	@Test
-	@DisplayName("delete: guard — can't delete last admin")
-	void delete_lastAdmin_guard_fails() {
-		assertThrows(IllegalStateException.class, () -> appUserService.deleteAdmin(testAdmin.getId()));
+	@DisplayName("deleteAdmin: guard — cannot delete last admin")
+	void deleteAdmin_lastAdmin_guard_fails() {
+		assertThrows(
+				IllegalStateException.class,
+				() -> appUserService.deleteAdmin(TEST_ADMIN_ID));
 	}
-	
+
 	@Test
-	@DisplayName("delete: missing id -> EntityNotFoundException")
-	void delete_missingId_fails() {
-		assertThrows(EntityNotFoundException.class, () -> appUserService.deleteAdmin(MISSING_ID));
+	@DisplayName("deleteAdmin: missing id -> EntityNotFoundException")
+	void deleteAdmin_missingId_fails() {
+		assertThrows(
+				EntityNotFoundException.class,
+				() -> appUserService.deleteAdmin(MISSING_ID));
 	}
 }
