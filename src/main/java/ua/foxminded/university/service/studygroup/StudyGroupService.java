@@ -16,14 +16,15 @@ import org.springframework.stereotype.Service;
 
 import ua.foxminded.university.model.domain.StudyGroup;
 import ua.foxminded.university.model.persistence.studygroup.StudyGroupRepository;
+import ua.foxminded.university.model.persistence.studygroup.projection.GroupCardView;
 import ua.foxminded.university.model.persistence.studygroup.projection.GroupView;
-import ua.foxminded.university.model.persistence.studygroup.projection.IdCountAgg;
+import ua.foxminded.university.model.persistence.studygroup.projection.StudentGroupHeaderView;
 import ua.foxminded.university.service.studygroup.dto.StudyGroupCreateDto;
 import ua.foxminded.university.service.studygroup.dto.StudyGroupRenameDto;
+import ua.foxminded.university.service.studygroup.exception.StudyGroupDeleteException;
+import ua.foxminded.university.service.studygroup.exception.StudyGroupRenameException;
 import ua.foxminded.university.service.util.validation.EntityValidatior;
 import ua.foxminded.university.service.util.DtoMapper;
-import ua.foxminded.university.service.util.DuplicateGuard;
-import ua.foxminded.university.service.util.dto.DeleteResult;
 
 @Service
 @RequiredArgsConstructor
@@ -34,29 +35,21 @@ public class StudyGroupService {
 
 	private final StudyGroupRepository groupRepository;
 	private final EntityValidatior validator;
-	private final DtoMapper dtoMapper;
-	private final DuplicateGuard duplicateGuard;
+	private final DtoMapper mapper;
+	
+	
+    @Transactional(value = TxType.REQUIRES_NEW)
+    public StudyGroup create(StudyGroupCreateDto draft) {
+        validator.validate(draft);
 
-	@Transactional(value = TxType.REQUIRES_NEW)
-	public List<StudyGroup> createAll(Collection<StudyGroupCreateDto> drafts) {
-		drafts = Optional.ofNullable(drafts).orElseGet(List::of).stream().filter(Objects::nonNull).toList();
+        var group = mapper.toStudyGroupEntity(draft);
 
-		if (drafts.isEmpty()) {
-			log.warn("createAll: nothing to persist (null/empty input)");
-			return List.of();
-		}
+        if (groupRepository.existsByNameIgnoreCase(group.getName())) {
+            throw new IllegalArgumentException("Study group name already exists: " + group.getName());
+        }
 
-		validator.validateAll(drafts);
-
-		var toPersist = dtoMapper.mapGroupsToEntities(drafts);
-
-		var namesLower = toPersist.stream().map(StudyGroup::getName).map(String::toLowerCase).toList();
-
-		duplicateGuard.assertNoDuplicates(namesLower, "study group names");
-		assertNamesFreeInDbForCreate(namesLower);
-
-		return groupRepository.saveAll(toPersist);
-	}
+        return groupRepository.save(group);
+    }
 
 	@Transactional(value = TxType.SUPPORTS)
 	public List<StudyGroup> findByIds(Collection<Long> ids) {
@@ -74,108 +67,80 @@ public class StudyGroupService {
 	}
 	
 	@Transactional(value = TxType.SUPPORTS)
-	public Page<GroupView> listGroupCardsForAdmin(Pageable pageable) {
+	public Page<GroupCardView> listGroupCardsForAdmin(Pageable pageable) {
 	    return groupRepository.findGroupCardsAll(pageable);
 	}
+	
+    @Transactional(value = TxType.SUPPORTS)
+    public Page<GroupCardView> listGroupCardsForTeacher(long teacherId, Pageable pageable) {
+        return groupRepository.findGroupCardsByTeacherId(teacherId, pageable);
+    }
+    
+    @Transactional(value = TxType.SUPPORTS)
+    public StudentGroupHeaderView getGroupHeaderForStudent(long studentId) {
+        return groupRepository.findStudentGroupHeader(studentId)
+                .orElseThrow(() -> new EntityNotFoundException(
+                        "StudyGroup not found for student: id=" + studentId));
+    }
 	
 	@Transactional(value = TxType.SUPPORTS)
 	public List<GroupView> listGroupOptions() {
 	    return groupRepository.findGroupOptions();
 	}
 
-	@Transactional(value = TxType.REQUIRES_NEW)
-	public StudyGroup rename(StudyGroupRenameDto patch) {
-		patch = Optional.ofNullable(patch)
-				.orElseThrow(() -> new IllegalArgumentException("patch must not be null"));
+    @Transactional(value = TxType.REQUIRES_NEW)
+    public StudyGroup rename(StudyGroupRenameDto patch) {
+        Optional.ofNullable(patch).orElseThrow(() -> new IllegalArgumentException("patch must not be null"));
+        validator.validateWithId(patch, patch.id());
 
-		validator.validate(patch);
+        var managed = groupRepository.findById(patch.id()).orElseThrow(() -> {
+            return new EntityNotFoundException("StudyGroup not found: id=" + patch.id());
+        });
 
-		var id = patch.id();
-		var managed = groupRepository.findById(id).orElseThrow(() -> {
-			log.error("rename: StudyGroup not found: id={}", id);
-			return new EntityNotFoundException("StudyGroup not found: id=" + id);
-		});
+        applyNamePatch(managed, patch);
 
-		Optional.ofNullable(patch.name())
-				.filter(n -> !n.isEmpty())
-				.filter(n -> !n.equalsIgnoreCase(managed.getName()))
-				.ifPresent(n -> {
-					assertNameFreeInDbForRename(n, managed.getId());
-					managed.setName(n);
-				});
+        return managed;
+    }
 
-		log.debug("rename: updated name for groupId={}", managed.getId());
-		return managed;
-	}
+    @Transactional(value = TxType.REQUIRES_NEW)
+    public void delete(long id) {
+        if (!groupRepository.existsById(id)) {
+            throw new EntityNotFoundException("StudyGroup not found: id=" + id);
+        }
 
-	@Transactional(value = TxType.REQUIRES_NEW)
-	public DeleteResult deleteByIds(Collection<Long> ids) {
-		var distinct = Optional.ofNullable(ids)
-				.orElseGet(Collections::emptyList)
-				.stream()
-				.filter(Objects::nonNull)
-				.collect(Collectors.toSet());
-		
-		if (distinct.isEmpty()) {
-			log.warn("deleteByIds called with null/empty list");
-			return new DeleteResult(Set.of(), Set.of());
-		}
+        var studentCount = groupRepository.countStudentsByGroupId(id);
 
-		assertGroupsHaveNoStudents(distinct);
+        if (studentCount > 0) {
+            throw new StudyGroupDeleteException(id, studentCount,
+                    "Cannot delete non-empty group: id=%d, students=%d".formatted(id, studentCount));
+        }
 
-		var existing = groupRepository.findAllById(distinct);
+        groupRepository.deleteById(id);
 
-		var deletedIds = existing.stream().map(StudyGroup::getId).collect(Collectors.toSet());
-		var notFound = distinct.stream().filter(id -> !deletedIds.contains(id)).collect(Collectors.toSet());
+        log.info("delete: deleted StudyGroup: id={}", id);
+    }
 
-		if (existing.isEmpty()) {
-			log.info("deleteByIds: nothing to delete; not found: {}", notFound);
-			return new DeleteResult(Set.of(), notFound);
-		}
+    private void applyNamePatch(StudyGroup managed, StudyGroupRenameDto patch) {
 
-		groupRepository.deleteAll(existing);
-		log.info("Deleted {} group(s); not found: {}", deletedIds.size(), notFound);
+        Optional.ofNullable(patch.name())
+                .map(String::trim)
+                .filter(name -> !name.isEmpty())
+                .filter(name -> isDifferentIgnoreCase(name, managed.getName()))
+                .ifPresent(name -> {
+                    if (groupRepository.existsByNameIgnoreCase(name)) {
 
-		return new DeleteResult(deletedIds, notFound);
-	}
+                        throw new StudyGroupRenameException(managed.getId(), name,
+                                "Study group id=%d cannot be renamed: name '%s' already exists"
+                                        .formatted(managed.getId(), name));
+                    }
 
-	private void assertGroupsHaveNoStudents(Collection<Long> ids) {
-		var aggs = groupRepository.countStudentsByGroupIds(ids);
+                    managed.setName(name);
 
-		var nonEmpty = Optional.ofNullable(aggs)
-				.orElseGet(List::of)
-				.stream()
-				.filter(Objects::nonNull)
-				.filter(a -> Optional.ofNullable(a.count()).orElse(0L) > 0L)
-				.sorted(Comparator.comparing(IdCountAgg::id))
-				.toList();
+                    log.debug("rename: name updated " + "(groupId={})", managed.getId());
+                });
+    }
 
-		if (!nonEmpty.isEmpty()) {
-			var pairs = nonEmpty.stream()
-					.map(a -> a.id() + " -> " + a.count())
-					.collect(Collectors.joining(", ", "[", "]"));
-
-			log.error("deleteByIds: groups not empty: {}", pairs);
-			throw new IllegalStateException("Cannot delete non-empty groups: " + pairs);
-		}
-	}
-
-	private void assertNamesFreeInDbForCreate(Collection<String> namesLower) {
-		var conflicts = groupRepository.findExistingNamesIgnoreCase(new HashSet<>(namesLower));
-		if (!conflicts.isEmpty()) {
-			log.warn("group names already exist in DB: {}", conflicts);
-			throw new IllegalArgumentException("Group names already exist: " + conflicts);
-		}
-	}
-
-	private void assertNameFreeInDbForRename(String newName, long selfId) {
-		var probe = Set.of(newName.trim().toLowerCase());
-		var self = List.of(selfId);
-
-		var conflicts = groupRepository.findConflictingNamesIgnoreCase(probe, self);
-		if (!conflicts.isEmpty()) {
-			log.warn("target group name already taken by other groups: {}", conflicts);
-			throw new IllegalArgumentException("Group names already exist: " + conflicts);
-		}
-	}
+    private boolean isDifferentIgnoreCase(String newValue, String currentValue) {
+        return Optional.ofNullable(currentValue).map(current -> !current.equalsIgnoreCase(newValue)).orElse(true);
+    }
 }

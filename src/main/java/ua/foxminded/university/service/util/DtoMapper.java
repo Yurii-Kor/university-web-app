@@ -32,18 +32,8 @@ public class DtoMapper {
 	            .build();
 	}
 
-	public List<StudyGroup> mapGroupsToEntities(Collection<StudyGroupCreateDto> drafts) {
-		return Optional.ofNullable(drafts)
-				.orElseGet(List::of)
-				.stream()
-				.filter(Objects::nonNull)
-				.map(this::toGroupEntity)
-				.flatMap(Optional::stream)
-				.toList();
-	}
-
-	public Optional<StudyGroup> toGroupEntity(StudyGroupCreateDto dto) {
-		return Optional.ofNullable(dto).map(d -> StudyGroup.builder().id(null).name(d.name()).build());
+	public StudyGroup toStudyGroupEntity(StudyGroupCreateDto dto) {
+		return StudyGroup.builder().id(null).name(dto.name()).build();
 	}
 
 	public List<Student> toStudentEntities(Collection<StudentCreateDto> drafts) {

@@ -108,6 +108,7 @@ public class CourseService {
 
 	@Transactional(value = TxType.REQUIRES_NEW)
 	public Course updateSelf(CourseSelfUpdateDto patch) {
+        Optional.ofNullable(patch).orElseThrow(() -> new IllegalArgumentException("patch must not be null"));
 		validator.validateWithId(patch, patch.id());
 		
 		var managed = courseRepository.findById(patch.id())
