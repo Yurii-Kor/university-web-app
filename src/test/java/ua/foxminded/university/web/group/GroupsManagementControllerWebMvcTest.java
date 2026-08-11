@@ -22,7 +22,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
-import ua.foxminded.university.model.persistence.studygroup.projection.GroupView;
+import ua.foxminded.university.model.persistence.studygroup.projection.GroupCardView;
 import ua.foxminded.university.service.studygroup.StudyGroupService;
 import ua.foxminded.university.service.teacher.TeacherService;
 import ua.foxminded.university.web.testconfig.MethodSecurityTestConfig;
@@ -30,43 +30,70 @@ import ua.foxminded.university.web.util.ExceptionMessageReader;
 
 @WebMvcTest(controllers = GroupsManagementController.class)
 @Import({
-    MethodSecurityTestConfig.class,
-    ExceptionMessageReader.class
+	MethodSecurityTestConfig.class,
+	ExceptionMessageReader.class
 })
 class GroupsManagementControllerWebMvcTest {
 
-    @Autowired MockMvc mockMvc;
-    
-    @MockitoBean TeacherService teacherService;
+	@Autowired
+	MockMvc mockMvc;
 
-    @MockitoBean StudyGroupService studyGroupService;
+	@MockitoBean
+	TeacherService teacherService;
 
-    @Test
-    @DisplayName("GET /groups -> 200, groups/groups, model has paged groups")
-    void getGroups_ok_returnsViewAndModel() throws Exception {
-        var firstGroup = new GroupView(1L, "AA-11");
-        var secondGroup = new GroupView(2L, "BB-22");
+	@MockitoBean
+	StudyGroupService studyGroupService;
 
-        var groupsPage = new PageImpl<>(
-                List.of(firstGroup, secondGroup),
-                PageRequest.of(0, 10),
-                11
-        );
+	@Test
+	@DisplayName("GET /groups -> 200, groups/groups, model has paged groups")
+	void getGroups_ok_returnsViewAndModel() throws Exception {
+		var firstGroup = new GroupCardView(
+				1L,
+				"AA-11",
+				10L,
+				3L);
 
-        when(studyGroupService.listGroupCardsForAdmin(any(Pageable.class)))
-                .thenReturn(groupsPage);
+		var secondGroup = new GroupCardView(
+				2L,
+				"BB-22",
+				7L,
+				2L);
 
-        mockMvc.perform(get("/groups")
-                        .with(user("42").roles("ADMIN")))
-                .andExpect(status().isOk())
-                .andExpect(view().name("groups/groups"))
-                .andExpect(model().attribute("pageTitle", "Groups"))
-                .andExpect(model().attribute("groups", contains(firstGroup, secondGroup)))
-                .andExpect(model().attribute("currentPage", 0))
-                .andExpect(model().attribute("totalPages", 2))
-                .andExpect(model().attribute("hasPrevious", false))
-                .andExpect(model().attribute("hasNext", true));
+		var groupsPage = new PageImpl<>(
+				List.of(firstGroup, secondGroup),
+				PageRequest.of(0, 10),
+				11);
 
-        verify(studyGroupService).listGroupCardsForAdmin(argThat(p -> p.getPageNumber() == 0));
-    }
+		when(studyGroupService.listGroupCardsForAdmin(
+				any(Pageable.class)))
+				.thenReturn(groupsPage);
+
+		mockMvc.perform(
+				get("/groups")
+						.with(user("42").roles("ADMIN")))
+				.andExpect(status().isOk())
+				.andExpect(view().name("groups/groups"))
+				.andExpect(model().attribute(
+						"pageTitle",
+						"Groups"))
+				.andExpect(model().attribute(
+						"groups",
+						contains(firstGroup, secondGroup)))
+				.andExpect(model().attribute(
+						"currentPage",
+						0))
+				.andExpect(model().attribute(
+						"totalPages",
+						2))
+				.andExpect(model().attribute(
+						"hasPrevious",
+						false))
+				.andExpect(model().attribute(
+						"hasNext",
+						true));
+
+		verify(studyGroupService)
+				.listGroupCardsForAdmin(
+						argThat(p -> p.getPageNumber() == 0));
+	}
 }
