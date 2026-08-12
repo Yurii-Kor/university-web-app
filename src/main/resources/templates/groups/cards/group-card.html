@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en"
+      xmlns:th="http://www.thymeleaf.org">
+<body>
+
+<th:block th:fragment="groupCard(
+    g,
+    groupId,
+    ok,
+    err,
+    requestedName,
+    showAdminActions,
+    currentPage
+)">
+
+  <article class="ou-card group-card"
+           th:attr="data-id=${g.id}"
+           th:with="
+             isTarget=${groupId != null and groupId == g.id}
+           ">
+
+    <div class="group-card__head">
+      <div class="group-card__who">
+
+        <div class="group-card__name">
+          <span th:text="${g.name}">
+            CS-101
+          </span>
+        </div>
+
+      </div>
+    </div>
+
+    <dl class="group-kv">
+
+      <dt>Students</dt>
+      <dd th:text="${g.studentCount}">
+        20
+      </dd>
+
+      <dt>Courses</dt>
+      <dd th:text="${g.courseCount}">
+        4
+      </dd>
+
+    </dl>
+
+    <th:block th:if="${isTarget and (ok != null or err != null)}">
+
+      <div class="ou-alert ou-alert--success"
+           th:if="${ok != null}"
+           th:text="${ok}">
+        Done.
+      </div>
+
+      <div class="ou-alert ou-alert--error"
+           th:if="${err != null}"
+           th:text="${err}">
+        Something went wrong.
+      </div>
+
+    </th:block>
+
+    <div class="group-actions"
+         th:if="${showAdminActions}">
+
+      <th:block th:replace="~{groups/cards/group-actions :: groupAdminActions(
+          ${g},
+          ${currentPage},
+          ${isTarget},
+          ${requestedName},
+          ${err}
+      )}">
+      </th:block>
+
+    </div>
+
+  </article>
+
+</th:block>
+
+</body>
+</html>

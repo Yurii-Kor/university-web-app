@@ -69,7 +69,7 @@ public class CoursesManagementExceptionHandler {
         ra.addFlashAttribute("err", "Access denied.");
         return "redirect:/courses";
     }
-
+    
     @ExceptionHandler(Exception.class)
     public String handleOther(Exception ex,
                               RedirectAttributes ra) {
