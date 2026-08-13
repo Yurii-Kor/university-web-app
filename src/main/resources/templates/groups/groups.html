@@ -1,6 +1,5 @@
 <!doctype html>
-<html lang="en"
-      xmlns:th="http://www.thymeleaf.org">
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
 <head>
   <meta charset="utf-8" />
   <title th:text="${page.pageTitle}">Groups</title>
@@ -21,93 +20,106 @@
 
 <body class="ou-page groups-page">
 
-<div th:replace="~{fragments/header :: ouHeader('groups')}"></div>
+  <div th:replace="~{fragments/header :: ouHeader('groups')}"></div>
 
-<main class="groups-main">
-  <section class="ou-card groups-shell"
-           aria-label="Groups">
+  <main class="groups-main">
+    <section class="ou-card groups-shell"
+             aria-label="Groups">
 
-    <div class="groups-toolbar">
-      <div>
-        <h1 class="ou-card__title"
-            th:text="${page.pageTitle}">
-          Groups
-        </h1>
+      <div class="groups-toolbar">
 
-        <p class="groups-subtitle"
-           th:text="${page.pageSubtitle}">
-          Study groups.
-        </p>
-      </div>
-    </div>
+        <div>
+          <h1 class="ou-card__title"
+              th:text="${page.pageTitle}">
+            Groups
+          </h1>
 
-    <div class="ou-alert ou-alert--success"
-         th:if="${ok != null and groupId == null}"
-         th:text="${ok}">
-      Done.
-    </div>
+          <p class="groups-subtitle"
+             th:text="${page.pageSubtitle}">
+            Study groups.
+          </p>
+        </div>
 
-    <div class="ou-alert ou-alert--error"
-         th:if="${err != null and groupId == null}"
-         th:text="${err}">
-      Something went wrong.
-    </div>
-
-    <div class="groups-grid"
-         th:if="${!#lists.isEmpty(page.groups)}">
-
-      <th:block th:each="g : ${page.groups}">
-        <th:block th:replace="~{groups/cards/group-card :: groupCard(
-            ${g},
-            ${groupId},
-            ${ok},
-            ${err},
-            ${requestedName},
-            ${page.showAdminActions},
-            ${page.currentPage}
-        )}">
-        </th:block>
-      </th:block>
-
-    </div>
-
-    <div class="ou-alert ou-alert--warn"
-         th:if="${#lists.isEmpty(page.groups)}">
-      No groups found.
-    </div>
-
-    <nav class="groups-pager"
-         th:if="${page.totalPages > 1}"
-         aria-label="Groups pages">
-
-      <a class="ou-btn ou-btn--ghost"
-         th:if="${page.hasPrevious}"
-         th:href="@{/groups(page=${page.currentPage - 1})}">
-        ← Previous
-      </a>
-
-      <th:block th:each="p : ${#numbers.sequence(0, page.totalPages - 1)}">
         <a class="ou-btn"
-           th:classappend="${p == page.currentPage} ? '' : ' ou-btn--ghost'"
-           th:href="@{/groups(page=${p})}"
-           th:text="${p + 1}">
-          1
+           th:if="${page.showCreateButton}"
+           th:href="@{/groups/create}">
+          Create group
         </a>
-      </th:block>
 
-      <a class="ou-btn ou-btn--ghost"
-         th:if="${page.hasNext}"
-         th:href="@{/groups(page=${page.currentPage + 1})}">
-        Next →
-      </a>
+      </div>
 
-    </nav>
+      <div class="ou-alert ou-alert--success"
+           th:if="${ok != null and groupId == null}"
+           th:text="${ok}">
+        Done.
+      </div>
 
-  </section>
-</main>
+      <div class="ou-alert ou-alert--error"
+           th:if="${err != null and groupId == null}"
+           th:text="${err}">
+        Something went wrong.
+      </div>
 
-<script th:src="@{/js/details-form-cancel.js}"
-        src="/js/details-form-cancel.js"></script>
+      <div class="groups-grid"
+           th:if="${!#lists.isEmpty(page.groups)}">
+
+        <th:block th:each="g : ${page.groups}">
+          <th:block th:replace="~{groups/cards/group-card :: groupCard(
+              ${g},
+              ${groupId},
+              ${ok},
+              ${err},
+              ${requestedName},
+              ${page.showAdminActions},
+              ${page.currentPage}
+          )}">
+          </th:block>
+        </th:block>
+
+      </div>
+
+      <div class="ou-alert ou-alert--warn"
+           th:if="${#lists.isEmpty(page.groups)}">
+        No groups found.
+      </div>
+
+      <nav class="groups-pager"
+           th:if="${page.totalPages > 1}"
+           aria-label="Groups pages">
+
+        <a class="ou-btn ou-btn--ghost"
+           th:if="${page.hasPrevious}"
+           th:href="@{/groups(page=${page.currentPage - 1})}">
+          ← Previous
+        </a>
+
+        <th:block th:each="p : ${#numbers.sequence(0, page.totalPages - 1)}">
+
+          <a class="ou-btn"
+             th:classappend="${p == page.currentPage}
+                 ? ''
+                 : ' ou-btn--ghost'"
+             th:href="@{/groups(page=${p})}"
+             th:text="${p + 1}">
+            1
+          </a>
+
+        </th:block>
+
+        <a class="ou-btn ou-btn--ghost"
+           th:if="${page.hasNext}"
+           th:href="@{/groups(page=${page.currentPage + 1})}">
+          Next →
+        </a>
+
+      </nav>
+
+    </section>
+  </main>
+
+  <script th:src="@{/js/details-form-cancel.js}"
+          src="/js/details-form-cancel.js">
+  </script>
 
 </body>
 </html>

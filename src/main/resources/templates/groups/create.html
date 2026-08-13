@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en"
+      xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="utf-8" />
+  <title>Create group</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <link rel="icon"
+        th:href="@{/favicon.ico}"
+        href="/favicon.ico" />
+
+  <link rel="stylesheet"
+        th:href="@{/css/app.css}"
+        href="/css/app.css" />
+
+  <link rel="stylesheet"
+        th:href="@{/css/pages/forms.css}"
+        href="/css/pages/forms.css" />
+</head>
+
+<body class="ou-page group-create-page">
+
+  <div th:replace="~{fragments/header :: ouHeader('groups')}"></div>
+
+  <main class="ou-form-main">
+    <section class="ou-card"
+             aria-label="Create group">
+
+      <div class="ou-form-toolbar">
+        <div>
+          <h1 class="ou-card__title">
+            Create group
+          </h1>
+
+          <p class="ou-form-subtitle">
+            Add a new study group to the system.
+          </p>
+        </div>
+
+        <a class="ou-btn ou-btn--ghost"
+           th:href="@{/groups}">
+          ← Back to groups
+        </a>
+      </div>
+
+      <form class="form-grid form-grid--kv"
+            th:action="@{/groups/create}"
+            th:object="${form}"
+            method="post"
+            novalidate>
+
+        <input type="hidden"
+               th:name="${_csrf.parameterName}"
+               th:value="${_csrf.token}" />
+
+        <div class="ou-alert ou-alert--error"
+             th:if="${err != null}"
+             th:text="${err}">
+          Something went wrong.
+        </div>
+
+        <div class="ou-alert ou-alert--error"
+             th:if="${err == null and #fields.hasAnyErrors()}">
+          Please fix the errors below and try again.
+        </div>
+
+        <div class="form-row-kv">
+          <label for="name">
+            Group name
+          </label>
+
+          <div class="form-field">
+            <input id="name"
+                   class="ou-input"
+                   type="text"
+                   placeholder="CS-101"
+                   th:field="*{name}" />
+
+            <p class="form-help">
+              Enter a unique name for the study group.
+            </p>
+
+            <p class="form-error"
+               th:if="${#fields.hasErrors('name')}"
+               th:errors="*{name}">
+              Name error
+            </p>
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <a class="ou-btn ou-btn--ghost"
+             th:href="@{/groups}">
+            Cancel
+          </a>
+
+          <button class="ou-btn"
+                  type="submit">
+            Create
+          </button>
+        </div>
+
+      </form>
+
+    </section>
+  </main>
+
+</body>
+</html>
