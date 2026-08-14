@@ -1,58 +1,36 @@
 package ua.foxminded.university.web.group.details;
 
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.stream.Collectors;
-
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Component;
 
+import lombok.RequiredArgsConstructor;
+import ua.foxminded.university.service.studygroup.StudyGroupService;
 import ua.foxminded.university.web.util.PrincipalHandler;
 
 @Component
+@RequiredArgsConstructor
 public class GroupDetailsPageModelFactory {
 
-    private final PrincipalHandler principalHandler;
-    private final Map<GroupDetailsPageMode, GroupDetailsPageStrategy> byMode;
+	private static final String PAGE_TITLE = "My group";
+	private static final String PAGE_SUBTITLE = "Your study group.";
 
-    public GroupDetailsPageModelFactory(
-            PrincipalHandler principalHandler,
-            List<GroupDetailsPageStrategy> strategies) {
+	private final StudyGroupService groupService;
+	private final PrincipalHandler principalHandler;
 
-        this.principalHandler = principalHandler;
+	public StudentGroupPageModel build(
+			UserDetails principal) {
 
-        this.byMode = strategies.stream()
-                .collect(Collectors.toMap(
-                        GroupDetailsPageStrategy::mode,
-                        strategy -> strategy));
-    }
+		var studentId = principalHandler.parseUserId(
+				principal);
 
-    public GroupDetailsPageResult build(
-            UserDetails principal) {
+		var group = groupService.getGroupHeaderForStudent(
+				studentId);
 
-        var roleKey = principalHandler.getRole(
-                principal);
-
-        var userId = principalHandler.parseUserId(
-                principal);
-
-        var mode = GroupDetailsPageMode.fromRoleKey(
-                roleKey);
-
-        var strategy = Optional.ofNullable(
-                byMode.get(mode))
-                .orElseThrow(() -> new AccessDeniedException(
-                        "No group details strategy configured for mode="
-                                + mode
-                                + ", userId="
-                                + userId));
-
-        var page = strategy.buildPage(userId);
-
-        return new GroupDetailsPageResult(
-                mode.getViewName(),
-                page);
-    }
+		return new StudentGroupPageModel(
+				PAGE_TITLE,
+				PAGE_SUBTITLE,
+				group.id(),
+				group.name(),
+				group.studentCount());
+	}
 }

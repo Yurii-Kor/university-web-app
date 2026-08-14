@@ -1,6 +1,7 @@
 package ua.foxminded.university.web.group;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -11,11 +12,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import java.util.Set;
-
 import jakarta.persistence.EntityNotFoundException;
-import jakarta.validation.ConstraintViolation;
-import jakarta.validation.Path;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -29,7 +26,6 @@ import ua.foxminded.university.service.studygroup.StudyGroupService;
 import ua.foxminded.university.service.studygroup.dto.StudyGroupRenameDto;
 import ua.foxminded.university.service.studygroup.exception.StudyGroupRenameException;
 import ua.foxminded.university.service.teacher.TeacherService;
-import ua.foxminded.university.service.util.validation.ContextConstraintViolationException;
 import ua.foxminded.university.web.group.cards.GroupsCardsPageModelFactory;
 import ua.foxminded.university.web.testconfig.MethodSecurityTestConfig;
 import ua.foxminded.university.web.util.ExceptionMessageReader;
@@ -37,9 +33,9 @@ import ua.foxminded.university.web.util.PrincipalHandler;
 
 @WebMvcTest(controllers = GroupsManagementController.class)
 @Import({
-	GroupsManagementExceptionHandler.class,
-	MethodSecurityTestConfig.class,
-	ExceptionMessageReader.class
+		GroupsManagementExceptionHandler.class,
+		MethodSecurityTestConfig.class,
+		ExceptionMessageReader.class
 })
 class GroupsManagementRenameWebMvcTest {
 
@@ -92,9 +88,10 @@ class GroupsManagementRenameWebMvcTest {
 						GROUP_ID));
 
 		verify(groupService)
-				.rename(new StudyGroupRenameDto(
+				.rename(
 						GROUP_ID,
-						NEW_NAME));
+						new StudyGroupRenameDto(
+								NEW_NAME));
 	}
 
 	@Test
@@ -102,14 +99,18 @@ class GroupsManagementRenameWebMvcTest {
 	void renameGroup_duplicateName_redirectsWithCardError()
 			throws Exception {
 
-		var message = "Study group name already exists.";
+		var message =
+				"Study group name already exists.";
 
 		var ex = new StudyGroupRenameException(
 				GROUP_ID,
 				DUPLICATE_NAME,
 				message);
 
-		when(groupService.rename(any()))
+		when(groupService.rename(
+				GROUP_ID,
+				new StudyGroupRenameDto(
+						DUPLICATE_NAME)))
 				.thenThrow(ex);
 
 		mockMvc.perform(
@@ -134,39 +135,16 @@ class GroupsManagementRenameWebMvcTest {
 						DUPLICATE_NAME));
 
 		verify(groupService)
-				.rename(new StudyGroupRenameDto(
+				.rename(
 						GROUP_ID,
-						DUPLICATE_NAME));
+						new StudyGroupRenameDto(
+								DUPLICATE_NAME));
 	}
 
 	@Test
-	@DisplayName("POST /groups/{id}/rename when validation fails -> redirects, flash err/groupId")
+	@DisplayName("POST /groups/{id}/rename with invalid name -> redirects to same page, flash err/groupId/requestedName, service not called")
 	void renameGroup_invalidName_redirectsWithCardError()
 			throws Exception {
-
-		@SuppressWarnings("unchecked")
-		ConstraintViolation<Object> violation =
-				org.mockito.Mockito.mock(
-						ConstraintViolation.class);
-
-		Path path = org.mockito.Mockito.mock(
-				Path.class);
-
-		when(path.toString())
-				.thenReturn("name");
-
-		when(violation.getPropertyPath())
-				.thenReturn(path);
-
-		when(violation.getMessage())
-				.thenReturn("invalid");
-
-		var ex = new ContextConstraintViolationException(
-				GROUP_ID,
-				Set.of(violation));
-
-		when(groupService.rename(any()))
-				.thenThrow(ex);
 
 		mockMvc.perform(
 				post("/groups/{id}/rename", GROUP_ID)
@@ -175,21 +153,23 @@ class GroupsManagementRenameWebMvcTest {
 								.roles("ADMIN"))
 						.with(csrf())
 						.param("name", INVALID_NAME)
-						.param("page", "0"))
+						.param("page", "2"))
 				.andExpect(status().is3xxRedirection())
 				.andExpect(redirectedUrl(
-						"/groups"))
-				.andExpect(flash().attribute(
-						"err",
-						"name: invalid"))
+						"/groups?page=2"))
+				.andExpect(flash().attributeExists(
+						"err"))
 				.andExpect(flash().attribute(
 						"groupId",
-						GROUP_ID));
-
-		verify(groupService)
-				.rename(new StudyGroupRenameDto(
-						GROUP_ID,
+						GROUP_ID))
+				.andExpect(flash().attribute(
+						"requestedName",
 						INVALID_NAME));
+
+		verify(groupService, never())
+				.rename(
+						anyLong(),
+						any());
 	}
 
 	@Test
@@ -198,11 +178,16 @@ class GroupsManagementRenameWebMvcTest {
 			throws Exception {
 
 		var message =
-				"Study group not found: id=" + GROUP_ID;
+				"Study group not found: id="
+						+ GROUP_ID;
 
-		when(groupService.rename(any()))
-				.thenThrow(new EntityNotFoundException(
-						message));
+		when(groupService.rename(
+				GROUP_ID,
+				new StudyGroupRenameDto(
+						NEW_NAME)))
+				.thenThrow(
+						new EntityNotFoundException(
+								message));
 
 		mockMvc.perform(
 				post("/groups/{id}/rename", GROUP_ID)
@@ -220,45 +205,50 @@ class GroupsManagementRenameWebMvcTest {
 						message));
 
 		verify(groupService)
-				.rename(new StudyGroupRenameDto(
+				.rename(
 						GROUP_ID,
-						NEW_NAME));
+						new StudyGroupRenameDto(
+								NEW_NAME));
 	}
 
 	@Test
 	@DisplayName("POST /groups/{id}/rename as teacher -> 403, service not called")
 	void renameGroup_teacher_forbidden()
-	        throws Exception {
+			throws Exception {
 
-	    mockMvc.perform(
-	            post("/groups/{id}/rename", GROUP_ID)
-	                    .with(user(
-	                            Long.toString(TEACHER_ID))
-	                            .roles("TEACHER"))
-	                    .with(csrf())
-	                    .param("name", NEW_NAME))
-	            .andExpect(status().isForbidden());
+		mockMvc.perform(
+				post("/groups/{id}/rename", GROUP_ID)
+						.with(user(
+								Long.toString(TEACHER_ID))
+								.roles("TEACHER"))
+						.with(csrf())
+						.param("name", NEW_NAME))
+				.andExpect(status().isForbidden());
 
-	    verify(groupService, never())
-	            .rename(any());
+		verify(groupService, never())
+				.rename(
+						anyLong(),
+						any());
 	}
 
 	@Test
 	@DisplayName("POST /groups/{id}/rename as student -> 403, service not called")
 	void renameGroup_student_forbidden()
-	        throws Exception {
+			throws Exception {
 
-	    mockMvc.perform(
-	            post("/groups/{id}/rename", GROUP_ID)
-	                    .with(user(
-	                            Long.toString(STUDENT_ID))
-	                            .roles("STUDENT"))
-	                    .with(csrf())
-	                    .param("name", NEW_NAME))
-	            .andExpect(status().isForbidden());
+		mockMvc.perform(
+				post("/groups/{id}/rename", GROUP_ID)
+						.with(user(
+								Long.toString(STUDENT_ID))
+								.roles("STUDENT"))
+						.with(csrf())
+						.param("name", NEW_NAME))
+				.andExpect(status().isForbidden());
 
-	    verify(groupService, never())
-	            .rename(any());
+		verify(groupService, never())
+				.rename(
+						anyLong(),
+						any());
 	}
 
 	@Test
@@ -273,6 +263,8 @@ class GroupsManagementRenameWebMvcTest {
 				.andExpect(status().isUnauthorized());
 
 		verify(groupService, never())
-				.rename(any());
+				.rename(
+						anyLong(),
+						any());
 	}
 }

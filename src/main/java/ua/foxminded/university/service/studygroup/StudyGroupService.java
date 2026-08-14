@@ -23,7 +23,6 @@ import ua.foxminded.university.service.studygroup.dto.StudyGroupCreateDto;
 import ua.foxminded.university.service.studygroup.dto.StudyGroupRenameDto;
 import ua.foxminded.university.service.studygroup.exception.StudyGroupDeleteException;
 import ua.foxminded.university.service.studygroup.exception.StudyGroupRenameException;
-import ua.foxminded.university.service.util.validation.EntityValidatior;
 import ua.foxminded.university.service.util.DtoMapper;
 
 @Service
@@ -34,14 +33,11 @@ public class StudyGroupService {
 	private static final Logger log = LoggerFactory.getLogger(StudyGroupService.class);
 
 	private final StudyGroupRepository groupRepository;
-	private final EntityValidatior validator;
 	private final DtoMapper mapper;
 	
 	
     @Transactional(value = TxType.REQUIRES_NEW)
     public StudyGroup create(StudyGroupCreateDto draft) {
-        validator.validate(draft);
-
         var group = mapper.toStudyGroupEntity(draft);
 
         if (groupRepository.existsByNameIgnoreCase(group.getName())) {
@@ -51,7 +47,6 @@ public class StudyGroupService {
         return groupRepository.save(group);
     }
 
-	@Transactional(value = TxType.SUPPORTS)
 	public List<StudyGroup> findByIds(Collection<Long> ids) {
 		var distinct = Optional.ofNullable(ids)
 				.orElseGet(Collections::emptyList)
@@ -66,36 +61,29 @@ public class StudyGroupService {
 		return groupRepository.findAllById(distinct);
 	}
 	
-	@Transactional(value = TxType.SUPPORTS)
 	public Page<GroupCardView> listGroupCardsForAdmin(Pageable pageable) {
 	    return groupRepository.findGroupCardsAll(pageable);
 	}
 	
-    @Transactional(value = TxType.SUPPORTS)
     public Page<GroupCardView> listGroupCardsForTeacher(long teacherId, Pageable pageable) {
         return groupRepository.findGroupCardsByTeacherId(teacherId, pageable);
     }
     
-    @Transactional(value = TxType.SUPPORTS)
     public StudentGroupHeaderView getGroupHeaderForStudent(long studentId) {
         return groupRepository.findStudentGroupHeader(studentId)
                 .orElseThrow(() -> new EntityNotFoundException(
                         "StudyGroup not found for student: id=" + studentId));
     }
 	
-	@Transactional(value = TxType.SUPPORTS)
 	public List<GroupView> listGroupOptions() {
 	    return groupRepository.findGroupOptions();
 	}
 
     @Transactional(value = TxType.REQUIRES_NEW)
-    public StudyGroup rename(StudyGroupRenameDto patch) {
-        Optional.ofNullable(patch).orElseThrow(() -> new IllegalArgumentException("patch must not be null"));
-        validator.validateWithId(patch, patch.id());
+    public StudyGroup rename(long id, StudyGroupRenameDto patch) {
 
-        var managed = groupRepository.findById(patch.id()).orElseThrow(() -> {
-            return new EntityNotFoundException("StudyGroup not found: id=" + patch.id());
-        });
+        var managed = groupRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("StudyGroup not found: id=" + id));
 
         applyNamePatch(managed, patch);
 

@@ -27,7 +27,6 @@ import ua.foxminded.university.service.studygroup.StudyGroupService;
 import ua.foxminded.university.service.teacher.TeacherService;
 import ua.foxminded.university.web.group.details.GroupDetailsPageModelFactory;
 import ua.foxminded.university.web.group.details.StudentGroupPageModel;
-import ua.foxminded.university.web.group.details.strategy.StudentGroupDetailsPageStrategy;
 import ua.foxminded.university.web.testconfig.MethodSecurityTestConfig;
 import ua.foxminded.university.web.util.ExceptionMessageReader;
 import ua.foxminded.university.web.util.PrincipalHandler;
@@ -36,7 +35,6 @@ import ua.foxminded.university.web.util.PrincipalHandler;
 @Import({
     MethodSecurityTestConfig.class,
     GroupDetailsPageModelFactory.class,
-    StudentGroupDetailsPageStrategy.class,
     ExceptionMessageReader.class
 })
 class GroupDetailsControllerWebMvcTest {

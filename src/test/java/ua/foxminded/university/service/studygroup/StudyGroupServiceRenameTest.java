@@ -1,10 +1,14 @@
 package ua.foxminded.university.service.studygroup;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static ua.foxminded.university.service.studygroup.StudyGroupServiceTestConstants.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static ua.foxminded.university.service.studygroup.StudyGroupServiceTestConstants.GROUP_CS;
+import static ua.foxminded.university.service.studygroup.StudyGroupServiceTestConstants.GROUP_EE;
+import static ua.foxminded.university.service.studygroup.StudyGroupServiceTestConstants.GROUP_EE_ID;
+import static ua.foxminded.university.service.studygroup.StudyGroupServiceTestConstants.GROUP_RENAMED;
+import static ua.foxminded.university.service.studygroup.StudyGroupServiceTestConstants.MISSING_ID;
 
 import jakarta.persistence.EntityNotFoundException;
-import jakarta.validation.ConstraintViolationException;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -24,12 +28,12 @@ import ua.foxminded.university.service.studygroup.exception.StudyGroupRenameExce
 @Import(TestcontainersConfiguration.class)
 @SqlMergeMode(SqlMergeMode.MergeMode.MERGE)
 @Sql(
-	scripts = "/sql/studygroup/study-group-service-base.sql",
-	executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD
+		scripts = "/sql/studygroup/study-group-service-base.sql",
+		executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD
 )
 @Sql(
-	scripts = "/sql/cleanup-database.sql",
-	executionPhase = Sql.ExecutionPhase.AFTER_TEST_METHOD
+		scripts = "/sql/cleanup-database.sql",
+		executionPhase = Sql.ExecutionPhase.AFTER_TEST_METHOD
 )
 class StudyGroupServiceRenameTest {
 
@@ -40,10 +44,11 @@ class StudyGroupServiceRenameTest {
 	@DisplayName("rename: happy path — updates group name")
 	void rename_happyPath_success() {
 		var dto = new StudyGroupRenameDto(
-				GROUP_EE_ID,
 				GROUP_RENAMED);
 
-		var renamed = groupService.rename(dto);
+		var renamed = groupService.rename(
+				GROUP_EE_ID,
+				dto);
 
 		assertEquals(
 				GROUP_EE_ID,
@@ -55,47 +60,16 @@ class StudyGroupServiceRenameTest {
 	}
 
 	@Test
-	@DisplayName("rename: null patch -> IllegalArgumentException")
-	void rename_nullPatch_fails() {
-		assertThrows(
-				IllegalArgumentException.class,
-				() -> groupService.rename(null));
-	}
-
-	@Test
-	@DisplayName("rename: null id -> ConstraintViolationException")
-	void rename_nullId_fails() {
-		var dto = new StudyGroupRenameDto(
-				null,
-				GROUP_RENAMED);
-
-		assertThrows(
-				ConstraintViolationException.class,
-				() -> groupService.rename(dto));
-	}
-
-	@Test
-	@DisplayName("rename: invalid name -> ConstraintViolationException")
-	void rename_invalidName_fails() {
-		var dto = new StudyGroupRenameDto(
-				GROUP_EE_ID,
-				BAD_NAME);
-
-		assertThrows(
-				ConstraintViolationException.class,
-				() -> groupService.rename(dto));
-	}
-
-	@Test
 	@DisplayName("rename: missing group -> EntityNotFoundException")
 	void rename_missingGroup_fails() {
 		var dto = new StudyGroupRenameDto(
-				MISSING_ID,
 				GROUP_RENAMED);
 
 		var exception = assertThrows(
 				EntityNotFoundException.class,
-				() -> groupService.rename(dto));
+				() -> groupService.rename(
+						MISSING_ID,
+						dto));
 
 		assertEquals(
 				"StudyGroup not found: id="
@@ -107,12 +81,13 @@ class StudyGroupServiceRenameTest {
 	@DisplayName("rename: existing name -> StudyGroupRenameException")
 	void rename_existingName_fails() {
 		var dto = new StudyGroupRenameDto(
-				GROUP_EE_ID,
 				GROUP_CS);
 
 		var exception = assertThrows(
 				StudyGroupRenameException.class,
-				() -> groupService.rename(dto));
+				() -> groupService.rename(
+						GROUP_EE_ID,
+						dto));
 
 		assertEquals(
 				GROUP_EE_ID,
@@ -134,10 +109,11 @@ class StudyGroupServiceRenameTest {
 	@DisplayName("rename: same name -> no-op")
 	void rename_sameName_noop() {
 		var dto = new StudyGroupRenameDto(
-				GROUP_EE_ID,
 				GROUP_EE);
 
-		var renamed = groupService.rename(dto);
+		var renamed = groupService.rename(
+				GROUP_EE_ID,
+				dto);
 
 		assertEquals(
 				GROUP_EE_ID,

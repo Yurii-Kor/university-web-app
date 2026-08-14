@@ -16,20 +16,20 @@ import ua.foxminded.university.web.group.details.GroupDetailsPageModelFactory;
 @RequiredArgsConstructor
 public class GroupDetailsController {
 
-    private final GroupDetailsPageModelFactory pageFactory;
+	private final GroupDetailsPageModelFactory pageFactory;
 
-    @GetMapping
-    @PreAuthorize("hasRole('STUDENT')")
-    public String groupPage(
-            @AuthenticationPrincipal UserDetails principal,
-            Model model) {
+	@GetMapping
+	@PreAuthorize("hasRole('STUDENT')")
+	public String groupPage(
+			@AuthenticationPrincipal UserDetails principal,
+			Model model) {
 
-        var result = pageFactory.build(principal);
+		var page = pageFactory.build(principal);
 
-        model.addAttribute(
-                "page",
-                result.page());
+		model.addAttribute(
+				"page",
+				page);
 
-        return result.viewName();
-    }
+		return "groups/details/student";
+	}
 }

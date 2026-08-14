@@ -50,17 +50,6 @@ class StudyGroupServiceCreateTest {
 	}
 
 	@Test
-	@DisplayName("create: invalid name -> ConstraintViolationException")
-	void create_invalidName_fails() {
-		var dto = new StudyGroupCreateDto(
-				BAD_NAME);
-
-		assertThrows(
-				ConstraintViolationException.class,
-				() -> groupService.create(dto));
-	}
-
-	@Test
 	@DisplayName("create: duplicate name -> IllegalArgumentException")
 	void create_duplicateName_fails() {
 		var dto = new StudyGroupCreateDto(

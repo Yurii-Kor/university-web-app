@@ -6,5 +6,4 @@ public record StudentGroupPageModel(
         Long groupId,
         String groupName,
         long studentCount
-) implements GroupDetailsPageModel {
-}
+) {}
