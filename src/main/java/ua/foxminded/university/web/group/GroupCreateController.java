@@ -42,18 +42,11 @@ public class GroupCreateController {
     @PostMapping("/create")
     public String createGroup(
             @Valid @ModelAttribute("form") StudyGroupCreateDto form,
-            BindingResult br,
             RedirectAttributes ra) {
-
-        if (br.hasErrors()) {
-            return "groups/create";
-        }
 
         groupService.create(form);
 
-        ra.addFlashAttribute(
-                "ok",
-                "Group created.");
+        ra.addFlashAttribute("ok", "Group created.");
 
         return "redirect:/groups";
     }

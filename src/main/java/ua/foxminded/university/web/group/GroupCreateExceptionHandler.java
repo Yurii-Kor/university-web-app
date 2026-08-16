@@ -5,6 +5,8 @@ import jakarta.validation.ConstraintViolationException;
 import lombok.RequiredArgsConstructor;
 
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.ui.Model;
+import org.springframework.validation.BindException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
@@ -66,6 +68,18 @@ public class GroupCreateExceptionHandler {
                 "Study group name already exists.");
 
         return "redirect:/groups/create";
+    }
+    
+    @ExceptionHandler(BindException.class)
+    public String handleValidation(
+            BindException ex,
+            Model model) {
+
+        model.addAllAttributes(
+                ex.getBindingResult()
+                        .getModel());
+
+        return "groups/create";
     }
 
     private StudyGroupCreateDto emptyForm() {

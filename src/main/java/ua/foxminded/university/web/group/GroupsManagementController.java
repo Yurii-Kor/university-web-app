@@ -63,27 +63,23 @@ public class GroupsManagementController {
 	        @RequestParam(name = "page", defaultValue = "0") int pageNumber,
 	        RedirectAttributes ra) {
 
-	    if (br.hasErrors()) {
-            ra.addFlashAttribute("groupId", id);
+        if (br.hasErrors()) {
+            addRenameValidationErrors(id, patch, br, ra);
 
-            ra.addFlashAttribute(
-                    "requestedName",
-                    Optional.ofNullable(patch.name())
-                            .orElse(""));
+            return redirectToGroups(pageNumber);
+        }
 
-	        ra.addFlashAttribute(
-	                "err",
-	                Optional.ofNullable(br.getFieldError("name"))
-	                        .map(error -> error.getDefaultMessage())
-	                        .orElse("Invalid group name."));
+	    groupService.rename(
+	            id,
+	            patch);
 
-	        return redirectToGroups(pageNumber);
-	    }
+	    ra.addFlashAttribute(
+	            "ok",
+	            "Group renamed.");
 
-        groupService.rename(id, patch);
-
-        ra.addFlashAttribute("ok", "Group renamed.");
-        ra.addFlashAttribute("groupId", id);
+	    ra.addFlashAttribute(
+	            "groupId",
+	            id);
 
 	    return redirectToGroups(pageNumber);
 	}
@@ -108,5 +104,27 @@ public class GroupsManagementController {
 
     private int normalizePage(int pageNumber) {
         return Math.max(pageNumber, 0);
+    }
+    
+    private void addRenameValidationErrors(
+            long id,
+            StudyGroupRenameDto patch,
+            BindingResult br,
+            RedirectAttributes ra) {
+
+        ra.addFlashAttribute(
+                "groupId",
+                id);
+
+        ra.addFlashAttribute(
+                "requestedName",
+                Optional.ofNullable(patch.name())
+                        .orElse(""));
+
+        ra.addFlashAttribute(
+                "err",
+                Optional.ofNullable(br.getFieldError("name"))
+                        .map(error -> error.getDefaultMessage())
+                        .orElse("Invalid group name."));
     }
 }
