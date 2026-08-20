@@ -1,7 +1,9 @@
 package ua.foxminded.university.service.util;
 
 import java.time.Year;
-import java.util.*;
+import java.util.Collection;
+import java.util.List;
+import java.util.Optional;
 
 import org.springframework.stereotype.Component;
 
@@ -23,62 +25,75 @@ import ua.foxminded.university.service.teacher.dto.TeacherCreateDto;
 public class DtoMapper {
 
 	public Course toCourseEntity(CourseCreateDto dto) {
-	    return Course.builder()
-	            .id(null)
-	            .code(dto.code())
-	            .name(dto.name())
-	            .description(dto.description())
-	            .teacher(Teacher.builder().id(dto.teacherId()).build())
-	            .build();
+		return Course.builder()
+				.id(null)
+				.code(dto.code())
+				.name(dto.name())
+				.description(dto.description())
+				.teacher(
+						Teacher.builder()
+								.id(dto.teacherId())
+								.build())
+				.build();
 	}
 
-	public StudyGroup toStudyGroupEntity(StudyGroupCreateDto dto) {
-		return StudyGroup.builder().id(null).name(dto.name()).build();
+	public StudyGroup toStudyGroupEntity(
+			StudyGroupCreateDto dto) {
+
+		return StudyGroup.builder()
+				.id(null)
+				.name(dto.name())
+				.build();
 	}
 
-	public List<Student> toStudentEntities(Collection<StudentCreateDto> drafts) {
-		return Optional.ofNullable(drafts)
-				.orElseGet(List::of)
-				.stream()
-				.filter(Objects::nonNull)
-				.map(this::toStudentEntity)
-				.flatMap(Optional::stream)
-				.toList();
+	public Student toStudentEntity(
+			StudentCreateDto dto) {
+
+		return Student.builder()
+				.id(null)
+				.user(toStudentUser(dto))
+				.group(
+						StudyGroup.builder()
+								.id(dto.groupId())
+								.build())
+				.enrollmentYear(
+						Optional.ofNullable(
+								dto.enrollmentYear())
+								.orElse(
+										Year.now()
+												.getValue()))
+				.build();
 	}
 
-	public Optional<Student> toStudentEntity(StudentCreateDto dto) {
-		return Optional.ofNullable(dto)
-				.map(d -> Student.builder()
-						.id(null)
-						.user(toStudentUser(d))
-						.group(StudyGroup.builder().id(d.groupId()).build())
-						.enrollmentYear(Optional.ofNullable(d.enrollmentYear()).orElse(Year.now().getValue()))
-						.build());
-	}
+	private AppUser toStudentUser(
+			StudentCreateDto dto) {
 
-	private AppUser toStudentUser(StudentCreateDto d) {
 		return AppUser.builder()
 				.id(null)
-				.email(d.email())
-				.password(d.password())
+				.email(dto.email())
+				.password(dto.password())
 				.role(UserRole.STUDENT)
-				.firstName(d.firstName())
-				.lastName(d.lastName())
+				.firstName(dto.firstName())
+				.lastName(dto.lastName())
 				.enabled(true)
 				.build();
 	}
 
-	public List<Teacher> toTeacherEntities(Collection<TeacherCreateDto> drafts) {
+	public List<Teacher> toTeacherEntities(
+			Collection<TeacherCreateDto> drafts) {
+
 		return Optional.ofNullable(drafts)
 				.orElseGet(List::of)
 				.stream()
-				.filter(Objects::nonNull)
+				.filter(java.util.Objects::nonNull)
 				.map(this::toTeacherEntity)
 				.flatMap(Optional::stream)
 				.toList();
 	}
 
-	public Optional<Teacher> toTeacherEntity(TeacherCreateDto dto) {
+	public Optional<Teacher> toTeacherEntity(
+			TeacherCreateDto dto) {
+
 		return Optional.ofNullable(dto)
 				.map(d -> Teacher.builder()
 						.id(null)
@@ -88,40 +103,52 @@ public class DtoMapper {
 						.build());
 	}
 
-	private AppUser toTeacherUser(TeacherCreateDto d) {
+	private AppUser toTeacherUser(
+			TeacherCreateDto dto) {
+
 		return AppUser.builder()
 				.id(null)
-				.email(d.email())
-				.password(d.password())
+				.email(dto.email())
+				.password(dto.password())
 				.role(UserRole.TEACHER)
-				.firstName(d.firstName())
-				.lastName(d.lastName())
+				.firstName(dto.firstName())
+				.lastName(dto.lastName())
 				.enabled(true)
 				.build();
 	}
 
-    public AppUser toAppUserEntity(AppUserCreateDto dto) {
-        return AppUser.builder()
-                .id(null)
-                .email(dto.email())
-                .password(dto.newPassword())
-                .firstName(dto.firstName())
-                .lastName(dto.lastName())
-                .enabled(true)
-                .build();
-    }
+	public AppUser toAppUserEntity(
+			AppUserCreateDto dto) {
 
-	public Optional<Lesson> toLessonEntity(LessonCreateDto dto) {
-        return Optional.ofNullable(dto)
-                .map(d -> Lesson.builder()
-                        .id(null)
-                        .course(Course.builder().id(d.courseId()).build())
-                        .group(StudyGroup.builder().id(d.groupId()).build())
-                        .startTime(d.startTime())
-                        .endTime(d.endTime())
-                        .room(d.room())
-                        .lessonType(d.lessonType())
-                        .description(d.description())
-                        .build());
-    }
+		return AppUser.builder()
+				.id(null)
+				.email(dto.email())
+				.password(dto.newPassword())
+				.firstName(dto.firstName())
+				.lastName(dto.lastName())
+				.enabled(true)
+				.build();
+	}
+
+	public Optional<Lesson> toLessonEntity(
+			LessonCreateDto dto) {
+
+		return Optional.ofNullable(dto)
+				.map(d -> Lesson.builder()
+						.id(null)
+						.course(
+								Course.builder()
+										.id(d.courseId())
+										.build())
+						.group(
+								StudyGroup.builder()
+										.id(d.groupId())
+										.build())
+						.startTime(d.startTime())
+						.endTime(d.endTime())
+						.room(d.room())
+						.lessonType(d.lessonType())
+						.description(d.description())
+						.build());
+	}
 }

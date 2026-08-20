@@ -27,7 +27,7 @@ public class StudentsManagementController {
                                   Model model) {
 
         Pageable pageable = PageRequest.of(page, DEFAULT_PAGE_SIZE);
-        Page<StudentCardView> studentsPage = studentService.listStudentCardsForAdmin(pageable);
+        Page<StudentCardView> studentsPage = studentService.listStudentCardsForAccountManagement(pageable);
 
         model.addAttribute("pageTitle", "Students");
         model.addAttribute("students", studentsPage.getContent());

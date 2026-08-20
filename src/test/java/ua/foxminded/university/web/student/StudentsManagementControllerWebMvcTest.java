@@ -78,7 +78,7 @@ class StudentsManagementControllerWebMvcTest {
                 11
         );
 
-        when(studentService.listStudentCardsForAdmin(any(Pageable.class)))
+        when(studentService.listStudentCardsForAccountManagement(any(Pageable.class)))
                 .thenReturn(studentsPage);
 
         mockMvc.perform(get("/students")
@@ -95,6 +95,6 @@ class StudentsManagementControllerWebMvcTest {
                 .andExpect(model().attribute("hasPrevious", false))
                 .andExpect(model().attribute("hasNext", true));
 
-        verify(studentService).listStudentCardsForAdmin(argThat(p -> p.getPageNumber() == 0));
+        verify(studentService).listStudentCardsForAccountManagement(argThat(p -> p.getPageNumber() == 0));
     }
 }

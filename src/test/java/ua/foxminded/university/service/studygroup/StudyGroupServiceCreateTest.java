@@ -3,8 +3,6 @@ package ua.foxminded.university.service.studygroup;
 import static org.junit.jupiter.api.Assertions.*;
 import static ua.foxminded.university.service.studygroup.StudyGroupServiceTestConstants.*;
 
-import jakarta.validation.ConstraintViolationException;
-
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
