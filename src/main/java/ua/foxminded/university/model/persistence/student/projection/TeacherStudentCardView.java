@@ -6,4 +6,5 @@ public record TeacherStudentCardView(
         String firstName,
         String lastName,
         String groupName
-) {}
+) implements StudentCardProjection {
+}

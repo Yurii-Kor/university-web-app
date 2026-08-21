@@ -5,4 +5,5 @@ public record StudentPeerCardView(
         String email,
         String firstName,
         String lastName
-) {}
+) implements StudentCardProjection {
+}

@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="en"
+      xmlns:th="http://www.thymeleaf.org">
+<head>
+
+  <meta charset="utf-8" />
+
+  <title>Create student</title>
+
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1" />
+
+  <link rel="icon"
+        th:href="@{/favicon.ico}"
+        href="/favicon.ico" />
+
+  <link rel="stylesheet"
+        th:href="@{/css/app.css}"
+        href="/css/app.css" />
+
+  <link rel="stylesheet"
+        th:href="@{/css/pages/forms.css}"
+        href="/css/pages/forms.css" />
+
+</head>
+
+<body class="ou-page student-create-page">
+
+  <div th:replace="~{fragments/header :: ouHeader('students')}">
+  </div>
+
+  <main class="ou-form-main">
+
+    <section class="ou-card"
+             aria-label="Create student">
+
+      <div class="ou-form-toolbar">
+
+        <div>
+
+          <h1 class="ou-card__title">
+            Create student
+          </h1>
+
+          <p class="ou-form-subtitle">
+            Add a new student to the system.
+          </p>
+
+        </div>
+
+        <a class="ou-btn ou-btn--ghost"
+           th:href="@{/students}">
+          ← Back to students
+        </a>
+
+      </div>
+
+      <form class="form-grid form-grid--kv"
+            th:action="@{/students/create}"
+            th:object="${form}"
+            method="post"
+            novalidate>
+
+        <input type="hidden"
+               th:name="${_csrf.parameterName}"
+               th:value="${_csrf.token}" />
+
+        <div class="ou-alert ou-alert--error"
+             th:if="${err != null}"
+             th:text="${err}">
+          Something went wrong.
+        </div>
+
+        <div class="ou-alert ou-alert--error"
+             th:if="${err == null and #fields.hasAnyErrors()}">
+          Please fix the errors below and try again.
+        </div>
+
+        <!-- Email -->
+        <div class="form-row-kv">
+
+          <label for="email">
+            Email
+          </label>
+
+          <div class="form-field">
+
+            <input id="email"
+                   class="ou-input"
+                   type="email"
+                   autocomplete="email"
+                   placeholder="student@example.com"
+                   th:field="*{email}" />
+
+            <p class="form-help">
+              Enter a unique email address for the student account.
+            </p>
+
+            <p class="form-error"
+               th:if="${#fields.hasErrors('email')}"
+               th:errors="*{email}">
+              Email error
+            </p>
+
+          </div>
+
+        </div>
+
+        <!-- Password -->
+        <div class="form-row-kv">
+
+          <label for="password">
+            Password
+          </label>
+
+          <div class="form-field">
+
+            <input id="password"
+                   class="ou-input"
+                   type="password"
+                   autocomplete="new-password"
+                   placeholder="Password"
+                   th:field="*{password}" />
+
+            <p class="form-help">
+              Enter the initial password for the student account.
+            </p>
+
+            <p class="form-error"
+               th:if="${#fields.hasErrors('password')}"
+               th:errors="*{password}">
+              Password error
+            </p>
+
+          </div>
+
+        </div>
+
+        <!-- First name -->
+        <div class="form-row-kv">
+
+          <label for="firstName">
+            First name
+          </label>
+
+          <div class="form-field">
+
+            <input id="firstName"
+                   class="ou-input"
+                   type="text"
+                   autocomplete="given-name"
+                   placeholder="John"
+                   th:field="*{firstName}" />
+
+            <p class="form-error"
+               th:if="${#fields.hasErrors('firstName')}"
+               th:errors="*{firstName}">
+              First name error
+            </p>
+
+          </div>
+
+        </div>
+
+        <!-- Last name -->
+        <div class="form-row-kv">
+
+          <label for="lastName">
+            Last name
+          </label>
+
+          <div class="form-field">
+
+            <input id="lastName"
+                   class="ou-input"
+                   type="text"
+                   autocomplete="family-name"
+                   placeholder="Smith"
+                   th:field="*{lastName}" />
+
+            <p class="form-error"
+               th:if="${#fields.hasErrors('lastName')}"
+               th:errors="*{lastName}">
+              Last name error
+            </p>
+
+          </div>
+
+        </div>
+
+        <!-- Study group -->
+        <div class="form-row-kv">
+
+          <label for="groupId">
+            Study group
+          </label>
+
+          <div class="form-field">
+
+            <select id="groupId"
+                    class="ou-input"
+                    th:field="*{groupId}">
+
+              <option value="">
+                — Select group —
+              </option>
+
+              <option th:each="group : ${all_groups}"
+                      th:value="${group.id}"
+                      th:text="${group.name}">
+                CS-101
+              </option>
+
+            </select>
+
+            <p class="form-help">
+              Select the study group the student belongs to.
+            </p>
+
+            <p class="form-error"
+               th:if="${#fields.hasErrors('groupId')}"
+               th:errors="*{groupId}">
+              Study group error
+            </p>
+
+          </div>
+
+        </div>
+
+        <!-- Enrollment year -->
+        <div class="form-row-kv">
+
+          <label for="enrollmentYear">
+            Enrollment year
+          </label>
+
+          <div class="form-field">
+
+            <input id="enrollmentYear"
+                   class="ou-input"
+                   type="number"
+                   inputmode="numeric"
+                   placeholder="2026"
+                   th:field="*{enrollmentYear}" />
+
+            <p class="form-help">
+              Optional. Leave blank to use the current year.
+            </p>
+
+            <p class="form-error"
+               th:if="${#fields.hasErrors('enrollmentYear')}"
+               th:errors="*{enrollmentYear}">
+              Enrollment year error
+            </p>
+
+          </div>
+
+        </div>
+
+        <div class="form-actions">
+
+          <a class="ou-btn ou-btn--ghost"
+             th:href="@{/students}">
+            Cancel
+          </a>
+
+          <button class="ou-btn"
+                  type="submit">
+            Create
+          </button>
+
+        </div>
+
+      </form>
+
+    </section>
+
+  </main>
+
+</body>
+</html>

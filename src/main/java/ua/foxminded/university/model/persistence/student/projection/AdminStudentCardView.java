@@ -8,4 +8,5 @@ public record AdminStudentCardView(
         Long groupId,
         String groupName,
         Integer enrollmentYear
-) {}
+) implements StudentCardProjection {
+}

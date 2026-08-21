@@ -16,8 +16,7 @@ import org.springframework.test.context.jdbc.SqlMergeMode;
 
 import ua.foxminded.university.TestcontainersConfiguration;
 import ua.foxminded.university.model.persistence.student.StudentRepository;
-import ua.foxminded.university.service.student.dto.StudentEnrollmentYearUpdateDto;
-import ua.foxminded.university.service.student.dto.StudentGroupUpdateDto;
+import ua.foxminded.university.service.student.dto.StudentUpdateDto;
 import ua.foxminded.university.service.student.exception.StudentUpdateException;
 
 @SpringBootTest
@@ -25,123 +24,158 @@ import ua.foxminded.university.service.student.exception.StudentUpdateException;
 @Import(TestcontainersConfiguration.class)
 @SqlMergeMode(SqlMergeMode.MergeMode.MERGE)
 @Sql(
-		scripts = "/sql/student/student-service-base.sql",
-		executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD
+        scripts = "/sql/student/student-service-base.sql",
+        executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD
 )
 @Sql(
-		scripts = "/sql/cleanup-database.sql",
-		executionPhase = Sql.ExecutionPhase.AFTER_TEST_METHOD
+        scripts = "/sql/cleanup-database.sql",
+        executionPhase = Sql.ExecutionPhase.AFTER_TEST_METHOD
 )
 class StudentServiceUpdateTest {
 
-	@Autowired
-	private StudentService studentService;
+    @Autowired
+    private StudentService studentService;
 
-	@Autowired
-	private StudentRepository studentRepository;
+    @Autowired
+    private StudentRepository studentRepository;
 
-	@Test
-	@DisplayName("moveToGroup: happy path — updates student's group")
-	void moveToGroup_happyPath_success() {
-		var dto = new StudentGroupUpdateDto(
-				GROUP_ME_ID);
+    @Test
+    @DisplayName("update: happy path — updates group and enrollment year")
+    void update_happyPath_updatesGroupAndEnrollmentYear() {
+        var dto = new StudentUpdateDto(
+                GROUP_ME_ID,
+                UPDATED_ENROLLMENT_YEAR);
 
-		studentService.moveToGroup(
-				STUDENT_1_ID,
-				dto);
+        studentService.update(
+                STUDENT_1_ID,
+                dto);
 
-		var groupId = studentRepository.findGroupIdByStudentId(
-				STUDENT_1_ID)
-				.orElseThrow();
+        var student = studentRepository.findById(
+                STUDENT_1_ID)
+                .orElseThrow();
 
-		assertEquals(
-				GROUP_ME_ID,
-				groupId);
-	}
+        assertAll(
+                () -> assertEquals(
+                        GROUP_ME_ID,
+                        student.getGroup().getId()),
+                () -> assertEquals(
+                        UPDATED_ENROLLMENT_YEAR,
+                        student.getEnrollmentYear()));
+    }
 
-	@Test
-	@DisplayName("moveToGroup: missing student -> EntityNotFoundException")
-	void moveToGroup_missingStudent_fails() {
-		var dto = new StudentGroupUpdateDto(
-				GROUP_ME_ID);
+    @Test
+    @DisplayName("update: group changed — updates group only")
+    void update_groupChanged_updatesGroupOnly() {
+        var studentBefore = studentRepository.findById(
+                STUDENT_1_ID)
+                .orElseThrow();
 
-		var exception = assertThrows(
-				EntityNotFoundException.class,
-				() -> studentService.moveToGroup(
-						MISSING_ID,
-						dto));
+        var enrollmentYear = studentBefore.getEnrollmentYear();
 
-		assertEquals(
-				"Student not found: id="
-						+ MISSING_ID,
-				exception.getMessage());
-	}
+        var dto = new StudentUpdateDto(
+                GROUP_ME_ID,
+                enrollmentYear);
 
-	@Test
-	@DisplayName("moveToGroup: missing target group -> StudentUpdateException")
-	void moveToGroup_missingGroup_fails() {
-		var dto = new StudentGroupUpdateDto(
-				MISSING_ID);
+        studentService.update(
+                STUDENT_1_ID,
+                dto);
 
-		var exception = assertThrows(
-				StudentUpdateException.class,
-				() -> studentService.moveToGroup(
-						STUDENT_1_ID,
-						dto));
+        var studentAfter = studentRepository.findById(
+                STUDENT_1_ID)
+                .orElseThrow();
 
-		assertEquals(
-				STUDENT_1_ID,
-				exception.getStudentId());
+        assertAll(
+                () -> assertEquals(
+                        GROUP_ME_ID,
+                        studentAfter.getGroup().getId()),
+                () -> assertEquals(
+                        enrollmentYear,
+                        studentAfter.getEnrollmentYear()));
+    }
 
-		assertEquals(
-				"StudyGroup not found: id="
-						+ MISSING_ID,
-				exception.getMessage());
+    @Test
+    @DisplayName("update: enrollment year changed — updates enrollment year only")
+    void update_enrollmentYearChanged_updatesEnrollmentYearOnly() {
+        var dto = new StudentUpdateDto(
+                GROUP_CS_ID,
+                UPDATED_ENROLLMENT_YEAR);
 
-		var groupId = studentRepository.findGroupIdByStudentId(
-				STUDENT_1_ID)
-				.orElseThrow();
+        studentService.update(
+                STUDENT_1_ID,
+                dto);
 
-		assertEquals(
-				GROUP_CS_ID,
-				groupId,
-				"student group must remain unchanged after failed update");
-	}
+        var student = studentRepository.findById(
+                STUDENT_1_ID)
+                .orElseThrow();
 
-	@Test
-	@DisplayName("updateEnrollmentYear: happy path — updates enrollment year")
-	void updateEnrollmentYear_happyPath_success() {
-		var dto = new StudentEnrollmentYearUpdateDto(
-				UPDATED_ENROLLMENT_YEAR);
+        assertAll(
+                () -> assertEquals(
+                        GROUP_CS_ID,
+                        student.getGroup().getId()),
+                () -> assertEquals(
+                        UPDATED_ENROLLMENT_YEAR,
+                        student.getEnrollmentYear()));
+    }
 
-		studentService.updateEnrollmentYear(
-				STUDENT_1_ID,
-				dto);
+    @Test
+    @DisplayName("update: missing student -> EntityNotFoundException")
+    void update_missingStudent_fails() {
+        var dto = new StudentUpdateDto(
+                GROUP_ME_ID,
+                UPDATED_ENROLLMENT_YEAR);
 
-		var student = studentRepository.findById(
-				STUDENT_1_ID)
-				.orElseThrow();
+        var exception = assertThrows(
+                EntityNotFoundException.class,
+                () -> studentService.update(
+                        MISSING_ID,
+                        dto));
 
-		assertEquals(
-				UPDATED_ENROLLMENT_YEAR,
-				student.getEnrollmentYear());
-	}
+        assertEquals(
+                "Student not found: id="
+                        + MISSING_ID,
+                exception.getMessage());
+    }
 
-	@Test
-	@DisplayName("updateEnrollmentYear: missing student -> EntityNotFoundException")
-	void updateEnrollmentYear_missingStudent_fails() {
-		var dto = new StudentEnrollmentYearUpdateDto(
-				UPDATED_ENROLLMENT_YEAR);
+    @Test
+    @DisplayName("update: missing target group -> StudentUpdateException")
+    void update_missingGroup_fails() {
+        var studentBefore = studentRepository.findById(
+                STUDENT_1_ID)
+                .orElseThrow();
 
-		var exception = assertThrows(
-				EntityNotFoundException.class,
-				() -> studentService.updateEnrollmentYear(
-						MISSING_ID,
-						dto));
+        var enrollmentYearBefore = studentBefore.getEnrollmentYear();
 
-		assertEquals(
-				"Student not found: id="
-						+ MISSING_ID,
-				exception.getMessage());
-	}
+        var dto = new StudentUpdateDto(
+                MISSING_ID,
+                UPDATED_ENROLLMENT_YEAR);
+
+        var exception = assertThrows(
+                StudentUpdateException.class,
+                () -> studentService.update(
+                        STUDENT_1_ID,
+                        dto));
+
+        assertEquals(
+                STUDENT_1_ID,
+                exception.getStudentId());
+
+        assertEquals(
+                "StudyGroup not found: id="
+                        + MISSING_ID,
+                exception.getMessage());
+
+        var studentAfter = studentRepository.findById(
+                STUDENT_1_ID)
+                .orElseThrow();
+
+        assertAll(
+                () -> assertEquals(
+                        GROUP_CS_ID,
+                        studentAfter.getGroup().getId(),
+                        "student group must remain unchanged after failed update"),
+                () -> assertEquals(
+                        enrollmentYearBefore,
+                        studentAfter.getEnrollmentYear(),
+                        "student enrollment year must remain unchanged after failed update"));
+    }
 }

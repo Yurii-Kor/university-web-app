@@ -1,5 +1,8 @@
 package ua.foxminded.university.service.student;
 
+import java.util.Objects;
+import java.util.Optional;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
@@ -22,8 +25,7 @@ import ua.foxminded.university.model.persistence.student.projection.TeacherStude
 import ua.foxminded.university.model.persistence.studygroup.StudyGroupRepository;
 import ua.foxminded.university.security.PasswordPolicy;
 import ua.foxminded.university.service.student.dto.StudentCreateDto;
-import ua.foxminded.university.service.student.dto.StudentEnrollmentYearUpdateDto;
-import ua.foxminded.university.service.student.dto.StudentGroupUpdateDto;
+import ua.foxminded.university.service.student.dto.StudentUpdateDto;
 import ua.foxminded.university.service.student.exception.StudentCreateException;
 import ua.foxminded.university.service.student.exception.StudentUpdateException;
 import ua.foxminded.university.service.util.DtoMapper;
@@ -67,14 +69,14 @@ public class StudentService {
     public Page<TeacherStudentCardView> listStudentCardsForTeacher(
             long teacherId,
             Pageable pageable) {
-        
+
         return studentRepository.findStudentCardsForTeacher(teacherId, pageable);
     }
 
     public Page<StudentPeerCardView> listStudentCardsForStudent(
             long studentId,
             Pageable pageable) {
-        
+
         return studentRepository.findStudentCardsForStudent(studentId, pageable);
     }
 
@@ -85,30 +87,18 @@ public class StudentService {
     }
 
     @Transactional(value = TxType.REQUIRES_NEW)
-    public void moveToGroup(
+    public Student update(
             long studentId,
-            StudentGroupUpdateDto patch) {
-
-        var student = requireStudent(studentId);
-        var targetGroup = requireGroup(studentId, patch.groupId());
-
-        student.setGroup(targetGroup);
-        log.info("Moved student to group: studentId={}, groupId={}", 
-                studentId, 
-                patch.groupId());
-    }
-
-    @Transactional(value = TxType.REQUIRES_NEW)
-    public void updateEnrollmentYear(
-            long studentId,
-            StudentEnrollmentYearUpdateDto patch) {
+            StudentUpdateDto patch) {
 
         var student = requireStudent(studentId);
 
-        student.setEnrollmentYear(patch.enrollmentYear());
-        log.info("Updated student enrollment year: studentId={}, enrollmentYear={}", 
-                studentId, 
-                patch.enrollmentYear());
+        applyGroupPatch(student, patch);
+        applyEnrollmentYearPatch(student, patch);
+
+        log.info("Updated student: id={}", studentId);
+
+        return student;
     }
 
     @Transactional(value = TxType.REQUIRES_NEW)
@@ -117,6 +107,47 @@ public class StudentService {
 
         studentRepository.delete(student);
         log.info("Soft deleted student: id={}", studentId);
+    }
+
+    private void applyGroupPatch(Student managed, StudentUpdateDto patch) {
+
+        Optional.ofNullable(patch.groupId())
+                .filter(newGroupId -> isDifferentGroup(managed, newGroupId))
+                .ifPresent(newGroupId -> {
+                    var group = groupRepository.findById(newGroupId)
+                            .orElseThrow(() -> new StudentUpdateException(
+                                    managed.getId(),
+                                    "StudyGroup not found: id=" + newGroupId));
+
+                    managed.setGroup(group);
+
+                    log.debug(
+                            "update: group updated (studentId={}, groupId={})",
+                            managed.getId(),
+                            newGroupId);
+                });
+    }
+
+    private void applyEnrollmentYearPatch(Student managed, StudentUpdateDto patch) {
+
+        Optional.ofNullable(patch.enrollmentYear())
+                .filter(newEnrollmentYear ->
+                        !Objects.equals(newEnrollmentYear, managed.getEnrollmentYear()))
+                .ifPresent(newEnrollmentYear -> {
+                    managed.setEnrollmentYear(newEnrollmentYear);
+
+                    log.debug(
+                            "update: enrollment year updated (studentId={}, enrollmentYear={})",
+                            managed.getId(),
+                            newEnrollmentYear);
+                });
+    }
+
+    private boolean isDifferentGroup(Student managed, Long newGroupId) {
+
+        return Optional.ofNullable(managed.getGroup())
+                .map(group -> !newGroupId.equals(group.getId()))
+                .orElse(true);
     }
 
     private void assertStudentEmailFreeInDb(StudentCreateDto draft) {
@@ -137,15 +168,6 @@ public class StudentService {
                             "groupId",
                             draft,
                             "Selected study group is no longer available."));
-    }
-
-    private StudyGroup requireGroup(long studentId, long groupId) {
-
-        return groupRepository.findById(groupId)
-                .orElseThrow(() ->
-                    new StudentUpdateException(
-                            studentId, 
-                            "StudyGroup not found: id=" + groupId));
     }
 
     private Student requireStudent(long studentId) {

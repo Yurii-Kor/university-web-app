@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<body>
+
+<th:block th:fragment="studentActions(student, currentPage)">
+
+  <div class="student-actions-bar"
+       sec:authorize="hasRole('ADMIN')">
+
+    <details class="student-edit"
+             th:attr="open=${studentId != null
+                            and studentId == student.id
+                            and err != null}
+                          ? 'open'
+                          : null">
+
+      <summary class="ou-btn ou-btn--ghost">
+        Edit
+      </summary>
+
+      <form class="student-edit__form"
+            method="post"
+            th:action="@{/students/{id}/update(
+              id=${student.id},
+              page=${currentPage}
+            )}"
+            th:with="useRequested=${studentId != null
+                                   and studentId == student.id
+                                   and err != null}"
+            onsubmit="return confirm('Update this student?');">
+
+        <input type="hidden"
+               th:name="${_csrf.parameterName}"
+               th:value="${_csrf.token}" />
+
+        <div class="student-edit__divider"
+             aria-hidden="true">
+        </div>
+
+        <div class="student-edit__fields">
+
+          <div>
+
+            <label class="student-edit__label"
+                   th:for="|group_${student.id}|">
+              Group
+            </label>
+
+            <select class="ou-input"
+                    th:id="|group_${student.id}|"
+                    name="groupId"
+                    required>
+
+              <option th:each="group : ${all_groups}"
+                      th:value="${group.id}"
+                      th:text="${group.name}"
+                      th:selected="${useRequested
+                          ? group.id == requestedGroupId
+                          : group.id == student.groupId}">
+                CS-101
+              </option>
+
+            </select>
+
+          </div>
+
+          <div>
+
+            <label class="student-edit__label"
+                   th:for="|enrollment_${student.id}|">
+              Enrollment year
+            </label>
+
+            <input class="ou-input"
+                   th:id="|enrollment_${student.id}|"
+                   name="enrollmentYear"
+                   type="number"
+                   required
+                   th:value="${useRequested
+                       ? requestedEnrollmentYear
+                       : student.enrollmentYear}" />
+
+          </div>
+
+        </div>
+
+        <div class="student-edit__actions">
+
+          <button type="button"
+                  class="ou-btn ou-btn--ghost"
+                  data-details-form-cancel>
+            Cancel
+          </button>
+
+          <button type="submit"
+                  class="ou-btn">
+            Apply
+          </button>
+
+        </div>
+
+      </form>
+
+    </details>
+
+  </div>
+
+</th:block>
+
+</body>
+</html>

@@ -7,11 +7,15 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 
-public record StudentEnrollmentYearUpdateDto(
+public record StudentUpdateDto(
+
+        @NotNull
+        Long groupId,
 
         @NotNull
         @Min(ENROLLMENT_YEAR_MIN)
         @Max(ENROLLMENT_YEAR_MAX)
         Integer enrollmentYear
+
 ) {
 }
