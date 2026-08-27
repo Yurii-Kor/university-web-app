@@ -1,12 +1,21 @@
 package ua.foxminded.university.model.persistence.student.projection;
 
-public interface StudentCardProjection {
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.ToString;
+import lombok.experimental.Accessors;
 
-    Long id();
+@Getter
+@Accessors(fluent = true)
+@EqualsAndHashCode
+@ToString
+@AllArgsConstructor(access = AccessLevel.PROTECTED)
+public abstract class StudentCardProjection {
 
-    String email();
-
-    String firstName();
-
-    String lastName();
+    private final Long id;
+    private final String email;
+    private final String firstName;
+    private final String lastName;
 }

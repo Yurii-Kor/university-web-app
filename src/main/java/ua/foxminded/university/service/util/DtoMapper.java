@@ -1,6 +1,5 @@
 package ua.foxminded.university.service.util;
 
-import java.time.Year;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -56,12 +55,7 @@ public class DtoMapper {
 						StudyGroup.builder()
 								.id(dto.groupId())
 								.build())
-				.enrollmentYear(
-						Optional.ofNullable(
-								dto.enrollmentYear())
-								.orElse(
-										Year.now()
-												.getValue()))
+				.enrollmentYear(dto.enrollmentYear())
 				.build();
 	}
 

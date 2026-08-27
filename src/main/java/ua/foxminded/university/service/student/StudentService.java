@@ -1,5 +1,6 @@
 package ua.foxminded.university.service.student;
 
+import java.time.Year;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -51,6 +52,8 @@ public class StudentService {
         var group = requireGroup(draft);
 
         var student = dtoMapper.toStudentEntity(draft);
+        
+        applyDefaultEnrollmentYear(student);
         student.setGroup(group);
 
         passwordPolicy.encodeNewPassword(student.getUser());
@@ -107,6 +110,17 @@ public class StudentService {
 
         studentRepository.delete(student);
         log.info("Soft deleted student: id={}", studentId);
+    }
+    
+    private void applyDefaultEnrollmentYear(
+            Student student) {
+
+        student.setEnrollmentYear(
+                Optional.ofNullable(
+                        student.getEnrollmentYear())
+                        .orElseGet(() ->
+                                Year.now()
+                                        .getValue()));
     }
 
     private void applyGroupPatch(Student managed, StudentUpdateDto patch) {

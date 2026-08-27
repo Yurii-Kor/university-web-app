@@ -96,18 +96,24 @@ class StudentServiceCreateTest {
 	@Test
 	@DisplayName("create: null enrollment year -> uses current year")
 	void create_nullEnrollmentYear_usesCurrentYear() {
-		var expectedYear = Year.now()
-				.getValue();
+	    var expectedYear = Year.now()
+	            .getValue();
 
-		var dto = createDto(
-				GROUP_ME_ID,
-				null);
+	    var dto = createDto(
+	            GROUP_ME_ID,
+	            null);
 
-		var created = studentService.create(dto);
+	    assertNull(dto.enrollmentYear());
 
-		assertEquals(
-				expectedYear,
-				created.getEnrollmentYear());
+	    var created = studentService.create(dto);
+
+	    var persisted = studentRepository.findById(
+	            created.getId())
+	            .orElseThrow();
+
+	    assertEquals(
+	            expectedYear,
+	            persisted.getEnrollmentYear());
 	}
 
 	@Test

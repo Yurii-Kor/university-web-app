@@ -1,5 +1,6 @@
 package ua.foxminded.university.web.student;
 
+import java.util.Arrays;
 import java.util.Optional;
 
 import org.springframework.beans.factory.ObjectProvider;
@@ -7,6 +8,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.ui.Model;
 import org.springframework.validation.BeanPropertyBindingResult;
 import org.springframework.validation.BindException;
+import org.springframework.validation.FieldError;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
@@ -22,249 +24,170 @@ import ua.foxminded.university.web.util.ExceptionMessageReader;
 @RequiredArgsConstructor
 public class StudentCreateExceptionHandler {
 
-    private static final String FORM_ATTRIBUTE = "form";
-    private static final String CREATE_VIEW = "students/create";
-    private static final String CREATE_REDIRECT = "redirect:/students/create";
+	private static final String FORM_ATTRIBUTE = "form";
+	private static final String CREATE_VIEW = "students/create";
+	private static final String CREATE_REDIRECT = "redirect:/students/create";
+	private static final String CREATE_ERROR_CODE = "student.create";
 
-    private final ObjectProvider<StudyGroupService> groupServiceProvider;
-    private final ExceptionMessageReader messageReader;
+	private final ObjectProvider<StudyGroupService> groupServiceProvider;
+	private final ExceptionMessageReader messageReader;
 
-    @ExceptionHandler(StudentCreateException.class)
-    public String handleStudentCreate(
-            StudentCreateException ex,
-            Model model) {
+	@ExceptionHandler(StudentCreateException.class)
+	public String handleStudentCreate(
+			StudentCreateException ex,
+			Model model) {
 
-        var message = messageReader.safeMessage(
-                ex,
-                "Student cannot be created.");
+		var message = messageReader.safeMessage(
+				ex,
+				"Student cannot be created.");
 
-        var form = clearRejectedField(
-                ex.getForm(),
-                ex.getField());
+		var form = Optional.ofNullable(ex.getForm())
+				.orElseGet(this::emptyForm);
 
-        var bindingResult = new BeanPropertyBindingResult(
-                form,
-                FORM_ATTRIBUTE);
+		if (isFormField(ex.getField())) {
+			addFieldError(
+					model,
+					form,
+					ex.getField(),
+					message);
+		} else {
+			model.addAttribute(
+					FORM_ATTRIBUTE,
+					form);
 
-        if (isFormField(ex.getField())) {
-            bindingResult.rejectValue(
-                    ex.getField(),
-                    "student.create",
-                    message);
+			model.addAttribute(
+					"err",
+					message);
+		}
 
-            model.addAllAttributes(
-                    bindingResult.getModel());
-        } else {
-            model.addAttribute(
-                    FORM_ATTRIBUTE,
-                    form);
+		addPageData(model);
 
-            model.addAttribute(
-                    "err",
-                    message);
-        }
+		return CREATE_VIEW;
+	}
 
-        addPageData(model);
+	@ExceptionHandler(BindException.class)
+	public String handleValidation(
+			BindException ex,
+			Model model) {
 
-        return CREATE_VIEW;
-    }
+		model.addAllAttributes(
+				ex.getBindingResult()
+						.getModel());
 
-    @ExceptionHandler(BindException.class)
-    public String handleValidation(
-            BindException ex,
-            Model model) {
+		addPageData(model);
 
-        model.addAllAttributes(
-                ex.getBindingResult()
-                        .getModel());
+		return CREATE_VIEW;
+	}
 
-        addPageData(model);
+	@ExceptionHandler(IllegalArgumentException.class)
+	public String handleBadRequest(
+			IllegalArgumentException ex,
+			RedirectAttributes ra) {
 
-        return CREATE_VIEW;
-    }
+		ra.addFlashAttribute(
+				FORM_ATTRIBUTE,
+				emptyForm());
 
-    @ExceptionHandler(IllegalArgumentException.class)
-    public String handleBadRequest(
-            IllegalArgumentException ex,
-            RedirectAttributes ra) {
+		ra.addFlashAttribute(
+				"err",
+				messageReader.safeMessage(
+						ex,
+						"Invalid request."));
 
-        ra.addFlashAttribute(
-                FORM_ATTRIBUTE,
-                emptyForm());
+		return CREATE_REDIRECT;
+	}
 
-        ra.addFlashAttribute(
-                "err",
-                messageReader.safeMessage(
-                        ex,
-                        "Invalid request."));
+	@ExceptionHandler(ConstraintViolationException.class)
+	public String handleValidation(
+			ConstraintViolationException ex,
+			RedirectAttributes ra) {
 
-        return CREATE_REDIRECT;
-    }
+		ra.addFlashAttribute(
+				FORM_ATTRIBUTE,
+				emptyForm());
 
-    @ExceptionHandler(ConstraintViolationException.class)
-    public String handleValidation(
-            ConstraintViolationException ex,
-            RedirectAttributes ra) {
+		ra.addFlashAttribute(
+				"err",
+				messageReader.formatViolations(ex));
 
-        ra.addFlashAttribute(
-                FORM_ATTRIBUTE,
-                emptyForm());
+		return CREATE_REDIRECT;
+	}
 
-        ra.addFlashAttribute(
-                "err",
-                messageReader.formatViolations(ex));
+	@ExceptionHandler(DataIntegrityViolationException.class)
+	public String handleDbConflict(
+			DataIntegrityViolationException ex,
+			RedirectAttributes ra) {
 
-        return CREATE_REDIRECT;
-    }
+		ra.addFlashAttribute(
+				FORM_ATTRIBUTE,
+				emptyForm());
 
-    @ExceptionHandler(DataIntegrityViolationException.class)
-    public String handleDbConflict(
-            DataIntegrityViolationException ex,
-            RedirectAttributes ra) {
+		ra.addFlashAttribute(
+				"err",
+				"Student account data conflicts with an existing record.");
 
-        ra.addFlashAttribute(
-                FORM_ATTRIBUTE,
-                emptyForm());
+		return CREATE_REDIRECT;
+	}
 
-        ra.addFlashAttribute(
-                "err",
-                "Student account data conflicts with an existing record.");
+	private void addFieldError(
+			Model model,
+			StudentCreateDto form,
+			String field,
+			String message) {
 
-        return CREATE_REDIRECT;
-    }
+		var bindingResult = new BeanPropertyBindingResult(
+				form,
+				FORM_ATTRIBUTE);
 
-    private void addPageData(Model model) {
+		bindingResult.addError(
+				new FieldError(
+						FORM_ATTRIBUTE,
+						field,
+						null,
+						false,
+						new String[] {
+								CREATE_ERROR_CODE
+						},
+						null,
+						message));
 
-        model.addAttribute(
-                "all_groups",
-                groupServiceProvider.getObject()
-                        .listGroupOptions());
-    }
+		model.addAllAttributes(
+				bindingResult.getModel());
+	}
 
-    private StudentCreateDto clearRejectedField(
-            StudentCreateDto form,
-            String field) {
+	private boolean isFormField(String field) {
 
-        return Optional.ofNullable(form)
-                .map(value -> clearField(
-                        value,
-                        field))
-                .orElseGet(this::emptyForm);
-    }
+		return Optional.ofNullable(field)
+				.map(this::isRecordComponent)
+				.orElse(false);
+	}
 
-    private StudentCreateDto clearField(
-            StudentCreateDto form,
-            String field) {
+	private boolean isRecordComponent(String field) {
 
-        return Optional.ofNullable(field)
-                .map(value -> switch (value) {
-                    case "email" -> withoutEmail(form);
-                    case "password" -> withoutPassword(form);
-                    case "firstName" -> withoutFirstName(form);
-                    case "lastName" -> withoutLastName(form);
-                    case "groupId" -> withoutGroup(form);
-                    case "enrollmentYear" -> withoutEnrollmentYear(form);
-                    default -> form;
-                })
-                .orElse(form);
-    }
+		return Arrays.stream(
+				StudentCreateDto.class
+						.getRecordComponents())
+				.anyMatch(component ->
+						component.getName()
+								.equals(field));
+	}
 
-    private StudentCreateDto withoutEmail(
-            StudentCreateDto form) {
+	private void addPageData(Model model) {
 
-        return new StudentCreateDto(
-                null,
-                form.password(),
-                form.firstName(),
-                form.lastName(),
-                form.groupId(),
-                form.enrollmentYear());
-    }
+		model.addAttribute(
+				"all_groups",
+				groupServiceProvider.getObject()
+						.listGroupOptions());
+	}
 
-    private StudentCreateDto withoutPassword(
-            StudentCreateDto form) {
+	private StudentCreateDto emptyForm() {
 
-        return new StudentCreateDto(
-                form.email(),
-                null,
-                form.firstName(),
-                form.lastName(),
-                form.groupId(),
-                form.enrollmentYear());
-    }
-
-    private StudentCreateDto withoutFirstName(
-            StudentCreateDto form) {
-
-        return new StudentCreateDto(
-                form.email(),
-                form.password(),
-                null,
-                form.lastName(),
-                form.groupId(),
-                form.enrollmentYear());
-    }
-
-    private StudentCreateDto withoutLastName(
-            StudentCreateDto form) {
-
-        return new StudentCreateDto(
-                form.email(),
-                form.password(),
-                form.firstName(),
-                null,
-                form.groupId(),
-                form.enrollmentYear());
-    }
-
-    private StudentCreateDto withoutGroup(
-            StudentCreateDto form) {
-
-        return new StudentCreateDto(
-                form.email(),
-                form.password(),
-                form.firstName(),
-                form.lastName(),
-                null,
-                form.enrollmentYear());
-    }
-
-    private StudentCreateDto withoutEnrollmentYear(
-            StudentCreateDto form) {
-
-        return new StudentCreateDto(
-                form.email(),
-                form.password(),
-                form.firstName(),
-                form.lastName(),
-                form.groupId(),
-                null);
-    }
-
-    private boolean isFormField(String field) {
-
-        return Optional.ofNullable(field)
-                .map(value -> switch (value) {
-                    case "email",
-                         "password",
-                         "firstName",
-                         "lastName",
-                         "groupId",
-                         "enrollmentYear" -> true;
-
-                    default -> false;
-                })
-                .orElse(false);
-    }
-
-    private StudentCreateDto emptyForm() {
-
-        return new StudentCreateDto(
-                null,
-                null,
-                null,
-                null,
-                null,
-                null);
-    }
+		return new StudentCreateDto(
+				null,
+				null,
+				null,
+				null,
+				null,
+				null);
+	}
 }
