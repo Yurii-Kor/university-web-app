@@ -17,6 +17,7 @@ import ua.foxminded.university.TestcontainersConfiguration;
 import ua.foxminded.university.model.domain.enums.UserRole;
 import ua.foxminded.university.model.persistence.teacher.TeacherRepository;
 import ua.foxminded.university.service.teacher.dto.TeacherCreateDto;
+import ua.foxminded.university.service.teacher.exception.TeacherCreateException;
 
 @SpringBootTest
 @ActiveProfiles("test")
@@ -92,7 +93,7 @@ class TeacherServiceCreateTest {
 				TEACHER_1_EMAIL.toUpperCase());
 
 		var exception = assertThrows(
-				IllegalArgumentException.class,
+		        TeacherCreateException.class,
 				() -> teacherService.create(
 						dto));
 

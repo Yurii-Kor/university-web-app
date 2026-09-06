@@ -25,6 +25,7 @@ import ua.foxminded.university.security.PasswordPolicy;
 import ua.foxminded.university.service.teacher.dto.DeletedTeacherCardView;
 import ua.foxminded.university.service.teacher.dto.TeacherCreateDto;
 import ua.foxminded.university.service.teacher.dto.TeacherUpdateDto;
+import ua.foxminded.university.service.teacher.exception.TeacherCreateException;
 import ua.foxminded.university.service.util.DtoMapper;
 import ua.foxminded.university.service.util.projectionmapper.ProjectionMapper;
 
@@ -176,7 +177,11 @@ public class TeacherService {
     private void assertTeacherEmailFreeInDb(TeacherCreateDto draft) {
 
         if (usersRepository.existsByEmailIgnoreCase(draft.email())) {
-            throw new IllegalArgumentException("An account with this email already exists.");
+            
+            throw new TeacherCreateException(
+                    "email",
+                    draft,
+                    "An account with this email already exists.");
         }
     }
 

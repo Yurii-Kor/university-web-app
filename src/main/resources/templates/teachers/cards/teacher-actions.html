@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en"
+      xmlns:th="http://www.thymeleaf.org">
+<body>
+
+<th:block th:fragment="teacherActions(teacher, currentPage)">
+
+  <div class="teacher-actions-bar">
+
+    <details class="teacher-edit"
+             th:attr="open=${teacherId != null
+                            and teacherId == teacher.id
+                            and err != null}
+                          ? 'open'
+                          : null">
+
+      <summary class="ou-btn ou-btn--ghost">
+        Edit
+      </summary>
+
+      <form class="teacher-edit__form"
+            method="post"
+            th:action="@{/teachers/{id}/update(
+              id=${teacher.id},
+              page=${currentPage}
+            )}"
+            th:with="useRequested=${teacherId != null
+                                   and teacherId == teacher.id
+                                   and err != null}"
+            onsubmit="return confirm('Update this teacher?');">
+
+        <input type="hidden"
+               th:name="${_csrf.parameterName}"
+               th:value="${_csrf.token}" />
+
+        <div class="teacher-edit__divider"
+             aria-hidden="true">
+        </div>
+
+        <div class="teacher-edit__fields">
+
+          <div>
+
+            <label class="teacher-edit__label"
+                   th:for="|rank_${teacher.id}|">
+              Academic rank
+            </label>
+
+            <select class="ou-input"
+                    th:id="|rank_${teacher.id}|"
+                    name="academicRank"
+                    required>
+
+              <option th:each="rank : ${T(ua.foxminded.university.model.domain.enums.AcademicRank).values()}"
+                      th:value="${rank}"
+                      th:text="${rank}"
+                      th:selected="${useRequested
+                          ? rank == requestedAcademicRank
+                          : rank == teacher.academicRank}">
+                LECTURER
+              </option>
+
+            </select>
+
+          </div>
+
+          <div>
+
+            <label class="teacher-edit__label"
+                   th:for="|office_${teacher.id}|">
+              Office
+            </label>
+
+            <input class="ou-input"
+                   th:id="|office_${teacher.id}|"
+                   name="office"
+                   type="text"
+                   required
+                   th:value="${useRequested
+                       ? requestedOffice
+                       : teacher.office}" />
+
+          </div>
+
+        </div>
+
+        <div class="teacher-edit__actions">
+
+          <button type="button"
+                  class="ou-btn ou-btn--ghost"
+                  data-details-form-cancel>
+            Cancel
+          </button>
+
+          <button type="submit"
+                  class="ou-btn">
+            Apply
+          </button>
+
+        </div>
+
+      </form>
+
+    </details>
+
+  </div>
+
+</th:block>
+
+</body>
+</html>
