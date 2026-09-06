@@ -9,7 +9,8 @@ import org.springframework.data.repository.query.Param;
 
 import ua.foxminded.university.model.domain.Teacher;
 import ua.foxminded.university.model.persistence.teacher.projection.DeletedTeacherCardProjection;
-import ua.foxminded.university.model.persistence.teacher.projection.TeacherCardView;
+import ua.foxminded.university.model.persistence.teacher.projection.TeacherRoleChangeCardView;
+import ua.foxminded.university.model.persistence.teacher.projection.TeacherDirectoryCardView;
 import ua.foxminded.university.model.persistence.teacher.projection.TeacherOptionView;
 import ua.foxminded.university.model.persistence.teacher.projection.TeacherProfileView;
 import ua.foxminded.university.model.persistence.teacher.projection.TeacherWithCoursesCount;
@@ -20,45 +21,152 @@ import java.util.Optional;
 
 public interface TeacherRepository extends JpaRepository<Teacher, Long> {
 
-	boolean existsByOfficeIgnoreCase(String office);
-	
-	@Query("select count(c.id) from Course c where c.teacher.id = :teacherId")
-	long countCoursesByTeacherId(@Param("teacherId") long teacherId);
+    boolean existsByOfficeIgnoreCase(String office);
+    
+    @Query("select count(c.id) from Course c where c.teacher.id = :teacherId")
+    long countCoursesByTeacherId(@Param("teacherId") long teacherId);
 
-	@Modifying(clearAutomatically = true, flushAutomatically = true)
-	@Query("delete from Teacher t where t.id = :id")
-	int deleteProfileById(@Param("id") long id);
-	
-	@Query("select t.id from Teacher t where t.id in :ids")
-	List<Long> findExistingIds(@Param("ids") Collection<Long> ids);
-	
-	@Query("""
-			select new ua.foxminded.university.model.persistence.teacher.projection.TeacherProfileView(
-			    u.email,
-			    u.firstName,
-			    u.lastName,
-			    u.createdAt,
-			    t.academicRank,
-			    t.office
-			)
-			from Teacher t
-			join t.user u
-			where t.id = :id
-		""")
-	Optional<TeacherProfileView> findTeacherProfileViewById(@Param("id") Long id);
-	
-	@Query("""
-			select new ua.foxminded.university.model.persistence.teacher.projection.TeacherOptionView(
-			  t.id, u.firstName, u.lastName, u.email
-			)
-			from Teacher t
-			join t.user u
-			order by lower(u.lastName), lower(u.firstName), t.id
-		""")
-	List<TeacherOptionView> findTeacherOptions();
-	
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("delete from Teacher t where t.id = :id")
+    int deleteProfileById(@Param("id") long id);
+    
+    @Query("select t.id from Teacher t where t.id in :ids")
+    List<Long> findExistingIds(@Param("ids") Collection<Long> ids);
+    
+    @Query(
+            value = """
+                    select new ua.foxminded.university.model.persistence.teacher.projection.TeacherDirectoryCardView(
+                        t.id,
+                        u.email,
+                        u.firstName,
+                        u.lastName,
+                        t.academicRank,
+                        t.office
+                    )
+                    from Teacher t
+                    join t.user u
+                    where u.enabled = true
+                    order by lower(u.lastName),
+                             lower(u.firstName),
+                             lower(u.email),
+                             t.id
+                    """,
+            countQuery = """
+                    select count(t)
+                    from Teacher t
+                    join t.user u
+                    where u.enabled = true
+                    """)
+    Page<TeacherDirectoryCardView> findTeacherCardsForAdmin(
+            Pageable pageable);
+
+    @Query(
+            value = """
+                    select new ua.foxminded.university.model.persistence.teacher.projection.TeacherDirectoryCardView(
+                        t.id,
+                        u.email,
+                        u.firstName,
+                        u.lastName,
+                        t.academicRank,
+                        t.office
+                    )
+                    from Teacher t
+                    join t.user u
+                    where u.enabled = true
+                      and t.id <> :teacherId
+                    order by lower(u.lastName),
+                             lower(u.firstName),
+                             lower(u.email),
+                             t.id
+                    """,
+            countQuery = """
+                    select count(t)
+                    from Teacher t
+                    join t.user u
+                    where u.enabled = true
+                      and t.id <> :teacherId
+                    """)
+    Page<TeacherDirectoryCardView> findTeacherCardsForTeacher(
+            @Param("teacherId") long teacherId,
+            Pageable pageable);
+
+    @Query(
+            value = """
+                    select new ua.foxminded.university.model.persistence.teacher.projection.TeacherDirectoryCardView(
+                        t.id,
+                        u.email,
+                        u.firstName,
+                        u.lastName,
+                        t.academicRank,
+                        t.office
+                    )
+                    from Teacher t
+                    join t.user u
+                    where u.enabled = true
+                      and exists (
+                          select 1
+                          from Course c
+                          join c.groups cg
+                          where c.teacher.id = t.id
+                            and cg.id = (
+                                select s.group.id
+                                from Student s
+                                where s.id = :studentId
+                            )
+                      )
+                    order by lower(u.lastName),
+                             lower(u.firstName),
+                             lower(u.email),
+                             t.id
+                    """,
+            countQuery = """
+                    select count(t)
+                    from Teacher t
+                    join t.user u
+                    where u.enabled = true
+                      and exists (
+                          select 1
+                          from Course c
+                          join c.groups cg
+                          where c.teacher.id = t.id
+                            and cg.id = (
+                                select s.group.id
+                                from Student s
+                                where s.id = :studentId
+                            )
+                      )
+                    """)
+    Page<TeacherDirectoryCardView> findTeacherCardsForStudent(
+            @Param("studentId") long studentId,
+            Pageable pageable);
+    
+    @Query("""
+            select new ua.foxminded.university.model.persistence.teacher.projection.TeacherProfileView(
+                u.email,
+                u.firstName,
+                u.lastName,
+                u.createdAt,
+                t.academicRank,
+                t.office
+            )
+            from Teacher t
+            join t.user u
+            where t.id = :id
+        """)
+    Optional<TeacherProfileView> findTeacherProfileViewById(@Param("id") Long id);
+    
+    @Query("""
+            select new ua.foxminded.university.model.persistence.teacher.projection.TeacherOptionView(
+              t.id, u.firstName, u.lastName, u.email
+            )
+            from Teacher t
+            join t.user u
+            order by lower(u.lastName), lower(u.firstName), t.id
+        """)
+    List<TeacherOptionView> findTeacherOptions();
+    
     @Query(value = """
-                select new ua.foxminded.university.model.persistence.teacher.projection.TeacherCardView(
+                select new ua.foxminded.university.model.persistence.teacher.projection.TeacherRoleChangeCardView(
                     t.id,
                     u.email,
                     u.firstName,
@@ -75,7 +183,7 @@ public interface TeacherRepository extends JpaRepository<Teacher, Long> {
                 select count(t)
                 from Teacher t
             """)
-    Page<TeacherCardView> findTeacherCardsAll(Pageable pageable);
+    Page<TeacherRoleChangeCardView> findTeacherRoleChangeCardsAll(Pageable pageable);
     
     @Query(value = """
             select *

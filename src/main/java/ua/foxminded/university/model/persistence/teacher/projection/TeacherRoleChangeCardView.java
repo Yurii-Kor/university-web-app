@@ -4,7 +4,7 @@ import java.time.OffsetDateTime;
 
 import ua.foxminded.university.model.domain.enums.AcademicRank;
 
-public record TeacherCardView(
+public record TeacherRoleChangeCardView(
         Long id,
         String email,
         String firstName,

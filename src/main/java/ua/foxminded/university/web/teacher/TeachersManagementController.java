@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
 import lombok.RequiredArgsConstructor;
-import ua.foxminded.university.model.persistence.teacher.projection.TeacherCardView;
+import ua.foxminded.university.model.persistence.teacher.projection.TeacherRoleChangeCardView;
 import ua.foxminded.university.service.teacher.TeacherService;
 
 @Controller
@@ -27,7 +27,7 @@ public class TeachersManagementController {
                                   Model model) {
 
         Pageable pageable = PageRequest.of(page, DEFAULT_PAGE_SIZE);
-        Page<TeacherCardView> teachersPage = teacherService.listTeacherCardsForAdmin(pageable);
+        Page<TeacherRoleChangeCardView> teachersPage = teacherService.listTeacherRoleChangeCardsForAdmin(pageable);
 
         model.addAttribute("pageTitle", "Teachers");
         model.addAttribute("teachers", teachersPage.getContent());

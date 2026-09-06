@@ -5,11 +5,9 @@ import static ua.foxminded.university.service.util.validation.ValidationConstant
 import jakarta.validation.constraints.*;
 import ua.foxminded.university.model.domain.enums.AcademicRank;
 
-public record TeacherSelfUpdateDto(
+public record TeacherUpdateDto(
 
-        @NotNull()
-        Long id,
-
+        
         AcademicRank academicRank,
 
         @Size(max = ROOM_MAX)
@@ -18,4 +16,6 @@ public record TeacherSelfUpdateDto(
             message = OFFICE_MESSAGE
         )
         String office
-) {}
+
+) {
+}

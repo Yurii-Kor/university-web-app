@@ -24,7 +24,7 @@ public class TeacherAccountsPageStrategy implements AccountsPageStrategy {
 
     @Override
     public AccountsPage build(Pageable pageable) {
-        var teachersPage = teacherService.listTeacherCardsForAdmin(pageable);
+        var teachersPage = teacherService.listTeacherRoleChangeCardsForAdmin(pageable);
         var view = view();
 
         return new AccountsPage(

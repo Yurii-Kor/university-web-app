@@ -26,7 +26,7 @@ import ua.foxminded.university.model.domain.enums.AcademicRank;
 import ua.foxminded.university.model.domain.enums.UserRole;
 import ua.foxminded.university.model.persistence.student.projection.StudentCardView;
 import ua.foxminded.university.model.persistence.studygroup.projection.GroupView;
-import ua.foxminded.university.model.persistence.teacher.projection.TeacherCardView;
+import ua.foxminded.university.model.persistence.teacher.projection.TeacherRoleChangeCardView;
 import ua.foxminded.university.service.appuser.AppUserService;
 import ua.foxminded.university.service.rolechange.RoleChangeFacade;
 import ua.foxminded.university.service.rolechange.assessment.RoleChangeAssessment;
@@ -86,8 +86,8 @@ class AccountManagementControllerWebMvcTest {
         );
     }
 
-    private TeacherCardView defaultTeacherCard() {
-        return new TeacherCardView(
+    private TeacherRoleChangeCardView defaultTeacherCard() {
+        return new TeacherRoleChangeCardView(
                 2L,
                 "teacher@example.com",
                 "Bob",

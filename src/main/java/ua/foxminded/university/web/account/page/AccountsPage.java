@@ -3,7 +3,7 @@ package ua.foxminded.university.web.account.page;
 import java.util.List;
 
 import ua.foxminded.university.model.persistence.student.projection.StudentCardView;
-import ua.foxminded.university.model.persistence.teacher.projection.TeacherCardView;
+import ua.foxminded.university.model.persistence.teacher.projection.TeacherRoleChangeCardView;
 
 public record AccountsPage(
         String pageTitle,
@@ -14,5 +14,5 @@ public record AccountsPage(
         boolean hasPrevious,
         boolean hasNext,
         List<StudentCardView> students,
-        List<TeacherCardView> teachers
+        List<TeacherRoleChangeCardView> teachers
 ) {}

@@ -1,7 +1,5 @@
 package ua.foxminded.university.service.util;
 
-import java.util.Collection;
-import java.util.List;
 import java.util.Optional;
 
 import org.springframework.stereotype.Component;
@@ -73,42 +71,29 @@ public class DtoMapper {
 				.build();
 	}
 
-	public List<Teacher> toTeacherEntities(
-			Collection<TeacherCreateDto> drafts) {
+	public Teacher toTeacherEntity(
+	        TeacherCreateDto dto) {
 
-		return Optional.ofNullable(drafts)
-				.orElseGet(List::of)
-				.stream()
-				.filter(java.util.Objects::nonNull)
-				.map(this::toTeacherEntity)
-				.flatMap(Optional::stream)
-				.toList();
-	}
-
-	public Optional<Teacher> toTeacherEntity(
-			TeacherCreateDto dto) {
-
-		return Optional.ofNullable(dto)
-				.map(d -> Teacher.builder()
-						.id(null)
-						.user(toTeacherUser(d))
-						.academicRank(d.academicRank())
-						.office(d.office())
-						.build());
+	    return Teacher.builder()
+	            .id(null)
+	            .user(toTeacherUser(dto))
+	            .academicRank(dto.academicRank())
+	            .office(dto.office())
+	            .build();
 	}
 
 	private AppUser toTeacherUser(
-			TeacherCreateDto dto) {
+	        TeacherCreateDto dto) {
 
-		return AppUser.builder()
-				.id(null)
-				.email(dto.email())
-				.password(dto.password())
-				.role(UserRole.TEACHER)
-				.firstName(dto.firstName())
-				.lastName(dto.lastName())
-				.enabled(true)
-				.build();
+	    return AppUser.builder()
+	            .id(null)
+	            .email(dto.email())
+	            .password(dto.password())
+	            .role(UserRole.TEACHER)
+	            .firstName(dto.firstName())
+	            .lastName(dto.lastName())
+	            .enabled(true)
+	            .build();
 	}
 
 	public AppUser toAppUserEntity(

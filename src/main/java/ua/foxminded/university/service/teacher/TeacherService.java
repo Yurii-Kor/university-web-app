@@ -13,21 +13,19 @@ import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
 import jakarta.transaction.Transactional.TxType;
 import lombok.RequiredArgsConstructor;
-import ua.foxminded.university.model.domain.AppUser;
 import ua.foxminded.university.model.domain.Teacher;
 import ua.foxminded.university.model.persistence.appuser.AppUserRepository;
 import ua.foxminded.university.model.persistence.teacher.TeacherRepository;
 import ua.foxminded.university.model.persistence.teacher.projection.DeletedTeacherCardProjection;
-import ua.foxminded.university.model.persistence.teacher.projection.TeacherCardView;
+import ua.foxminded.university.model.persistence.teacher.projection.TeacherRoleChangeCardView;
+import ua.foxminded.university.model.persistence.teacher.projection.TeacherDirectoryCardView;
 import ua.foxminded.university.model.persistence.teacher.projection.TeacherOptionView;
 import ua.foxminded.university.model.persistence.teacher.projection.TeacherProfileView;
 import ua.foxminded.university.security.PasswordPolicy;
 import ua.foxminded.university.service.teacher.dto.DeletedTeacherCardView;
 import ua.foxminded.university.service.teacher.dto.TeacherCreateDto;
-import ua.foxminded.university.service.teacher.dto.TeacherSelfUpdateDto;
-import ua.foxminded.university.service.util.validation.EntityValidatior;
+import ua.foxminded.university.service.teacher.dto.TeacherUpdateDto;
 import ua.foxminded.university.service.util.DtoMapper;
-import ua.foxminded.university.service.util.DuplicateGuard;
 import ua.foxminded.university.service.util.projectionmapper.ProjectionMapper;
 
 @Service
@@ -35,104 +33,101 @@ import ua.foxminded.university.service.util.projectionmapper.ProjectionMapper;
 @Transactional
 public class TeacherService {
 
-	private static final Logger log = LoggerFactory.getLogger(TeacherService.class);
+    private static final Logger log = LoggerFactory.getLogger(TeacherService.class);
 
-	private final TeacherRepository teacherRepository;
-	private final AppUserRepository usersRepository;
-	
+    private final TeacherRepository teacherRepository;
+    private final AppUserRepository usersRepository;
+    
     private final ProjectionMapper<DeletedTeacherCardProjection, DeletedTeacherCardView> projectionMapper;
     private final DtoMapper dtoMapper;
-	private final EntityValidatior validator;
-	private final PasswordPolicy passwordPolicy;
-	private final DuplicateGuard duplicateGuard;
+    private final PasswordPolicy passwordPolicy;
 
-	@Transactional(value = TxType.REQUIRES_NEW)
-	public List<Teacher> createAll(Collection<TeacherCreateDto> drafts) {
-		drafts = Optional.ofNullable(drafts).orElseGet(List::of).stream().filter(Objects::nonNull).toList();
-		if (drafts.isEmpty()) {
-			log.warn("createAll: nothing to persist (null/empty input)");
-			return List.of();
-		}
+    @Transactional(value = TxType.REQUIRES_NEW)
+    public Teacher create(TeacherCreateDto draft) {
 
-		validator.validateAll(drafts);
+        assertTeacherEmailFreeInDb(draft);
 
-		var toPersist = dtoMapper.toTeacherEntities(drafts);
+        var teacher = dtoMapper.toTeacherEntity(draft);
 
-		var emailsLower = toPersist.stream()
-				.map(Teacher::getUser)
-				.map(AppUser::getEmail)
-				.map(String::toLowerCase)
-				.toList();
+        passwordPolicy.encodeNewPassword(teacher.getUser());
 
-		duplicateGuard.assertNoDuplicates(emailsLower, "normalized teacher emails");
-		assertTeacherEmailsFreeInDb(emailsLower);
+        return teacherRepository.save(teacher);
+    }
 
-		toPersist.forEach(t -> passwordPolicy.encodeNewPassword(t.getUser()));
+    @Transactional(value = TxType.SUPPORTS)
+    public List<Teacher> findByIds(Collection<Long> ids) {
+        var distinct = Optional.ofNullable(ids)
+                .orElseGet(Collections::emptyList)
+                .stream()
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
 
-		return teacherRepository.saveAll(toPersist);
-	}
+        if (distinct.isEmpty()) {
+            log.warn("findByIds: null/empty input or only nulls after filtering");
+            return List.of();
+        }
 
-	@Transactional(value = TxType.SUPPORTS)
-	public List<Teacher> findByIds(Collection<Long> ids) {
-		var distinct = Optional.ofNullable(ids)
-				.orElseGet(Collections::emptyList)
-				.stream()
-				.filter(Objects::nonNull)
-				.collect(Collectors.toSet());
+        return teacherRepository.findAllById(distinct);
+    }
+    
+    public Page<TeacherDirectoryCardView> listTeacherCardsForAdmin(Pageable pageable) {
+        return teacherRepository.findTeacherCardsForAdmin(pageable);
+    }
 
-		if (distinct.isEmpty()) {
-			log.warn("findByIds: null/empty input or only nulls after filtering");
-			return List.of();
-		}
+    public Page<TeacherDirectoryCardView> listTeacherCardsForTeacher(
+            long teacherId,
+            Pageable pageable) {
 
-		return teacherRepository.findAllById(distinct);
-	}
-	
-	@Transactional(value = TxType.SUPPORTS)
-	public Page<TeacherCardView> listTeacherCardsForAdmin(Pageable pageable) {
-	    return teacherRepository.findTeacherCardsAll(pageable);
-	}
-	
+        return teacherRepository.findTeacherCardsForTeacher(
+                teacherId,
+                pageable);
+    }
+
+    public Page<TeacherDirectoryCardView> listTeacherCardsForStudent(
+            long studentId,
+            Pageable pageable) {
+
+        return teacherRepository.findTeacherCardsForStudent(
+                studentId,
+                pageable);
+    }
+    
+    @Transactional(value = TxType.SUPPORTS)
+    public Page<TeacherRoleChangeCardView> listTeacherRoleChangeCardsForAdmin(Pageable pageable) {
+        return teacherRepository.findTeacherRoleChangeCardsAll(pageable);
+    }
+
     @Transactional(value = TxType.SUPPORTS)
     public Page<DeletedTeacherCardView> listDeletedTeacherCardsForAdmin(Pageable pageable) {
         return teacherRepository.findDeletedTeacherCards(pageable).map(projectionMapper::toView);
     }
-	
-	@Transactional(value = TxType.SUPPORTS)
+
+    @Transactional(value = TxType.SUPPORTS)
     public List<TeacherOptionView> listTeacherOptions() {
         return teacherRepository.findTeacherOptions();
     }
-	
-	@Transactional(value = TxType.SUPPORTS)
-	public TeacherProfileView getTeacherProfileView(long id) {
-		return teacherRepository.findTeacherProfileViewById(id)
-				.orElseThrow(() -> new EntityNotFoundException("Teacher not found: id=" + id));
-	}
 
-	@Transactional(value = TxType.REQUIRES_NEW)
-	public Teacher updateSelf(TeacherSelfUpdateDto patch) {
-		patch = Optional.ofNullable(patch).orElseThrow(() -> new IllegalArgumentException("patch must not be null"));
+    @Transactional(value = TxType.SUPPORTS)
+    public TeacherProfileView getTeacherProfileView(long id) {
+        return teacherRepository.findTeacherProfileViewById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Teacher not found: id=" + id));
+    }
 
-		validator.validate(patch);
-		
-		var id = patch.id();
-		var managed = teacherRepository.findById(id).orElseThrow(() -> {
-			log.error("updateSelf: Teacher not found: id={}", id);
-			return new EntityNotFoundException("Teacher not found: id=" + id);
-		});
+    @Transactional(value = TxType.REQUIRES_NEW)
+    public Teacher update(long teacherId, TeacherUpdateDto patch) {
+        var teacher = requireTeacher(teacherId);
 
-		Optional.ofNullable(patch.academicRank()).ifPresent(managed::setAcademicRank);
+        applyAcademicRankPatch(teacher, patch);
+        applyOfficePatch(teacher, patch);
 
-		Optional.ofNullable(patch.office()).ifPresent(managed::setOffice);
+        log.info("Updated teacher: id={}", teacherId);
 
-		log.debug("updateSelf: updated rank/office for teacherId={}", managed.getId());
-		return managed;
-	}
+        return teacher;
+    }
 
     @Transactional(value = TxType.REQUIRES_NEW)
     public void deleteById(long id) {
-        var teacher = teacherRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException("Active teacher not found: id=" + id));
+        var teacher = requireTeacher(id);
 
         assertTeacherHasNoCourses(id);
 
@@ -140,28 +135,68 @@ public class TeacherService {
         log.info("Soft deleted teacher: id={}", id);
     }
 
-    private void assertTeacherHasNoCourses(long teacherId) {
-        var coursesCount = teacherRepository.countCoursesByTeacherId(teacherId);
-        if (coursesCount == 0) return;
-        
-        throw new IllegalStateException(
-                "Cannot delete teacher with assigned courses: id=" + teacherId + ", coursesCount=" + coursesCount);
+    private void applyAcademicRankPatch(
+            Teacher managed,
+            TeacherUpdateDto patch) {
+
+        Optional.ofNullable(patch.academicRank())
+                .filter(newAcademicRank ->
+                        !Objects.equals(
+                                newAcademicRank,
+                                managed.getAcademicRank()))
+                .ifPresent(newAcademicRank -> {
+                    managed.setAcademicRank(newAcademicRank);
+
+                    log.debug(
+                            "update: academic rank updated (teacherId={}, academicRank={})",
+                            managed.getId(),
+                            newAcademicRank);
+                });
     }
 
-	private void assertTeacherEmailsFreeInDb(Collection<String> emailsLower) {
-		var normalized = emailsLower.stream()
-				.filter(Objects::nonNull)
-				.map(String::trim)
-				.map(String::toLowerCase)
-				.collect(Collectors.toSet());
+    private void applyOfficePatch(
+            Teacher managed,
+            TeacherUpdateDto patch) {
 
-		if (normalized.isEmpty())
-			return;
+        Optional.ofNullable(patch.office())
+                .filter(newOffice ->
+                        !Objects.equals(
+                                newOffice,
+                                managed.getOffice()))
+                .ifPresent(newOffice -> {
+                    managed.setOffice(newOffice);
 
-		var conflicts = usersRepository.findExistingEmailsIgnoreCase(normalized);
-		if (!conflicts.isEmpty()) {
-			log.warn("createTeachers: emails already exist in DB: {}", conflicts);
-			throw new IllegalArgumentException("Emails already exist: " + conflicts);
-		}
-	}
+                    log.debug(
+                            "update: office updated (teacherId={}, office={})",
+                            managed.getId(),
+                            newOffice);
+                });
+    }
+
+    private void assertTeacherEmailFreeInDb(TeacherCreateDto draft) {
+
+        if (usersRepository.existsByEmailIgnoreCase(draft.email())) {
+            throw new IllegalArgumentException("An account with this email already exists.");
+        }
+    }
+
+    private void assertTeacherHasNoCourses(long teacherId) {
+        var coursesCount = teacherRepository.countCoursesByTeacherId(teacherId);
+
+        if (coursesCount == 0) {
+            return;
+        }
+
+        throw new IllegalStateException(
+                "Cannot delete teacher with assigned courses: id="
+                        + teacherId
+                        + ", coursesCount="
+                        + coursesCount);
+    }
+
+    private Teacher requireTeacher(long teacherId) {
+
+        return teacherRepository.findById(teacherId)
+                .orElseThrow(() -> new EntityNotFoundException("Teacher not found: id=" + teacherId));
+    }
 }

@@ -24,7 +24,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import ua.foxminded.university.model.domain.enums.AcademicRank;
-import ua.foxminded.university.model.persistence.teacher.projection.TeacherCardView;
+import ua.foxminded.university.model.persistence.teacher.projection.TeacherRoleChangeCardView;
 import ua.foxminded.university.service.teacher.TeacherService;
 import ua.foxminded.university.web.testconfig.MethodSecurityTestConfig;
 import ua.foxminded.university.web.util.ExceptionMessageReader;
@@ -48,7 +48,7 @@ class TeachersManagementControllerWebMvcTest {
         var now = OffsetDateTime.parse("2025-01-01T12:00:00Z");
         var someRank = AcademicRank.values()[0];
 
-        var firstTeacher = new TeacherCardView(
+        var firstTeacher = new TeacherRoleChangeCardView(
                 1L,
                 "john.teacher@university.com",
                 "John",
@@ -59,7 +59,7 @@ class TeachersManagementControllerWebMvcTest {
                 "B-214"
         );
 
-        var secondTeacher = new TeacherCardView(
+        var secondTeacher = new TeacherRoleChangeCardView(
                 2L,
                 "kate.teacher@university.com",
                 "Kate",
@@ -76,7 +76,7 @@ class TeachersManagementControllerWebMvcTest {
                 11
         );
 
-        when(teacherService.listTeacherCardsForAdmin(any(Pageable.class)))
+        when(teacherService.listTeacherRoleChangeCardsForAdmin(any(Pageable.class)))
                 .thenReturn(teachersPage);
 
         mockMvc.perform(get("/teachers")
@@ -93,6 +93,6 @@ class TeachersManagementControllerWebMvcTest {
                 .andExpect(model().attribute("hasPrevious", false))
                 .andExpect(model().attribute("hasNext", true));
 
-        verify(teacherService).listTeacherCardsForAdmin(argThat(p -> p.getPageNumber() == 0));
+        verify(teacherService).listTeacherRoleChangeCardsForAdmin(argThat(p -> p.getPageNumber() == 0));
     }
 }
