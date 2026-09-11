@@ -32,17 +32,6 @@ class LessonServiceTestConstants {
 
 	final int BASE_LESSON_COUNT = 6;
 
-	final OffsetDateTime TEST_NOW =
-			OffsetDateTime.of(
-					2030,
-					1,
-					10,
-					9,
-					0,
-					0,
-					0,
-					ZoneOffset.UTC);
-
 	final OffsetDateTime HAPPY_START =
 			OffsetDateTime.of(
 					2030,

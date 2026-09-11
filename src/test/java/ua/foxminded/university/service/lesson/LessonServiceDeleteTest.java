@@ -15,6 +15,7 @@ import org.springframework.test.context.jdbc.Sql;
 import org.springframework.test.context.jdbc.SqlMergeMode;
 
 import jakarta.persistence.EntityNotFoundException;
+import ua.foxminded.university.TestClockConfig;
 import ua.foxminded.university.TestcontainersConfiguration;
 import ua.foxminded.university.model.persistence.lesson.LessonRepository;
 
@@ -22,7 +23,7 @@ import ua.foxminded.university.model.persistence.lesson.LessonRepository;
 @ActiveProfiles("test")
 @Import({
 		TestcontainersConfiguration.class,
-		LessonServiceTestConfig.class
+		TestClockConfig.class
 })
 @SqlMergeMode(SqlMergeMode.MergeMode.MERGE)
 @Sql(

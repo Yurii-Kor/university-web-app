@@ -9,6 +9,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Set;
 
@@ -29,9 +30,13 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
 import ua.foxminded.university.model.persistence.course.projection.CourseCardView;
+import ua.foxminded.university.model.persistence.lesson.projection.OverlapHit;
 import ua.foxminded.university.service.course.CourseService;
 import ua.foxminded.university.service.course.dto.CourseDescriptionUpdateDto;
 import ua.foxminded.university.service.course.dto.CourseSelfUpdateDto;
+import ua.foxminded.university.service.course.exception.CourseTeacherReassignmentException;
+import ua.foxminded.university.service.course.exception.LessonTeacherReassignmentConflict;
+import ua.foxminded.university.service.course.exception.TeacherSummary;
 import ua.foxminded.university.service.teacher.TeacherService;
 import ua.foxminded.university.service.util.validation.ContextConstraintViolationException;
 import ua.foxminded.university.web.course.page.CoursesPageModel;
@@ -318,5 +323,109 @@ class CoursesManagementControllerWebMvcTest {
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/courses"))
                 .andExpect(flash().attribute("err", "Course not found: id=" + COURSE_ID));
+    }
+    
+    @Test
+    @DisplayName("POST /courses/self/update when teacher reassignment conflicts -> redirects same page and targets course card")
+    void postUpdateSelf_teacherReassignmentConflict_redirectsAndSetsFlash()
+            throws Exception {
+
+        var currentTeacher =
+                new TeacherSummary(
+                        1L,
+                        "Ada",
+                        "Lovelace",
+                        "ada@example.com");
+
+        var targetTeacher =
+                new TeacherSummary(
+                        5L,
+                        "Alan",
+                        "Turing",
+                        "alan@example.com");
+
+        var requestedStart =
+                OffsetDateTime.parse(
+                        "2030-01-11T10:00:00Z");
+
+        var requestedEnd =
+                OffsetDateTime.parse(
+                        "2030-01-11T11:00:00Z");
+
+        var overlap =
+                new OverlapHit(
+                        7001L,
+                        2002L,
+                        3003L,
+                        5L,
+                        OffsetDateTime.parse(
+                                "2030-01-11T10:30:00Z"),
+                        OffsetDateTime.parse(
+                                "2030-01-11T11:30:00Z"),
+                        "B-202");
+
+        var conflict =
+                new LessonTeacherReassignmentConflict(
+                        6001L,
+                        2001L,
+                        requestedStart,
+                        requestedEnd,
+                        "A-101",
+                        List.of(overlap));
+
+        var exception =
+                new CourseTeacherReassignmentException(
+                        COURSE_ID,
+                        "CS-999",
+                        "Algorithms",
+                        currentTeacher,
+                        targetTeacher,
+                        List.of(conflict));
+
+        doThrow(exception)
+                .when(courseService)
+                .updateSelf(any());
+
+        mockMvc.perform(
+                post("/courses/self/update")
+                        .with(user(USER_ID.toString())
+                                .roles("ADMIN"))
+                        .with(csrf())
+                        .param(
+                                "id",
+                                COURSE_ID.toString())
+                        .param(
+                                "teacherId",
+                                "5")
+                        .param(
+                                "page",
+                                "2"))
+                .andExpect(
+                        status().is3xxRedirection())
+                .andExpect(
+                        redirectedUrl(
+                                "/courses?page=2"))
+                .andExpect(
+                        flash().attribute(
+                                "courseId",
+                                COURSE_ID))
+                .andExpect(
+                        flash().attribute(
+                                "err",
+                                "Teacher change was not applied. "
+                                        + "Alan Turing (alan@example.com) "
+                                        + "has schedule conflicts with 1 future course lesson(s)."))
+                .andExpect(
+                        flash().attribute(
+                                "teacherReassignmentError",
+                                exception));
+
+        verify(courseService)
+                .updateSelf(
+                        new CourseSelfUpdateDto(
+                                COURSE_ID,
+                                null,
+                                null,
+                                5L));
     }
 }

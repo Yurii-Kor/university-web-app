@@ -14,13 +14,14 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.jdbc.Sql;
 import org.springframework.test.context.jdbc.SqlMergeMode;
 
+import ua.foxminded.university.TestClockConfig;
 import ua.foxminded.university.TestcontainersConfiguration;
 
 @SpringBootTest
 @ActiveProfiles("test")
 @Import({
         TestcontainersConfiguration.class,
-        LessonServiceTestConfig.class
+        TestClockConfig.class
 })
 @SqlMergeMode(SqlMergeMode.MergeMode.MERGE)
 @Sql(

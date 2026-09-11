@@ -18,82 +18,100 @@ import ua.foxminded.university.service.lesson.exception.ScheduleConflictExceptio
 @RequiredArgsConstructor
 public class LessonConflictChecker {
 
-    private static final Logger log = LoggerFactory.getLogger(LessonConflictChecker.class);
+	private static final Logger log =
+			LoggerFactory.getLogger(LessonConflictChecker.class);
 
-    private final LessonRepository lessonRepository;
+	private final LessonRepository lessonRepository;
 
-    public void assertNoConflicts(Lesson lesson, long teacherId) {
-        assertNoConflicts(lesson, teacherId, null);
-    }
+	public void assertNoConflicts(
+			Lesson lesson,
+			long teacherId) {
 
-    public void assertNoConflicts(
-            Lesson lesson,
-            long teacherId,
-            Long excludedLessonId) {
+		assertNoConflicts(
+				lesson,
+				teacherId,
+				null);
+	}
 
-        var startTime = lesson.getStartTime();
-        var endTime = lesson.getEndTime();
-        var groupId = lesson.getGroup().getId();
+	public void assertNoConflicts(
+			Lesson lesson,
+			long teacherId,
+			Long excludedLessonId) {
 
-        var groupConflicts =
-                excludeLesson(
-                        lessonRepository.findGroupOverlaps(
-                                groupId,
-                                startTime,
-                                endTime),
-                        excludedLessonId);
+		var startTime = lesson.getStartTime();
+		var endTime = lesson.getEndTime();
+		var groupId = lesson.getGroup().getId();
 
-        var teacherConflicts =
-                excludeLesson(
-                        lessonRepository.findTeacherOverlaps(
-                                teacherId,
-                                startTime,
-                                endTime),
-                        excludedLessonId);
+		var groupConflicts =
+				excludeLesson(
+						lessonRepository.findGroupOverlaps(
+								groupId,
+								startTime,
+								endTime),
+						excludedLessonId);
 
-        var roomConflicts =
-                excludeLesson(
-                        lessonRepository.findRoomOverlaps(
-                                lesson.getRoom(),
-                                startTime,
-                                endTime),
-                        excludedLessonId);
+		var teacherConflicts =
+				findTeacherConflicts(
+						lesson,
+						teacherId,
+						excludedLessonId);
 
-        if (groupConflicts.isEmpty()
-                && teacherConflicts.isEmpty()
-                && roomConflicts.isEmpty()) {
+		var roomConflicts =
+				excludeLesson(
+						lessonRepository.findRoomOverlaps(
+								lesson.getRoom(),
+								startTime,
+								endTime),
+						excludedLessonId);
 
-            return;
-        }
+		if (groupConflicts.isEmpty()
+				&& teacherConflicts.isEmpty()
+				&& roomConflicts.isEmpty()) {
 
-        log.warn(
-                "Lesson schedule conflict: group={}, teacher={}, room={}",
-                groupConflicts.size(),
-                teacherConflicts.size(),
-                roomConflicts.size());
+			return;
+		}
 
-        throw new ScheduleConflictException(
-                RequestedSlot.from(
-                        lesson,
-                        teacherId),
-                groupConflicts,
-                teacherConflicts,
-                roomConflicts);
-    }
+		log.warn(
+				"Lesson schedule conflict: group={}, teacher={}, room={}",
+				groupConflicts.size(),
+				teacherConflicts.size(),
+				roomConflicts.size());
 
-    private List<OverlapHit> excludeLesson(
-            List<OverlapHit> conflicts,
-            Long excludedLessonId) {
+		throw new ScheduleConflictException(
+				RequestedSlot.from(
+						lesson,
+						teacherId),
+				groupConflicts,
+				teacherConflicts,
+				roomConflicts);
+	}
 
-        if (excludedLessonId == null) {
-            return conflicts;
-        }
+	public List<OverlapHit> findTeacherConflicts(
+			Lesson lesson,
+			long teacherId,
+			Long excludedLessonId) {
 
-        return conflicts.stream()
-                .filter(conflict ->
-                        !Objects.equals(
-                                conflict.entryId(),
-                                excludedLessonId))
-                .toList();
-    }
+		return excludeLesson(
+				lessonRepository.findTeacherOverlaps(
+						teacherId,
+						lesson.getStartTime(),
+						lesson.getEndTime()),
+				excludedLessonId);
+	}
+
+	private List<OverlapHit> excludeLesson(
+			List<OverlapHit> conflicts,
+			Long excludedLessonId) {
+
+		if (excludedLessonId == null) {
+			return conflicts;
+		}
+
+		return conflicts.stream()
+				.filter(conflict ->
+						!Objects.equals(
+								conflict.entryId(),
+								excludedLessonId))
+				.toList();
+	}
 }

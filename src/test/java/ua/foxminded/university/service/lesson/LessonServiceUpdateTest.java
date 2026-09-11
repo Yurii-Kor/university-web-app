@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static ua.foxminded.university.service.lesson.LessonServiceTestConstants.*;
+import static ua.foxminded.university.TestClockConfig.TEST_NOW;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -16,6 +17,7 @@ import org.springframework.test.context.jdbc.Sql;
 import org.springframework.test.context.jdbc.SqlMergeMode;
 
 import jakarta.persistence.EntityNotFoundException;
+import ua.foxminded.university.TestClockConfig;
 import ua.foxminded.university.TestcontainersConfiguration;
 import ua.foxminded.university.model.domain.Lesson;
 import ua.foxminded.university.model.persistence.lesson.LessonRepository;
@@ -26,7 +28,7 @@ import ua.foxminded.university.service.lesson.exception.ScheduleConflictExceptio
 @ActiveProfiles("test")
 @Import({
 		TestcontainersConfiguration.class,
-		LessonServiceTestConfig.class
+		TestClockConfig.class
 })
 @SqlMergeMode(SqlMergeMode.MergeMode.MERGE)
 @Sql(
