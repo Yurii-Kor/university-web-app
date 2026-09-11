@@ -1,37 +1,37 @@
 package ua.foxminded.university.service.lesson.dto;
 
-import jakarta.validation.constraints.*;
-import ua.foxminded.university.model.domain.enums.LessonType;
-
 import static ua.foxminded.university.service.util.validation.ValidationConstants.*;
 
 import java.time.OffsetDateTime;
 
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
+import ua.foxminded.university.model.domain.enums.LessonType;
+
 public record LessonCreateDto(
-        @NotNull
-        Long teacherId,
+		@NotNull
+		Long courseId,
 
-        @NotNull
-        Long courseId,
+		@NotNull
+		Long groupId,
 
-        @NotNull
-        Long groupId,
+		@NotNull
+		OffsetDateTime startTime,
 
-        @NotNull
-        OffsetDateTime startTime,
+		@NotNull
+		OffsetDateTime endTime,
 
-        @NotNull
-        OffsetDateTime endTime,
+		@NotBlank
+		@Size(max = ROOM_MAX)
+		@Pattern(
+				regexp = ROOM_CODE_REGEX,
+				message = ROOM_MESSAGE
+		)
+		String room,
 
-        @NotBlank
-        @Size(max = ROOM_MAX)
-        @Pattern(
-            regexp = ROOM_CODE_REGEX,
-            message = ROOM_MESSAGE
-        )
-        String room,
+		LessonType lessonType,
 
-        LessonType lessonType,
-
-        String description
+		String description
 ) {}
