@@ -2,20 +2,17 @@ package ua.foxminded.university.web.course;
 
 import java.util.Optional;
 
-import jakarta.persistence.EntityNotFoundException;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.validation.ConstraintViolationException;
-import lombok.RequiredArgsConstructor;
-
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
+import jakarta.persistence.EntityNotFoundException;
+import jakarta.servlet.http.HttpServletRequest;
+import lombok.RequiredArgsConstructor;
 import ua.foxminded.university.service.course.dto.CourseSelfUpdateDto;
 import ua.foxminded.university.service.course.exception.CourseSelfUpdateException;
 import ua.foxminded.university.service.course.exception.CourseTeacherReassignmentException;
-import ua.foxminded.university.service.util.validation.ContextConstraintViolationException;
 import ua.foxminded.university.web.util.ExceptionMessageReader;
 
 @ControllerAdvice(assignableTypes = CoursesManagementController.class)
@@ -36,26 +33,29 @@ public class CoursesManagementExceptionHandler {
 
 		ra.addFlashAttribute(
 				"err",
-				buildTeacherReassignmentMessage(ex));
+				buildTeacherReassignmentMessage(
+						ex));
 
 		ra.addFlashAttribute(
 				"teacherReassignmentError",
 				ex);
 
-		return redirectToCoursesPage(request);
+		return redirectToCoursesPage(
+				request);
 	}
 
 	@ExceptionHandler(CourseSelfUpdateException.class)
 	public String handleSelfUpdate(
 			CourseSelfUpdateException ex,
+			HttpServletRequest request,
 			RedirectAttributes ra) {
 
-		Optional.ofNullable(ex.getForm())
-				.map(CourseSelfUpdateDto::id)
-				.ifPresent(id ->
-						ra.addFlashAttribute(
-								"courseId",
-								id));
+		Optional.ofNullable(
+				ex.getForm())
+				.ifPresent(form ->
+						addSelfUpdateErrorAttributes(
+								form,
+								ra));
 
 		ra.addFlashAttribute(
 				"err",
@@ -63,27 +63,8 @@ public class CoursesManagementExceptionHandler {
 						ex,
 						"Invalid input."));
 
-		return "redirect:/courses";
-	}
-
-	@ExceptionHandler(ConstraintViolationException.class)
-	public String handleValidation(
-			ConstraintViolationException ex,
-			RedirectAttributes ra) {
-
-		if (ex instanceof ContextConstraintViolationException ctx) {
-			ctx.entityId()
-					.ifPresent(id ->
-							ra.addFlashAttribute(
-									"courseId",
-									id));
-		}
-
-		ra.addFlashAttribute(
-				"err",
-				messageReader.formatViolations(ex));
-
-		return "redirect:/courses";
+		return redirectToCoursesPage(
+				request);
 	}
 
 	@ExceptionHandler({
@@ -139,6 +120,30 @@ public class CoursesManagementExceptionHandler {
 				"Something went wrong.");
 
 		return "redirect:/courses";
+	}
+
+	private void addSelfUpdateErrorAttributes(
+			CourseSelfUpdateDto form,
+			RedirectAttributes ra) {
+
+		Optional.ofNullable(
+				form.id())
+				.ifPresent(id ->
+						ra.addFlashAttribute(
+								"courseId",
+								id));
+
+		ra.addFlashAttribute(
+				"requestedCode",
+				form.code());
+
+		ra.addFlashAttribute(
+				"requestedName",
+				form.name());
+
+		ra.addFlashAttribute(
+				"requestedTeacherId",
+				form.teacherId());
 	}
 
 	private String buildTeacherReassignmentMessage(

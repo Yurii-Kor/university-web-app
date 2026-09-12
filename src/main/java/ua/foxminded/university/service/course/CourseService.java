@@ -1,15 +1,23 @@
 package ua.foxminded.university.service.course;
 
-import jakarta.persistence.EntityNotFoundException;
-import jakarta.transaction.Transactional;
-import jakarta.transaction.Transactional.TxType;
-import lombok.RequiredArgsConstructor;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.stream.Collectors;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
+import jakarta.persistence.EntityNotFoundException;
+import jakarta.transaction.Transactional;
+import jakarta.transaction.Transactional.TxType;
+import lombok.RequiredArgsConstructor;
 import ua.foxminded.university.model.domain.Course;
 import ua.foxminded.university.model.domain.StudyGroup;
 import ua.foxminded.university.model.persistence.course.CourseRepository;
@@ -24,11 +32,7 @@ import ua.foxminded.university.service.course.dto.CourseSelfUpdateDto;
 import ua.foxminded.university.service.course.exception.CourseCreateException;
 import ua.foxminded.university.service.course.exception.CourseSelfUpdateException;
 import ua.foxminded.university.service.lesson.LessonTeacherReassignment;
-import ua.foxminded.university.service.util.validation.EntityValidatior;
 import ua.foxminded.university.service.util.DtoMapper;
-
-import java.util.*;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -41,12 +45,10 @@ public class CourseService {
 	private final TeacherRepository teacherRepository;
 	private final StudyGroupRepository groupRepository;
 	private final LessonTeacherReassignment lessonTeacherReassignment;
-	private final EntityValidatior validator;
 	private final DtoMapper mapper;
 
 	@Transactional(value = TxType.REQUIRES_NEW)
 	public Course create(CourseCreateDto draft) {
-		validator.validate(draft);
 
 		if (courseRepository.existsByCodeIgnoreCase(draft.code())) {
 			throw new CourseCreateException(
@@ -135,13 +137,6 @@ public class CourseService {
 
 	@Transactional(value = TxType.REQUIRES_NEW)
 	public Course updateSelf(CourseSelfUpdateDto patch) {
-		Optional.ofNullable(patch)
-				.orElseThrow(() ->
-						new IllegalArgumentException(
-								"patch must not be null"));
-
-		validator.validateWithId(patch,	patch.id());
-
 		var managed = courseRepository.findById(patch.id())
 				.orElseThrow(() ->
 						new EntityNotFoundException(
@@ -160,10 +155,6 @@ public class CourseService {
 
 	@Transactional(value = TxType.REQUIRES_NEW)
 	public Course updateDescription(CourseDescriptionUpdateDto patch) {
-		validator.validateWithId(
-				patch,
-				patch.id());
-
 		var managed = courseRepository.findById(patch.id())
 				.orElseThrow(() ->
 						new EntityNotFoundException(
@@ -171,9 +162,11 @@ public class CourseService {
 
 		Optional.ofNullable(patch.description())
 				.map(String::trim)
-				.ifPresent(desc ->
+				.ifPresent(description ->
 						managed.setDescription(
-								desc.isEmpty() ? null : desc));
+								description.isEmpty()
+										? null
+										: description));
 
 		log.debug(
 				"updateDescription: updated description for courseId={}",
@@ -212,8 +205,7 @@ public class CourseService {
 			return Optional.empty();
 		}
 
-		groups.add(
-				groupRepository.getReferenceById(groupId));
+		groups.add(groupRepository.getReferenceById(groupId));
 
 		log.debug(
 				"addGroupToCourse: attached group (courseId={}, groupId={})",

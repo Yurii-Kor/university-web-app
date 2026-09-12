@@ -6,7 +6,6 @@ import static ua.foxminded.university.service.course.CourseServiceTestConstants.
 import java.util.List;
 
 import jakarta.persistence.EntityNotFoundException;
-import jakarta.validation.ConstraintViolationException;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -25,12 +24,12 @@ import ua.foxminded.university.service.course.dto.CourseDescriptionUpdateDto;
 @Import(TestcontainersConfiguration.class)
 @SqlMergeMode(SqlMergeMode.MergeMode.MERGE)
 @Sql(
-	scripts = "/sql/course/course-service-base.sql",
-	executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD
+		scripts = "/sql/course/course-service-base.sql",
+		executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD
 )
 @Sql(
-	scripts = "/sql/cleanup-database.sql",
-	executionPhase = Sql.ExecutionPhase.AFTER_TEST_METHOD
+		scripts = "/sql/cleanup-database.sql",
+		executionPhase = Sql.ExecutionPhase.AFTER_TEST_METHOD
 )
 class CourseServiceUpdateDescriptionTest {
 
@@ -44,10 +43,12 @@ class CourseServiceUpdateDescriptionTest {
 				COURSE_SECURITY_ID,
 				DESC_A);
 
-		courseService.updateDescription(dto);
+		courseService.updateDescription(
+				dto);
 
 		var reloaded = courseService.findByIds(
-				List.of(COURSE_SECURITY_ID))
+				List.of(
+						COURSE_SECURITY_ID))
 				.getFirst();
 
 		assertEquals(
@@ -69,7 +70,8 @@ class CourseServiceUpdateDescriptionTest {
 						DESC_BLANK));
 
 		var reloaded = courseService.findByIds(
-				List.of(COURSE_SECURITY_ID))
+				List.of(
+						COURSE_SECURITY_ID))
 				.getFirst();
 
 		assertNull(
@@ -91,25 +93,14 @@ class CourseServiceUpdateDescriptionTest {
 						null));
 
 		var reloaded = courseService.findByIds(
-				List.of(COURSE_SECURITY_ID))
+				List.of(
+						COURSE_SECURITY_ID))
 				.getFirst();
 
 		assertEquals(
 				"Existing",
 				reloaded.getDescription(),
 				"Null description must not change existing value");
-	}
-
-	@Test
-	@DisplayName("updateDescription: null id -> ConstraintViolationException")
-	void updateDescription_nullId_fails() {
-		var dto = new CourseDescriptionUpdateDto(
-				null,
-				"abc");
-
-		assertThrows(
-				ConstraintViolationException.class,
-				() -> courseService.updateDescription(dto));
 	}
 
 	@Test
@@ -121,18 +112,7 @@ class CourseServiceUpdateDescriptionTest {
 
 		assertThrows(
 				EntityNotFoundException.class,
-				() -> courseService.updateDescription(dto));
-	}
-
-	@Test
-	@DisplayName("updateDescription: too long -> ConstraintViolationException")
-	void updateDescription_tooLong_fails() {
-		var dto = new CourseDescriptionUpdateDto(
-				COURSE_SECURITY_ID,
-				"A".repeat(10_001));
-
-		assertThrows(
-				ConstraintViolationException.class,
-				() -> courseService.updateDescription(dto));
+				() -> courseService.updateDescription(
+						dto));
 	}
 }

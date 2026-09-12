@@ -3,8 +3,6 @@ package ua.foxminded.university.service.course;
 import static org.junit.jupiter.api.Assertions.*;
 import static ua.foxminded.university.service.course.CourseServiceTestConstants.*;
 
-import jakarta.validation.ConstraintViolationException;
-
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -23,12 +21,12 @@ import ua.foxminded.university.service.course.exception.CourseCreateException;
 @Import(TestcontainersConfiguration.class)
 @SqlMergeMode(SqlMergeMode.MergeMode.MERGE)
 @Sql(
-	scripts = "/sql/course/course-service-base.sql",
-	executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD
+		scripts = "/sql/course/course-service-base.sql",
+		executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD
 )
 @Sql(
-	scripts = "/sql/cleanup-database.sql",
-	executionPhase = Sql.ExecutionPhase.AFTER_TEST_METHOD
+		scripts = "/sql/cleanup-database.sql",
+		executionPhase = Sql.ExecutionPhase.AFTER_TEST_METHOD
 )
 class CourseServiceCreateTest {
 
@@ -44,42 +42,24 @@ class CourseServiceCreateTest {
 				DESC_A,
 				TEST_TEACHER_ID);
 
-		var createdCourse = courseService.create(dto);
+		var createdCourse = courseService.create(
+				dto);
 
-		assertNotNull(createdCourse.getId());
-		assertEquals(CODE_ALG_UPPER, createdCourse.getCode());
-		assertEquals(COURSE_ALG.trim(), createdCourse.getName());
+		assertNotNull(
+				createdCourse.getId());
+
+		assertEquals(
+				CODE_ALG_UPPER,
+				createdCourse.getCode());
+
+		assertEquals(
+				COURSE_ALG.trim(),
+				createdCourse.getName());
+
 		assertEquals(
 				TEST_TEACHER_ID,
-				createdCourse.getTeacher().getId());
-	}
-
-	@Test
-	@DisplayName("create: invalid code pattern (DTO) -> ConstraintViolationException")
-	void create_badCode_fails() {
-		var dto = new CourseCreateDto(
-				BAD_CODE,
-				COURSE_ALG,
-				null,
-				TEST_TEACHER_ID);
-
-		assertThrows(
-				ConstraintViolationException.class,
-				() -> courseService.create(dto));
-	}
-
-	@Test
-	@DisplayName("create: null teacherId in DTO -> ConstraintViolationException")
-	void create_nullTeacher_fails() {
-		var dto = new CourseCreateDto(
-				CODE_ALG_UPPER,
-				COURSE_SECURITY,
-				null,
-				null);
-
-		assertThrows(
-				ConstraintViolationException.class,
-				() -> courseService.create(dto));
+				createdCourse.getTeacher()
+						.getId());
 	}
 
 	@Test
@@ -93,7 +73,8 @@ class CourseServiceCreateTest {
 
 		assertThrows(
 				CourseCreateException.class,
-				() -> courseService.create(dto));
+				() -> courseService.create(
+						dto));
 	}
 
 	@Test
@@ -107,7 +88,8 @@ class CourseServiceCreateTest {
 
 		assertThrows(
 				CourseCreateException.class,
-				() -> courseService.create(dto));
+				() -> courseService.create(
+						dto));
 	}
 
 	@Test
@@ -121,6 +103,7 @@ class CourseServiceCreateTest {
 
 		assertThrows(
 				CourseCreateException.class,
-				() -> courseService.create(dto));
+				() -> courseService.create(
+						dto));
 	}
 }
