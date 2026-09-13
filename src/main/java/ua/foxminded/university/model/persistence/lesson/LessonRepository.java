@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import ua.foxminded.university.model.domain.Lesson;
+import ua.foxminded.university.model.persistence.lesson.projection.LessonScheduleItemView;
 import ua.foxminded.university.model.persistence.lesson.projection.OverlapHit;
 
 public interface LessonRepository extends JpaRepository<Lesson, Long> {
@@ -47,6 +48,70 @@ public interface LessonRepository extends JpaRepository<Lesson, Long> {
 			order by l.startTime, l.id
 			""")
 	List<Lesson> findTeacherSchedule(
+			@Param("teacherId") Long teacherId,
+			@Param("from") OffsetDateTime from,
+			@Param("to") OffsetDateTime to);
+
+	@Query("""
+			select new ua.foxminded.university.model.persistence.lesson.projection.LessonScheduleItemView(
+				l.id,
+				c.id,
+				c.code,
+				c.name,
+				g.id,
+				g.name,
+				t.id,
+				u.firstName,
+				u.lastName,
+				l.startTime,
+				l.endTime,
+				l.room,
+				l.lessonType,
+				l.description
+			)
+			from Lesson l
+			join l.course c
+			join l.group g
+			join l.assignedTeacher t
+			join t.user u
+			where g.id = :groupId
+			  and l.startTime >= :from
+			  and l.startTime < :to
+			order by l.startTime, l.id
+			""")
+	List<LessonScheduleItemView> findGroupScheduleItems(
+			@Param("groupId") Long groupId,
+			@Param("from") OffsetDateTime from,
+			@Param("to") OffsetDateTime to);
+
+	@Query("""
+			select new ua.foxminded.university.model.persistence.lesson.projection.LessonScheduleItemView(
+				l.id,
+				c.id,
+				c.code,
+				c.name,
+				g.id,
+				g.name,
+				t.id,
+				u.firstName,
+				u.lastName,
+				l.startTime,
+				l.endTime,
+				l.room,
+				l.lessonType,
+				l.description
+			)
+			from Lesson l
+			join l.course c
+			join l.group g
+			join l.assignedTeacher t
+			join t.user u
+			where t.id = :teacherId
+			  and l.startTime >= :from
+			  and l.startTime < :to
+			order by l.startTime, l.id
+			""")
+	List<LessonScheduleItemView> findTeacherScheduleItems(
 			@Param("teacherId") Long teacherId,
 			@Param("from") OffsetDateTime from,
 			@Param("to") OffsetDateTime to);

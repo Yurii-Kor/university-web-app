@@ -4,8 +4,8 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -28,47 +28,40 @@ import ua.foxminded.university.service.util.validation.config.ValidatorConfig;
 @ContextConfiguration(classes = { ValidatorConfig.class })
 class LessonUpdateDtoValidatorTest {
 
-	private static final OffsetDateTime NOW =
-			OffsetDateTime.of(
-					2025,
-					1,
-					10,
-					10,
-					0,
-					0,
-					0,
-					ZoneOffset.UTC);
+	private static final LocalDate DATE =
+			LocalDate.of(2030, 1, 11);
 
-	private static final OffsetDateTime PLUS_1H =
-			NOW.plusHours(1);
+	private static final LocalTime START_TIME =
+			LocalTime.of(10, 0);
 
-	private static final Long CID = 10L;
-	private static final Long GID = 20L;
+	private static final LocalTime END_TIME =
+			LocalTime.of(11, 0);
 
 	private static final String ROOM_VALID = "B-105";
 	private static final String ROOM_LOWER = "b-105";
 	private static final String ROOM_EMPTY = "";
 	private static final String ROOM_SPACED = "B-105 ";
 
+	private static final LessonType TYPE =
+			LessonType.LAB;
+
 	@Autowired
 	private Validator validator;
 
 	@ParameterizedTest(
-			name = "[{index}] valid -> c={0}, g={1}, start={2}, end={3}, room=\"{4}\", type={5}, desc={6}")
+			name = "[{index}] valid -> date={0}, start={1}, end={2}, room=\"{3}\", type={4}, desc={5}")
 	@MethodSource("validCases")
 	@DisplayName("LessonUpdateDto: valid payloads produce no violations")
 	void validate_validCases_noViolations(
-			Long courseId,
-			Long groupId,
-			OffsetDateTime startTime,
-			OffsetDateTime endTime,
+			LocalDate date,
+			LocalTime startTime,
+			LocalTime endTime,
 			String room,
 			LessonType lessonType,
 			String description) {
 
 		var dto = new LessonUpdateDto(
-				courseId,
-				groupId,
+				date,
 				startTime,
 				endTime,
 				room,
@@ -80,107 +73,61 @@ class LessonUpdateDtoValidatorTest {
 
 		assertTrue(
 				violations.isEmpty(),
-				"Expected no violations, but got: " + violations);
+				"Expected no violations, but got: "
+						+ violations);
 	}
 
 	static Stream<Arguments> validCases() {
 		return Stream.of(
 				Arguments.of(
-						null,
-						null,
-						null,
-						null,
-						null,
-						null,
-						null),
-				Arguments.of(
-						CID,
-						null,
-						null,
-						null,
-						null,
-						null,
-						null),
-				Arguments.of(
-						null,
-						GID,
-						null,
-						null,
-						null,
-						null,
-						null),
-				Arguments.of(
-						null,
-						null,
-						NOW,
-						null,
-						null,
-						null,
-						null),
-				Arguments.of(
-						null,
-						null,
-						null,
-						PLUS_1H,
-						null,
-						null,
-						null),
-				Arguments.of(
-						null,
-						null,
-						PLUS_1H,
-						NOW,
-						null,
-						null,
-						null),
-				Arguments.of(
-						null,
-						null,
-						null,
-						null,
+						DATE,
+						START_TIME,
+						END_TIME,
 						ROOM_VALID,
-						null,
+						TYPE,
 						null),
 				Arguments.of(
-						null,
-						null,
-						null,
-						null,
-						null,
-						LessonType.LAB,
-						null),
+						DATE,
+						START_TIME,
+						END_TIME,
+						ROOM_VALID,
+						TYPE,
+						"note"),
 				Arguments.of(
-						null,
-						null,
-						null,
-						null,
-						null,
-						null,
-						"note"));
+						DATE,
+						START_TIME,
+						END_TIME,
+						ROOM_VALID,
+						TYPE,
+						"   "),
+				Arguments.of(
+						DATE,
+						END_TIME,
+						START_TIME,
+						ROOM_VALID,
+						TYPE,
+						"policy validates time order"));
 	}
 
 	@ParameterizedTest(
-			name = "[{index}] invalid -> room=\"{4}\" -> field={7}")
+			name = "[{index}] invalid -> date={0}, start={1}, end={2}, room=\"{3}\", type={4} -> field={5}")
 	@MethodSource("invalidCases")
 	@DisplayName("LessonUpdateDto: invalid payloads produce violations on expected field")
 	void validate_invalidCases_violationOnExpectedField(
-			Long courseId,
-			Long groupId,
-			OffsetDateTime startTime,
-			OffsetDateTime endTime,
+			LocalDate date,
+			LocalTime startTime,
+			LocalTime endTime,
 			String room,
 			LessonType lessonType,
-			String description,
 			String expectedField) {
 
 		var dto = new LessonUpdateDto(
-				courseId,
-				groupId,
+				date,
 				startTime,
 				endTime,
 				room,
 				lessonType,
-				description);
+				null);
 
 		Set<ConstraintViolation<LessonUpdateDto>> violations =
 				validator.validate(dto);
@@ -198,18 +145,9 @@ class LessonUpdateDtoValidatorTest {
 				.collect(Collectors.toSet());
 
 		assertEquals(
-				1,
-				fields.size(),
-				"Expected violations only for field '"
-						+ expectedField
-						+ "', but got fields: "
-						+ fields);
-
-		assertEquals(
-				expectedField,
-				fields.iterator()
-						.next(),
-				"Violations must be on field '"
+				Set.of(expectedField),
+				fields,
+				"Violations must only be on field '"
 						+ expectedField
 						+ "'");
 	}
@@ -218,30 +156,59 @@ class LessonUpdateDtoValidatorTest {
 		return Stream.of(
 				Arguments.of(
 						null,
+						START_TIME,
+						END_TIME,
+						ROOM_VALID,
+						TYPE,
+						"date"),
+				Arguments.of(
+						DATE,
 						null,
+						END_TIME,
+						ROOM_VALID,
+						TYPE,
+						"startTime"),
+				Arguments.of(
+						DATE,
+						START_TIME,
 						null,
+						ROOM_VALID,
+						TYPE,
+						"endTime"),
+				Arguments.of(
+						DATE,
+						START_TIME,
+						END_TIME,
 						null,
+						TYPE,
+						"room"),
+				Arguments.of(
+						DATE,
+						START_TIME,
+						END_TIME,
 						ROOM_EMPTY,
-						null,
-						null,
+						TYPE,
 						"room"),
 				Arguments.of(
-						null,
-						null,
-						null,
-						null,
+						DATE,
+						START_TIME,
+						END_TIME,
 						ROOM_LOWER,
-						null,
-						null,
+						TYPE,
 						"room"),
 				Arguments.of(
-						null,
-						null,
-						null,
-						null,
+						DATE,
+						START_TIME,
+						END_TIME,
 						ROOM_SPACED,
+						TYPE,
+						"room"),
+				Arguments.of(
+						DATE,
+						START_TIME,
+						END_TIME,
+						ROOM_VALID,
 						null,
-						null,
-						"room"));
+						"lessonType"));
 	}
 }

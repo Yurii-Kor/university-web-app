@@ -11,17 +11,19 @@ import lombok.RequiredArgsConstructor;
 import ua.foxminded.university.model.domain.Lesson;
 import ua.foxminded.university.model.persistence.lesson.LessonRepository;
 import ua.foxminded.university.model.persistence.lesson.projection.OverlapHit;
-import ua.foxminded.university.service.lesson.exception.RequestedSlot;
 import ua.foxminded.university.service.lesson.exception.ScheduleConflictException;
+import ua.foxminded.university.service.util.DtoMapper;
 
 @Component
 @RequiredArgsConstructor
 public class LessonConflictChecker {
 
 	private static final Logger log =
-			LoggerFactory.getLogger(LessonConflictChecker.class);
+			LoggerFactory.getLogger(
+					LessonConflictChecker.class);
 
 	private final LessonRepository lessonRepository;
+	private final DtoMapper dtoMapper;
 
 	public void assertNoConflicts(
 			Lesson lesson,
@@ -38,7 +40,7 @@ public class LessonConflictChecker {
 			long teacherId,
 			Long excludedLessonId) {
 
-		var startTime = lesson.getStartTime();
+		var startTime =	lesson.getStartTime();
 		var endTime = lesson.getEndTime();
 		var groupId = lesson.getGroup().getId();
 
@@ -77,10 +79,13 @@ public class LessonConflictChecker {
 				teacherConflicts.size(),
 				roomConflicts.size());
 
-		throw new ScheduleConflictException(
-				RequestedSlot.from(
+		var requested =
+				dtoMapper.toRequestedSlot(
 						lesson,
-						teacherId),
+						teacherId);
+
+		throw new ScheduleConflictException(
+				requested,
 				groupConflicts,
 				teacherConflicts,
 				roomConflicts);

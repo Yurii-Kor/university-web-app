@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en"
+      xmlns:th="http://www.thymeleaf.org">
+<body>
+
+<th:block th:fragment="lessonCard(lesson, showTeacherInfo, showGroupInfo)">
+
+  <section class="lesson-card">
+
+    <div class="lesson-card__top">
+
+      <div class="lesson-card__time">
+        <time th:datetime="${lesson.startTime}"
+              th:text="${#temporals.format(lesson.startTime, 'HH:mm')}">
+          09:00
+        </time>
+
+        <span aria-hidden="true">–</span>
+
+        <time th:datetime="${lesson.endTime}"
+              th:text="${#temporals.format(lesson.endTime, 'HH:mm')}">
+          10:30
+        </time>
+      </div>
+
+      <span class="lesson-card__type"
+            th:text="${#strings.replace(lesson.lessonType.name(), '_', ' ')}">
+        LECTURE
+      </span>
+
+    </div>
+
+    <div class="lesson-card__course">
+
+      <span class="lesson-card__course-code"
+            th:text="${lesson.courseCode}">
+        CS-101
+      </span>
+
+      <span class="lesson-card__course-name"
+            th:text="${lesson.courseName}">
+        Java Programming
+      </span>
+
+    </div>
+
+    <dl class="lesson-card__details">
+
+      <th:block th:if="${showGroupInfo}">
+        <dt>Group</dt>
+        <dd th:text="${lesson.groupName}">
+          SE-21
+        </dd>
+      </th:block>
+
+      <th:block th:if="${showTeacherInfo}">
+        <dt>Teacher</dt>
+        <dd th:text="|${lesson.teacherFirstName} ${lesson.teacherLastName}|">
+          Ada Lovelace
+        </dd>
+      </th:block>
+
+      <dt>Room</dt>
+      <dd th:text="${lesson.room}">
+        A-101
+      </dd>
+
+    </dl>
+
+    <details class="lesson-card__description"
+             th:if="${lesson.description != null and !lesson.description.isBlank()}">
+
+      <summary class="lesson-card__description-summary">
+        Description
+      </summary>
+
+      <p class="lesson-card__description-text"
+         th:text="${lesson.description}">
+        Lesson description.
+      </p>
+
+    </details>
+
+  </section>
+
+</th:block>
+
+</body>
+</html>

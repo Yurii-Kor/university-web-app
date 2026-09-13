@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en"
+      xmlns:th="http://www.thymeleaf.org">
+<body>
+
+<th:block th:fragment="scheduleDayCard(day, showTeacherInfo, showGroupInfo)">
+
+  <article class="schedule-day-card"
+           th:classappend="${day.today} ? ' schedule-day-card--today'">
+
+    <header class="schedule-day-card__header">
+
+      <a class="schedule-day-card__date-link"
+         th:href="@{/schedule/day(date=${day.date})}">
+
+        <span class="schedule-day-card__weekday"
+              th:text="${#strings.toUpperCase(#temporals.format(day.date, 'EEEE'))}">
+          MONDAY
+        </span>
+
+        <span class="schedule-day-card__date"
+              th:text="${#temporals.format(day.date, 'MMM d')}">
+          Sep 9
+        </span>
+
+      </a>
+
+      <span class="ou-badge schedule-day-card__today"
+            th:if="${day.today}">
+        Today
+      </span>
+
+    </header>
+
+    <div class="schedule-day-card__lessons"
+         th:if="${!#lists.isEmpty(day.lessons)}">
+
+      <th:block th:each="lesson : ${day.lessons}">
+
+        <th:block th:replace="~{lessons/cards/lesson-card :: lessonCard(
+            ${lesson},
+            ${showTeacherInfo},
+            ${showGroupInfo}
+        )}">
+        </th:block>
+
+      </th:block>
+
+    </div>
+
+    <div class="schedule-day-card__empty"
+         th:if="${#lists.isEmpty(day.lessons)}">
+
+      <span class="schedule-day-card__empty-mark"
+            aria-hidden="true">
+        —
+      </span>
+
+      <span>No lessons</span>
+
+    </div>
+
+  </article>
+
+</th:block>
+
+</body>
+</html>

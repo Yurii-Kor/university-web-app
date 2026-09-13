@@ -2,15 +2,14 @@ package ua.foxminded.university.service.lesson;
 
 import java.time.Clock;
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 
 import org.springframework.stereotype.Component;
 
 import lombok.RequiredArgsConstructor;
-import ua.foxminded.university.model.domain.Course;
 import ua.foxminded.university.model.domain.Lesson;
-import ua.foxminded.university.model.domain.StudyGroup;
-import ua.foxminded.university.model.domain.Teacher;
 import ua.foxminded.university.model.persistence.course.CourseRepository;
 import ua.foxminded.university.model.persistence.teacher.TeacherRepository;
 
@@ -18,132 +17,255 @@ import ua.foxminded.university.model.persistence.teacher.TeacherRepository;
 @RequiredArgsConstructor
 public class LessonPolicy {
 
-    private final CourseRepository courseRepository;
-    private final TeacherRepository teacherRepository;
-    private final Clock clock;
+	private final CourseRepository courseRepository;
+	private final TeacherRepository teacherRepository;
+	private final Clock clock;
 
-    public void assertCanCreate(Lesson lesson, long teacherId) {
+	public List<LessonPolicyViolation> validateForCreate(
+			Lesson lesson,
+			long teacherId) {
 
-        assertCourseBelongsToTeacher(lesson, teacherId);
-        assertLessonBelongsToTeacher(lesson, teacherId);
-        assertValidScheduledState(lesson);
-    }
+		var violations = new ArrayList<LessonPolicyViolation>();
 
-    public void assertCanModify(Lesson lesson, long teacherId) {
+		validateCourseBelongsToTeacher(
+				lesson,
+				teacherId,
+				"courseId",
+				violations);
 
-        assertLessonBelongsToTeacher(lesson, teacherId);
-        assertLessonIsFuture(lesson, "Only future lessons can be modified.");
-    }
+		validateEndAfterStart(
+				lesson,
+				violations);
 
-    public void assertValidAfterUpdate(Lesson lesson, long teacherId) {
+		validateLessonIsFuture(
+				lesson,
+				"startTime",
+				"Lesson start time must be in the future.",
+				violations);
 
-        assertLessonBelongsToTeacher(lesson, teacherId);
-        assertCourseBelongsToTeacher(lesson, teacherId);
-        assertValidScheduledState(lesson);
-    }
+		validateGroupAttachedToCourse(
+				lesson,
+				"groupId",
+				violations);
 
-    private void assertValidScheduledState(Lesson lesson) {
+		validateRoomIsNotTeacherOffice(
+				lesson,
+				violations);
 
-        assertEndAfterStart(lesson);
-        assertLessonIsFuture(lesson, "Lesson start time must be in the future.");
-        assertGroupAttachedToCourse(lesson);
-        assertRoomIsNotTeacherOffice(lesson);
-    }
+		return List.copyOf(violations);
+	}
 
-    private void assertLessonBelongsToTeacher(Lesson lesson, long teacherId) {
-        var assignedTeacherId = requireAssignedTeacherId(lesson);
+	public List<LessonPolicyViolation> validateCanUpdate(
+			Lesson lesson,
+			long teacherId) {
 
-        if (assignedTeacherId != teacherId) {
-            
-            throw new IllegalStateException("Lesson does not belong to the teacher: lessonId=%d, teacherId=%d"
-                    .formatted(lesson.getId(), teacherId));
-        }
-    }
+		var violations = new ArrayList<LessonPolicyViolation>();
 
-    private void assertCourseBelongsToTeacher(Lesson lesson, long teacherId) {
-        var courseId = requireCourseId(lesson);
+		validateLessonBelongsToTeacher(
+				lesson,
+				teacherId,
+				violations);
 
-        if (!courseRepository.existsByIdAndTeacher_Id(courseId, teacherId)) {
+		validateLessonIsFuture(
+				lesson,
+				null,
+				"Only future lessons can be modified.",
+				violations);
 
-            throw new IllegalStateException(
-                    "Course does not belong to the teacher: courseId=%d, teacherId=%d"
-                        .formatted(courseId, teacherId));
-        }
-    }
+		validateCourseBelongsToTeacher(
+				lesson,
+				teacherId,
+				null,
+				violations);
 
-    private void assertGroupAttachedToCourse(Lesson lesson) {
+		validateGroupAttachedToCourse(
+				lesson,
+				null,
+				violations);
 
-        var courseId = requireCourseId(lesson);
-        var groupId = requireGroupId(lesson);
+		return List.copyOf(violations);
+	}
 
-        if (!courseRepository.existsByIdAndGroups_Id(courseId, groupId)) {
+	public List<LessonPolicyViolation> validateCanModify(
+			Lesson lesson,
+			long teacherId) {
 
-            throw new IllegalStateException(
-                    "Study group is not assigned to the course: groupId=%d, courseId=%d"
-                        .formatted(groupId, courseId));
-        }
-    }
+		var violations = new ArrayList<LessonPolicyViolation>();
 
-    private void assertEndAfterStart(Lesson lesson) {
+		validateLessonBelongsToTeacher(
+				lesson,
+				teacherId,
+				violations);
 
-        var startTime = requireStartTime(lesson);
-        var endTime = requireEndTime(lesson);
+		validateLessonIsFuture(
+				lesson,
+				null,
+				"Only future lessons can be modified.",
+				violations);
 
-        if (!endTime.isAfter(startTime)) {
-            throw new IllegalStateException("Lesson end time must be after start time.");
-        }
-    }
+		return List.copyOf(violations);
+	}
 
-    private void assertLessonIsFuture(Lesson lesson, String message) {
-        var startTime = requireStartTime(lesson);
+	public List<LessonPolicyViolation> validateAfterUpdate(
+			Lesson lesson,
+			long teacherId) {
 
-        if (!startTime.isAfter(OffsetDateTime.now(clock))) {
+		var violations = new ArrayList<LessonPolicyViolation>();
 
-            throw new IllegalStateException(message);
-        }
-    }
+		validateEndAfterStart(
+				lesson,
+				violations);
 
-    private void assertRoomIsNotTeacherOffice(Lesson lesson) {
+		validateLessonIsFuture(
+				lesson,
+				"startTime",
+				"Lesson start time must be in the future.",
+				violations);
 
-        var room = Optional.ofNullable(lesson.getRoom())
-                .filter(value -> !value.isBlank())
-                .orElseThrow(() -> new IllegalStateException("Lesson room must be specified."));
+		validateRoomIsNotTeacherOffice(
+				lesson,
+				violations);
 
-        if (teacherRepository.existsByOfficeIgnoreCase(room)) {
-            throw new IllegalStateException("Room is reserved as a teacher office: room=" + room);
-        }
-    }
+		return List.copyOf(violations);
+	}
 
-    private long requireAssignedTeacherId(Lesson lesson) {
+	private void validateLessonBelongsToTeacher(
+			Lesson lesson,
+			long teacherId,
+			List<LessonPolicyViolation> violations) {
 
-        return Optional.ofNullable(lesson.getAssignedTeacher())
-                .map(Teacher::getId)
-                .orElseThrow(() -> new IllegalStateException("Lesson has no assigned teacher."));
-    }
+		var assignedTeacherId =
+				lesson.getAssignedTeacher().getId();
 
-    private long requireCourseId(Lesson lesson) {
+		if (assignedTeacherId != teacherId) {
+			addViolation(
+					violations,
+					null,
+					"Lesson does not belong to the teacher: lessonId=%d, teacherId=%d"
+							.formatted(
+									lesson.getId(),
+									teacherId));
+		}
+	}
 
-        return Optional.ofNullable(lesson.getCourse())
-                .map(Course::getId)
-                .orElseThrow(() -> new IllegalStateException("Lesson has no course."));
-    }
+	private void validateCourseBelongsToTeacher(
+			Lesson lesson,
+			long teacherId,
+			String field,
+			List<LessonPolicyViolation> violations) {
 
-    private long requireGroupId(Lesson lesson) {
+		var courseId =
+				lesson.getCourse().getId();
 
-        return Optional.ofNullable(lesson.getGroup())
-                .map(StudyGroup::getId)
-                .orElseThrow(() -> new IllegalStateException("Lesson has no study group."));
-    }
+		if (!courseRepository.existsByIdAndTeacher_Id(
+				courseId,
+				teacherId)) {
 
-    private OffsetDateTime requireStartTime(Lesson lesson) {
+			addViolation(
+					violations,
+					field,
+					"Course does not belong to the teacher: courseId=%d, teacherId=%d"
+							.formatted(
+									courseId,
+									teacherId));
+		}
+	}
 
-        return Optional.ofNullable(lesson.getStartTime())
-                .orElseThrow(() -> new IllegalStateException("Lesson start time must be specified."));
-    }
+	private void validateGroupAttachedToCourse(
+			Lesson lesson,
+			String field,
+			List<LessonPolicyViolation> violations) {
 
-    private OffsetDateTime requireEndTime(Lesson lesson) {
+		var courseId =
+				lesson.getCourse().getId();
 
-        return Optional.ofNullable(lesson.getEndTime())
-                .orElseThrow(() -> new IllegalStateException("Lesson end time must be specified."));
-    }
+		var groupId =
+				lesson.getGroup().getId();
+
+		if (!courseRepository.existsByIdAndGroups_Id(
+				courseId,
+				groupId)) {
+
+			addViolation(
+					violations,
+					field,
+					"Study group is not assigned to the course: groupId=%d, courseId=%d"
+							.formatted(
+									groupId,
+									courseId));
+		}
+	}
+
+	private void validateEndAfterStart(
+			Lesson lesson,
+			List<LessonPolicyViolation> violations) {
+
+		var startTime =
+				lesson.getStartTime();
+
+		var endTime =
+				lesson.getEndTime();
+
+		if (!endTime.isAfter(startTime)) {
+			addViolation(
+					violations,
+					"endTime",
+					"Lesson end time must be after start time.");
+		}
+	}
+
+	private void validateLessonIsFuture(
+			Lesson lesson,
+			String field,
+			String message,
+			List<LessonPolicyViolation> violations) {
+
+		if (!lesson.getStartTime()
+				.isAfter(OffsetDateTime.now(clock))) {
+
+			addViolation(
+					violations,
+					field,
+					message);
+		}
+	}
+
+	private void validateRoomIsNotTeacherOffice(
+			Lesson lesson,
+			List<LessonPolicyViolation> violations) {
+
+		var room =
+				Optional.ofNullable(lesson.getRoom())
+						.filter(value -> !value.isBlank());
+
+		if (room.isEmpty()) {
+			addViolation(
+					violations,
+					"room",
+					"Lesson room must be specified.");
+
+			return;
+		}
+
+		if (teacherRepository.existsByOfficeIgnoreCase(
+				room.get())) {
+
+			addViolation(
+					violations,
+					"room",
+					"Room is reserved as a teacher office: room="
+							+ room.get());
+		}
+	}
+
+	private void addViolation(
+			List<LessonPolicyViolation> violations,
+			String field,
+			String message) {
+
+		violations.add(
+				new LessonPolicyViolation(
+						field,
+						message));
+	}
 }

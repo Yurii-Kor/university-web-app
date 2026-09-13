@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en"
+      xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="utf-8" />
+  <title th:text="${page.pageTitle}">Schedule</title>
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1" />
+
+  <link rel="icon"
+        th:href="@{/favicon.ico}"
+        href="/favicon.ico" />
+
+  <link rel="stylesheet"
+        th:href="@{/css/app.css}"
+        href="/css/app.css" />
+
+  <link rel="stylesheet"
+        th:href="@{/css/pages/schedule.css}"
+        href="/css/pages/schedule.css" />
+</head>
+
+<body class="ou-page schedule-page">
+
+<div th:replace="~{fragments/header :: ouHeader('schedule')}"></div>
+
+<main class="schedule-main">
+
+  <section class="ou-card schedule-shell"
+           aria-label="Daily schedule">
+
+    <div class="schedule-toolbar">
+
+      <div>
+        <h1 class="ou-card__title"
+            th:text="${page.pageTitle}">
+          My schedule
+        </h1>
+
+        <p class="schedule-subtitle"
+           th:text="${page.pageSubtitle}">
+          Your schedule.
+        </p>
+      </div>
+
+      <div class="schedule-toolbar__period">
+
+        <span class="schedule-toolbar__period-label">
+          Day
+        </span>
+
+        <strong th:text="${#temporals.format(page.date, 'EEEE, MMM d, yyyy')}">
+          Thursday, Jan 10, 2030
+        </strong>
+        
+        <a class="ou-btn"
+     	  th:if="${page.allowManage}"
+     	  th:href="@{/lessons/create(date=${page.date})}">
+    	  + Create lesson
+  	 	</a>
+
+      </div>
+    </div>
+
+    <nav class="schedule-navigation"
+         aria-label="Schedule day navigation">
+
+      <a class="ou-btn ou-btn--ghost"
+         th:href="@{/schedule/day(date=${page.previousDate})}">
+        ← Previous day
+      </a>
+
+      <a class="ou-btn"
+         th:href="@{/schedule/day}">
+        Today
+      </a>
+
+      <a class="ou-btn ou-btn--ghost"
+         th:href="@{/schedule/day(date=${page.nextDate})}">
+        Next day →
+      </a>
+
+    </nav>
+
+    <div class="daily-schedule-heading">
+
+      <div>
+        <div class="daily-schedule-heading__weekday"
+             th:text="${#strings.toUpperCase(#temporals.format(page.date, 'EEEE'))}">
+          THURSDAY
+        </div>
+
+        <div class="daily-schedule-heading__date"
+             th:text="${#temporals.format(page.date, 'MMMM d, yyyy')}">
+          January 10, 2030
+        </div>
+      </div>
+
+      <span class="ou-badge schedule-day-card__today"
+            th:if="${page.today}">
+        Today
+      </span>
+
+    </div>
+
+    <div class="daily-schedule-lessons"
+         th:if="${!#lists.isEmpty(page.lessons)}">
+
+      <th:block th:each="lesson : ${page.lessons}">
+
+        <th:block th:replace="~{lessons/cards/lesson-card :: lessonCard(
+            ${lesson},
+            ${page.showTeacherInfo},
+            ${page.showGroupInfo}
+        )}">
+        </th:block>
+
+      </th:block>
+
+    </div>
+
+    <div class="daily-schedule-empty"
+         th:if="${#lists.isEmpty(page.lessons)}">
+
+      <span class="daily-schedule-empty__mark"
+            aria-hidden="true">
+        —
+      </span>
+
+      <div>
+        <strong>No lessons</strong>
+
+        <p>
+          There are no lessons scheduled for this day.
+        </p>
+      </div>
+
+    </div>
+
+    <div class="daily-schedule-footer">
+
+      <a class="ou-btn ou-btn--ghost"
+         th:href="@{/schedule(date=${page.date})}">
+        ← Back to week
+      </a>
+
+    </div>
+
+  </section>
+
+</main>
+
+</body>
+</html>
