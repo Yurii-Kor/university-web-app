@@ -2,6 +2,7 @@ package ua.foxminded.university.model.persistence.lesson;
 
 import java.time.OffsetDateTime;
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -115,6 +116,35 @@ public interface LessonRepository extends JpaRepository<Lesson, Long> {
 			@Param("teacherId") Long teacherId,
 			@Param("from") OffsetDateTime from,
 			@Param("to") OffsetDateTime to);
+
+	@Query("""
+			select new ua.foxminded.university.model.persistence.lesson.projection.LessonScheduleItemView(
+				l.id,
+				c.id,
+				c.code,
+				c.name,
+				g.id,
+				g.name,
+				t.id,
+				u.firstName,
+				u.lastName,
+				l.startTime,
+				l.endTime,
+				l.room,
+				l.lessonType,
+				l.description
+			)
+			from Lesson l
+			join l.course c
+			join l.group g
+			join l.assignedTeacher t
+			join t.user u
+			where l.id = :lessonId
+			  and t.id = :teacherId
+			""")
+	Optional<LessonScheduleItemView> findTeacherScheduleItem(
+			@Param("teacherId") Long teacherId,
+			@Param("lessonId") Long lessonId);
 
 	@Query("""
 			select l

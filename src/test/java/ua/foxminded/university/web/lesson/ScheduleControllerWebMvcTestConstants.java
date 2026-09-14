@@ -128,4 +128,26 @@ class ScheduleControllerWebMvcTestConstants {
 
     final String CREATE_POLICY_MESSAGE =
             "Lesson start time must be in the future.";
+
+    final LocalDate UPDATE_DATE =
+            LocalDate.of(
+                    2030,
+                    1,
+                    12);
+
+    final LocalTime UPDATE_START_TIME =
+            LocalTime.of(
+                    13,
+                    30);
+
+    final LocalTime UPDATE_END_TIME =
+            LocalTime.of(
+                    15,
+                    0);
+
+    final String UPDATE_DESCRIPTION =
+            "Updated MVC test lesson";
+
+    final String UPDATE_GLOBAL_POLICY_MESSAGE =
+            "Only future lessons can be modified.";
 }

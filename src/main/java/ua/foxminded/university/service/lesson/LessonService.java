@@ -198,6 +198,22 @@ public class LessonService {
 				to);
 	}
 
+	@Transactional(value = TxType.SUPPORTS)
+	public LessonScheduleItemView getTeacherScheduleItem(
+	        long teacherId,
+	        long lessonId) {
+
+	    return lessonRepository.findTeacherScheduleItem(
+	            teacherId,
+	            lessonId)
+	            .orElseThrow(() ->
+	                    new EntityNotFoundException(
+	                            "Lesson not found for teacher: lessonId=%d, teacherId=%d"
+	                                    .formatted(
+	                                            lessonId,
+	                                            teacherId)));
+	 }
+
 	private Course requireCourse(long courseId) {
 		return courseRepository.findById(courseId)
 				.orElseThrow(() ->

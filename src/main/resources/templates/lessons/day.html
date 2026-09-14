@@ -3,7 +3,11 @@
       xmlns:th="http://www.thymeleaf.org">
 <head>
   <meta charset="utf-8" />
-  <title th:text="${page.pageTitle}">Schedule</title>
+
+  <title th:text="${page.pageTitle}">
+    Schedule
+  </title>
+
   <meta name="viewport"
         content="width=device-width, initial-scale=1" />
 
@@ -14,6 +18,10 @@
   <link rel="stylesheet"
         th:href="@{/css/app.css}"
         href="/css/app.css" />
+
+  <link rel="stylesheet"
+        th:href="@{/css/pages/forms.css}"
+        href="/css/pages/forms.css" />
 
   <link rel="stylesheet"
         th:href="@{/css/pages/schedule.css}"
@@ -32,6 +40,7 @@
     <div class="schedule-toolbar">
 
       <div>
+
         <h1 class="ou-card__title"
             th:text="${page.pageTitle}">
           My schedule
@@ -41,6 +50,7 @@
            th:text="${page.pageSubtitle}">
           Your schedule.
         </p>
+
       </div>
 
       <div class="schedule-toolbar__period">
@@ -52,14 +62,27 @@
         <strong th:text="${#temporals.format(page.date, 'EEEE, MMM d, yyyy')}">
           Thursday, Jan 10, 2030
         </strong>
-        
+
         <a class="ou-btn"
-     	  th:if="${page.allowManage}"
-     	  th:href="@{/lessons/create(date=${page.date})}">
-    	  + Create lesson
-  	 	</a>
+           th:if="${page.allowManage}"
+           th:href="@{/lessons/create(date=${page.date})}">
+          + Create lesson
+        </a>
 
       </div>
+
+    </div>
+
+    <div class="ou-alert ou-alert--success"
+         th:if="${ok}"
+         th:text="${ok}">
+      Lesson deleted.
+    </div>
+
+    <div class="ou-alert ou-alert--error"
+         th:if="${err}"
+         th:text="${err}">
+      Lesson could not be deleted.
     </div>
 
     <nav class="schedule-navigation"
@@ -85,6 +108,7 @@
     <div class="daily-schedule-heading">
 
       <div>
+
         <div class="daily-schedule-heading__weekday"
              th:text="${#strings.toUpperCase(#temporals.format(page.date, 'EEEE'))}">
           THURSDAY
@@ -94,6 +118,7 @@
              th:text="${#temporals.format(page.date, 'MMMM d, yyyy')}">
           January 10, 2030
         </div>
+
       </div>
 
       <span class="ou-badge schedule-day-card__today"
@@ -106,7 +131,7 @@
     <div class="daily-schedule-lessons"
          th:if="${!#lists.isEmpty(page.lessons)}">
 
-      <th:block th:each="lesson : ${page.lessons}">
+      <div th:each="lesson : ${page.lessons}">
 
         <th:block th:replace="~{lessons/cards/lesson-card :: lessonCard(
             ${lesson},
@@ -115,7 +140,41 @@
         )}">
         </th:block>
 
-      </th:block>
+        <div class="form-actions"
+             th:if="${page.allowManage and lesson.startTime.isAfter(now)}">
+
+          <a class="ou-btn ou-btn--ghost"
+             th:href="@{/lessons/{lessonId}/edit(
+                 lessonId=${lesson.id}
+             )}">
+            Edit lesson
+          </a>
+
+          <form class="ou-inline-form"
+                method="post"
+                th:action="@{/lessons/{lessonId}/delete(
+                    lessonId=${lesson.id}
+                )}">
+
+            <input type="hidden"
+                   th:name="${_csrf.parameterName}"
+                   th:value="${_csrf.token}" />
+
+            <input type="hidden"
+                   name="date"
+                   th:value="${page.date}" />
+
+            <button type="submit"
+                    class="ou-btn ou-btn--danger"
+                    onclick="return confirm('Delete this lesson? This action cannot be undone.');">
+              Delete lesson
+            </button>
+
+          </form>
+
+        </div>
+
+      </div>
 
     </div>
 
@@ -128,11 +187,13 @@
       </span>
 
       <div>
+
         <strong>No lessons</strong>
 
         <p>
           There are no lessons scheduled for this day.
         </p>
+
       </div>
 
     </div>

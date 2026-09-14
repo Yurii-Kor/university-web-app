@@ -40,7 +40,7 @@ public class LessonConflictChecker {
 			long teacherId,
 			Long excludedLessonId) {
 
-		var startTime =	lesson.getStartTime();
+		var startTime = lesson.getStartTime();
 		var endTime = lesson.getEndTime();
 		var groupId = lesson.getGroup().getId();
 
@@ -85,6 +85,7 @@ public class LessonConflictChecker {
 						teacherId);
 
 		throw new ScheduleConflictException(
+				excludedLessonId,
 				requested,
 				groupConflicts,
 				teacherConflicts,

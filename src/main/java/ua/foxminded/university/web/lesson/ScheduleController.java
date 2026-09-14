@@ -1,6 +1,8 @@
 package ua.foxminded.university.web.lesson;
 
+import java.time.Clock;
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
 
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -24,6 +26,7 @@ public class ScheduleController {
 
 	private final WeeklySchedulePageModelFactory weeklyPageFactory;
 	private final DailySchedulePageModelFactory dailyPageFactory;
+	private final Clock clock;
 
 	@GetMapping
 	public String schedulePage(
@@ -33,8 +36,14 @@ public class ScheduleController {
 			LocalDate date,
 			Model model) {
 
-		var page = weeklyPageFactory.build(principal, date);
-		model.addAttribute("page", page);
+		var page =
+				weeklyPageFactory.build(
+						principal,
+						date);
+
+		model.addAttribute(
+				"page",
+				page);
 
 		return "lessons/schedule";
 	}
@@ -47,8 +56,19 @@ public class ScheduleController {
 			LocalDate date,
 			Model model) {
 
-		var page = dailyPageFactory.build(principal, date);
-		model.addAttribute("page", page);
+		var page =
+				dailyPageFactory.build(
+						principal,
+						date);
+
+		model.addAttribute(
+				"page",
+				page);
+
+		model.addAttribute(
+				"now",
+				OffsetDateTime.now(
+						clock));
 
 		return "lessons/day";
 	}

@@ -1,0 +1,506 @@
+<!doctype html>
+<html lang="en"
+      xmlns:th="http://www.thymeleaf.org">
+<head>
+
+  <meta charset="utf-8" />
+
+  <title>Edit lesson</title>
+
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1" />
+
+  <link rel="icon"
+        th:href="@{/favicon.ico}"
+        href="/favicon.ico" />
+
+  <link rel="stylesheet"
+        th:href="@{/css/app.css}"
+        href="/css/app.css" />
+
+  <link rel="stylesheet"
+        th:href="@{/css/pages/forms.css}"
+        href="/css/pages/forms.css" />
+
+  <link rel="stylesheet"
+        th:href="@{/css/pages/schedule.css}"
+        href="/css/pages/schedule.css" />
+
+  <link rel="stylesheet"
+        th:href="@{/css/pages/lesson-create.css}"
+        href="/css/pages/lesson-create.css" />
+
+</head>
+
+<body class="ou-page lesson-create-page">
+
+<div th:replace="~{fragments/header :: ouHeader('schedule')}"></div>
+
+<main class="lesson-create-main">
+
+  <section class="ou-card lesson-create-toolbar">
+
+    <div>
+
+      <h1 class="lesson-create-title">
+        Edit lesson
+      </h1>
+
+      <p class="lesson-create-subtitle">
+        Update the lesson details and review other lessons scheduled for the selected day.
+      </p>
+
+    </div>
+
+    <a class="ou-btn ou-btn--ghost"
+       th:href="@{/schedule/day(date=${lesson_date})}">
+      ← Back to schedule
+    </a>
+
+  </section>
+
+  <div class="ou-alert ou-alert--warn"
+       th:if="${selected_date != null
+               and today != null
+               and selected_date.isBefore(today)}">
+    This date is in the past. Lessons must start in the future.
+  </div>
+
+  <div class="lesson-create-layout">
+
+    <!-- ===== Left column ===== -->
+
+    <div class="lesson-create-column">
+
+      <section class="ou-card lesson-create-context"
+               aria-label="Lesson context">
+
+        <div class="lesson-create-section-heading">
+
+          <div>
+
+            <h2 class="ou-card__title">
+              Lesson context
+            </h2>
+
+            <p>
+              Course and study group belong to this lesson and cannot be changed here.
+            </p>
+
+          </div>
+
+        </div>
+
+        <div class="lesson-create-availability-context">
+
+          <div class="lesson-create-context-item">
+
+            <span>Course</span>
+
+            <strong th:text="|${lesson.courseCode} — ${lesson.courseName}|">
+              CS-101 — Java Programming
+            </strong>
+
+          </div>
+
+          <div class="lesson-create-context-item">
+
+            <span>Study group</span>
+
+            <strong th:text="${lesson.groupName}">
+              SE-21
+            </strong>
+
+          </div>
+
+        </div>
+
+      </section>
+
+      <!-- ===== Edit form ===== -->
+
+      <section class="ou-card lesson-create-form-card"
+               aria-label="Lesson details">
+
+        <div class="lesson-create-section-heading">
+
+          <div>
+
+            <h2 class="ou-card__title">
+              Lesson details
+            </h2>
+
+            <p>
+              Change the schedule information and save the lesson.
+            </p>
+
+          </div>
+
+          <span class="ou-badge"
+                th:text="${lesson.groupName}">
+            SE-21
+          </span>
+
+        </div>
+
+        <form class="lesson-create-form"
+              th:action="@{/lessons/{lessonId}/edit(
+                  lessonId=${lesson.id}
+              )}"
+              th:object="${form}"
+              method="post"
+              novalidate>
+
+          <input type="hidden"
+                 th:name="${_csrf.parameterName}"
+                 th:value="${_csrf.token}" />
+
+          <div class="ou-alert ou-alert--error"
+               th:if="${err != null}"
+               th:text="${err}">
+            Something went wrong.
+          </div>
+
+          <div class="ou-alert ou-alert--error"
+               th:if="${err == null and #fields.hasAnyErrors()}">
+            Please fix the errors below and try again.
+          </div>
+
+          <!-- Date -->
+
+          <div class="form-field">
+
+            <label class="lesson-create-label"
+                   for="date">
+              Date
+            </label>
+
+            <input id="date"
+                   class="ou-input"
+                   type="date"
+                   th:field="*{date}" />
+
+            <p class="form-error"
+               th:if="${#fields.hasErrors('date')}"
+               th:errors="*{date}">
+              Date error
+            </p>
+
+          </div>
+
+          <!-- Time -->
+
+          <div class="lesson-create-time-grid">
+
+            <div class="form-field">
+
+              <label class="lesson-create-label"
+                     for="startTime">
+                Start time
+              </label>
+
+              <input id="startTime"
+                     class="ou-input"
+                     type="time"
+                     th:field="*{startTime}" />
+
+              <p class="form-error"
+                 th:if="${#fields.hasErrors('startTime')}"
+                 th:errors="*{startTime}">
+                Start time error
+              </p>
+
+            </div>
+
+            <div class="form-field">
+
+              <label class="lesson-create-label"
+                     for="endTime">
+                End time
+              </label>
+
+              <input id="endTime"
+                     class="ou-input"
+                     type="time"
+                     th:field="*{endTime}" />
+
+              <p class="form-error"
+                 th:if="${#fields.hasErrors('endTime')}"
+                 th:errors="*{endTime}">
+                End time error
+              </p>
+
+            </div>
+
+          </div>
+
+          <!-- Room -->
+
+          <div class="form-field">
+
+            <label class="lesson-create-label"
+                   for="room">
+              Room
+            </label>
+
+            <input id="room"
+                   class="ou-input"
+                   type="text"
+                   placeholder="A-101"
+                   th:field="*{room}" />
+
+            <p class="form-help">
+              Enter the room code where the lesson will take place.
+            </p>
+
+            <p class="form-error"
+               th:if="${#fields.hasErrors('room')}"
+               th:errors="*{room}">
+              Room error
+            </p>
+
+          </div>
+
+          <!-- Lesson type -->
+
+          <div class="form-field">
+
+            <label class="lesson-create-label"
+                   for="lessonType">
+              Lesson type
+            </label>
+
+            <select id="lessonType"
+                    class="ou-input"
+                    th:field="*{lessonType}">
+
+              <option value="">
+                — Select lesson type —
+              </option>
+
+              <option th:each="type : ${lesson_types}"
+                      th:value="${type}"
+                      th:text="${#strings.replace(type.name(), '_', ' ')}">
+                LECTURE
+              </option>
+
+            </select>
+
+            <p class="form-error"
+               th:if="${#fields.hasErrors('lessonType')}"
+               th:errors="*{lessonType}">
+              Lesson type error
+            </p>
+
+          </div>
+
+          <!-- Description -->
+
+          <div class="form-field">
+
+            <label class="lesson-create-label"
+                   for="description">
+              Description
+            </label>
+
+            <textarea id="description"
+                      class="ou-input ou-input--textarea"
+                      rows="5"
+                      placeholder="Optional lesson notes"
+                      th:field="*{description}">
+            </textarea>
+
+            <p class="form-help">
+              Optional. Add information useful to students attending the lesson.
+            </p>
+
+            <p class="form-error"
+               th:if="${#fields.hasErrors('description')}"
+               th:errors="*{description}">
+              Description error
+            </p>
+
+          </div>
+
+          <div class="form-actions">
+
+            <a class="ou-btn ou-btn--ghost"
+               th:href="@{/schedule/day(date=${lesson_date})}">
+              Cancel
+            </a>
+
+            <button class="ou-btn"
+                    type="submit">
+              Save changes
+            </button>
+
+          </div>
+
+        </form>
+
+      </section>
+
+    </div>
+
+    <!-- ===== Right column ===== -->
+
+    <aside class="ou-card lesson-create-availability"
+           aria-label="Availability">
+
+      <div class="lesson-create-section-heading">
+
+        <div>
+
+          <h2 class="ou-card__title">
+            Availability
+          </h2>
+
+          <p>
+            Other lessons scheduled for the selected day.
+          </p>
+
+        </div>
+
+        <span class="ou-badge lesson-create-date-badge"
+              th:text="${#temporals.format(selected_date, 'MMM d')}">
+          Sep 14
+        </span>
+
+      </div>
+
+      <div class="lesson-create-availability-context">
+
+        <div class="lesson-create-context-item">
+
+          <span>Course</span>
+
+          <strong th:text="|${lesson.courseCode} — ${lesson.courseName}|">
+            CS-101 — Java Programming
+          </strong>
+
+        </div>
+
+        <div class="lesson-create-context-item">
+
+          <span>Date</span>
+
+          <strong th:text="${#temporals.format(selected_date, 'EEEE, MMM d, yyyy')}">
+            Monday, Sep 14, 2026
+          </strong>
+
+        </div>
+
+      </div>
+
+      <!-- Teacher schedule -->
+
+      <section class="lesson-create-availability-section">
+
+        <div class="lesson-create-availability-heading">
+
+          <h3>Your schedule</h3>
+
+          <span class="ou-badge">
+            Teacher
+          </span>
+
+        </div>
+
+        <div class="lesson-create-availability-lessons"
+             th:if="${!#lists.isEmpty(teacher_schedule)}">
+
+          <th:block th:each="scheduledLesson : ${teacher_schedule}">
+
+            <th:block th:replace="~{lessons/cards/lesson-card :: lessonCard(
+                ${scheduledLesson},
+                false,
+                true
+            )}">
+            </th:block>
+
+          </th:block>
+
+        </div>
+
+        <div class="lesson-create-availability-empty"
+             th:if="${#lists.isEmpty(teacher_schedule)}">
+
+          <span class="lesson-create-availability-empty__mark"
+                aria-hidden="true">
+            —
+          </span>
+
+          <div>
+
+            <strong>No other lessons</strong>
+
+            <p>
+              You have no other lessons scheduled for this day.
+            </p>
+
+          </div>
+
+        </div>
+
+      </section>
+
+      <!-- Group schedule -->
+
+      <section class="lesson-create-availability-section">
+
+        <div class="lesson-create-availability-heading">
+
+          <h3>Study group schedule</h3>
+
+          <span class="ou-badge">
+            Group
+          </span>
+
+        </div>
+
+        <div class="lesson-create-availability-lessons"
+             th:if="${!#lists.isEmpty(group_schedule)}">
+
+          <th:block th:each="scheduledLesson : ${group_schedule}">
+
+            <th:block th:replace="~{lessons/cards/lesson-card :: lessonCard(
+                ${scheduledLesson},
+                true,
+                false
+            )}">
+            </th:block>
+
+          </th:block>
+
+        </div>
+
+        <div class="lesson-create-availability-empty"
+             th:if="${#lists.isEmpty(group_schedule)}">
+
+          <span class="lesson-create-availability-empty__mark"
+                aria-hidden="true">
+            —
+          </span>
+
+          <div>
+
+            <strong>No other lessons</strong>
+
+            <p>
+              This study group has no other lessons scheduled for this day.
+            </p>
+
+          </div>
+
+        </div>
+
+      </section>
+
+    </aside>
+
+  </div>
+
+</main>
+
+</body>
+</html>
