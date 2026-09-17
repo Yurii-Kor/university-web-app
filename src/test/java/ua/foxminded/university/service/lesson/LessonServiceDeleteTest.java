@@ -14,7 +14,6 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.jdbc.Sql;
 import org.springframework.test.context.jdbc.SqlMergeMode;
 
-import jakarta.persistence.EntityNotFoundException;
 import ua.foxminded.university.TestClockConfig;
 import ua.foxminded.university.TestcontainersConfiguration;
 import ua.foxminded.university.model.persistence.lesson.LessonRepository;
@@ -60,22 +59,25 @@ class LessonServiceDeleteTest {
 	}
 
 	@Test
-	@DisplayName("deleteById: missing lesson -> EntityNotFoundException")
+	@DisplayName("deleteById: missing lesson -> IllegalStateException")
 	void deleteById_missingLesson_fails() {
-		var exception = assertThrows(
-				EntityNotFoundException.class,
-				() -> lessonService.deleteById(
-						TEACHER_1_ID,
-						MISSING_ID));
 
-		assertEquals(
-				"Lesson not found: id="
-						+ MISSING_ID,
-				exception.getMessage());
+	    var exception =
+	            assertThrows(
+	                    IllegalStateException.class,
+	                    () -> lessonService.deleteById(
+	                            TEACHER_1_ID,
+	                            MISSING_ID));
 
-		assertEquals(
-				BASE_LESSON_COUNT,
-				lessonRepository.count());
+	    assertEquals(
+	            "Lesson not found: id=%d"
+	                    .formatted(
+	                            MISSING_ID),
+	            exception.getMessage());
+
+	    assertEquals(
+	            BASE_LESSON_COUNT,
+	            lessonRepository.count());
 	}
 
 	@Test

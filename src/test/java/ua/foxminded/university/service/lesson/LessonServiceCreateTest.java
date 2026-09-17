@@ -20,7 +20,6 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.jdbc.Sql;
 import org.springframework.test.context.jdbc.SqlMergeMode;
 
-import jakarta.persistence.EntityNotFoundException;
 import ua.foxminded.university.TestClockConfig;
 import ua.foxminded.university.TestcontainersConfiguration;
 import ua.foxminded.university.model.domain.enums.LessonType;
@@ -142,61 +141,67 @@ class LessonServiceCreateTest {
 	}
 
 	@Test
-	@DisplayName("create: missing course -> EntityNotFoundException")
+	@DisplayName("create: missing course -> LessonCreateException")
 	void create_missingCourse_fails() {
 
-		var dto =
-				createDto(
-						MISSING_ID,
-						GROUP_1_ID,
-						HAPPY_START,
-						HAPPY_END,
-						CREATE_ROOM,
-						CREATE_TYPE,
-						CREATE_DESCRIPTION);
+	    var dto =
+	            createDto(
+	                    MISSING_ID,
+	                    GROUP_1_ID,
+	                    HAPPY_START,
+	                    HAPPY_END,
+	                    CREATE_ROOM,
+	                    CREATE_TYPE,
+	                    CREATE_DESCRIPTION);
 
-		var exception =
-				assertThrows(
-						EntityNotFoundException.class,
-						() -> lessonService.create(
-								TEACHER_1_ID,
-								dto));
+	    var exception =
+	            assertThrows(
+	                    LessonCreateException.class,
+	                    () -> lessonService.create(
+	                            TEACHER_1_ID,
+	                            dto));
 
-		assertEquals(
-				"Course not found: id="
-						+ MISSING_ID,
-				exception.getMessage());
+	    assertCreateViolation(
+	            exception,
+	            dto,
+	            "courseId",
+	            "Course not found: id=%d"
+	                    .formatted(
+	                            MISSING_ID));
 
-		assertBaseLessonCount();
+	    assertBaseLessonCount();
 	}
 
 	@Test
-	@DisplayName("create: missing group -> EntityNotFoundException")
+	@DisplayName("create: missing group -> LessonCreateException")
 	void create_missingGroup_fails() {
 
-		var dto =
-				createDto(
-						COURSE_1_ID,
-						MISSING_ID,
-						HAPPY_START,
-						HAPPY_END,
-						CREATE_ROOM,
-						CREATE_TYPE,
-						CREATE_DESCRIPTION);
+	    var dto =
+	            createDto(
+	                    COURSE_1_ID,
+	                    MISSING_ID,
+	                    HAPPY_START,
+	                    HAPPY_END,
+	                    CREATE_ROOM,
+	                    CREATE_TYPE,
+	                    CREATE_DESCRIPTION);
 
-		var exception =
-				assertThrows(
-						EntityNotFoundException.class,
-						() -> lessonService.create(
-								TEACHER_1_ID,
-								dto));
+	    var exception =
+	            assertThrows(
+	                    LessonCreateException.class,
+	                    () -> lessonService.create(
+	                            TEACHER_1_ID,
+	                            dto));
 
-		assertEquals(
-				"StudyGroup not found: id="
-						+ MISSING_ID,
-				exception.getMessage());
+	    assertCreateViolation(
+	            exception,
+	            dto,
+	            "groupId",
+	            "Study group not found: id=%d"
+	                    .formatted(
+	                            MISSING_ID));
 
-		assertBaseLessonCount();
+	    assertBaseLessonCount();
 	}
 
 	@Test

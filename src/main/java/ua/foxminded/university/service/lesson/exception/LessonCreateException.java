@@ -3,18 +3,18 @@ package ua.foxminded.university.service.lesson.exception;
 import java.util.List;
 
 import lombok.Getter;
-import ua.foxminded.university.service.lesson.LessonPolicyViolation;
 import ua.foxminded.university.service.lesson.dto.LessonCreateDto;
+import ua.foxminded.university.service.lesson.dto.LessonValidationViolation;
 
 @Getter
 public class LessonCreateException extends RuntimeException {
 
     private final LessonCreateDto form;
-    private final List<LessonPolicyViolation> violations;
+    private final List<LessonValidationViolation> violations;
 
     public LessonCreateException(
             LessonCreateDto form,
-            List<LessonPolicyViolation> violations) {
+            List<LessonValidationViolation> violations) {
 
         super("Lesson cannot be created.");
 

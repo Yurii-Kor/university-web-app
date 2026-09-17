@@ -171,13 +171,6 @@ public class TeacherCreateExceptionHandler {
     }
 
     private TeacherCreateDto emptyForm() {
-
-        return new TeacherCreateDto(
-                null,
-                null,
-                null,
-                null,
-                null,
-                null);
+        return new TeacherCreateDto();
     }
 }

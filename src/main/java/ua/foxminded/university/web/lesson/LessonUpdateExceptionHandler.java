@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import lombok.RequiredArgsConstructor;
 import ua.foxminded.university.service.lesson.dto.LessonUpdateDto;
 import ua.foxminded.university.service.lesson.exception.LessonUpdateException;
-import ua.foxminded.university.service.lesson.exception.RequestedSlot;
+import ua.foxminded.university.service.lesson.dto.RequestedSlot;
 import ua.foxminded.university.service.lesson.exception.ScheduleConflictException;
 import ua.foxminded.university.web.util.PrincipalHandler;
 
@@ -291,13 +291,6 @@ public class LessonUpdateExceptionHandler {
     }
 
     private LessonUpdateDto emptyForm() {
-
-        return new LessonUpdateDto(
-                null,
-                null,
-                null,
-                null,
-                null,
-                null);
+        return new LessonUpdateDto();
     }
 }

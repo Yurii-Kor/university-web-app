@@ -4,6 +4,7 @@ import java.util.List;
 
 import lombok.Getter;
 import ua.foxminded.university.model.persistence.lesson.projection.OverlapHit;
+import ua.foxminded.university.service.lesson.dto.RequestedSlot;
 
 @Getter
 public class ScheduleConflictException extends RuntimeException {

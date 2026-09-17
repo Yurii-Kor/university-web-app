@@ -13,6 +13,33 @@ import ua.foxminded.university.model.persistence.lesson.projection.LessonSchedul
 import ua.foxminded.university.model.persistence.lesson.projection.OverlapHit;
 
 public interface LessonRepository extends JpaRepository<Lesson, Long> {
+    
+    boolean existsByIdAndAssignedTeacher_Id(
+            Long lessonId,
+            Long teacherId);
+
+    boolean existsByIdAndStartTimeAfter(
+            Long lessonId,
+            OffsetDateTime startTime);
+    
+    @Query("""
+            select new ua.foxminded.university.model.persistence.lesson.projection.OverlapHit(
+                l.id,
+                l.group.id,
+                l.course.id,
+                l.assignedTeacher.id,
+                l.startTime,
+                l.endTime,
+                l.room
+            )
+            from Lesson l
+            where l.course.id = :courseId
+              and l.startTime > :now
+            order by l.startTime, l.id
+            """)
+    List<OverlapHit> findFutureOverlapHitsByCourseId(
+            @Param("courseId") Long courseId,
+            @Param("now") OffsetDateTime now);
 
 	@Query("""
 			select l

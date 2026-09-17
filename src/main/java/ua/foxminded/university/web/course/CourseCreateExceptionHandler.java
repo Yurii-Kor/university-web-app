@@ -70,7 +70,7 @@ public class CourseCreateExceptionHandler {
 
 		ra.addFlashAttribute(
 				FORM_ATTRIBUTE,
-				emptyForm());
+				new CourseCreateDto());
 
 		ra.addFlashAttribute(
 				"err",
@@ -88,7 +88,7 @@ public class CourseCreateExceptionHandler {
 
 		ra.addFlashAttribute(
 				FORM_ATTRIBUTE,
-				emptyForm());
+				new CourseCreateDto());
 
 		ra.addFlashAttribute(
 				"err",
@@ -105,7 +105,7 @@ public class CourseCreateExceptionHandler {
 
 		ra.addFlashAttribute(
 				FORM_ATTRIBUTE,
-				emptyForm());
+				new CourseCreateDto());
 
 		ra.addFlashAttribute(
 				"err",
@@ -123,7 +123,7 @@ public class CourseCreateExceptionHandler {
 
 		ra.addFlashAttribute(
 				FORM_ATTRIBUTE,
-				emptyForm());
+				new CourseCreateDto());
 
 		ra.addFlashAttribute(
 				"err",
@@ -139,7 +139,7 @@ public class CourseCreateExceptionHandler {
 
 		ra.addFlashAttribute(
 				FORM_ATTRIBUTE,
-				emptyForm());
+				new CourseCreateDto());
 
 		ra.addFlashAttribute(
 				"err",
@@ -155,14 +155,5 @@ public class CourseCreateExceptionHandler {
 				"all_teachers",
 				teacherServiceProvider.getObject()
 						.listTeacherOptions());
-	}
-
-	private CourseCreateDto emptyForm() {
-
-		return new CourseCreateDto(
-				null,
-				null,
-				null,
-				null);
 	}
 }

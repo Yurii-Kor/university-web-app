@@ -1,0 +1,302 @@
+<!doctype html>
+<html lang="en"
+      xmlns:th="http://www.thymeleaf.org">
+<body>
+
+<th:block th:fragment="scheduleSection(
+        title,
+        badge,
+        schedule,
+        showTeacherInfo,
+        showGroupInfo,
+        emptyTitle,
+        emptyText,
+        unavailableTitle,
+        unavailableText)">
+
+  <section class="lesson-create-availability-section">
+
+    <div class="lesson-create-availability-heading">
+
+      <h3 th:text="${title}">
+        Schedule
+      </h3>
+
+      <span class="ou-badge"
+            th:text="${badge}">
+        Schedule
+      </span>
+
+    </div>
+
+    <div class="lesson-create-availability-lessons"
+         th:if="${schedule != null and !#lists.isEmpty(schedule)}">
+
+      <th:block th:each="scheduledLesson : ${schedule}">
+
+        <th:block th:replace="~{lessons/cards/lesson-card :: lessonCard(
+            ${scheduledLesson},
+            ${showTeacherInfo},
+            ${showGroupInfo}
+        )}">
+        </th:block>
+
+      </th:block>
+
+    </div>
+
+    <div class="lesson-create-availability-empty"
+         th:if="${schedule != null and #lists.isEmpty(schedule)}">
+
+      <span class="lesson-create-availability-empty__mark"
+            aria-hidden="true">
+        —
+      </span>
+
+      <div>
+
+        <strong th:text="${emptyTitle}">
+          No lessons
+        </strong>
+
+        <p th:text="${emptyText}">
+          No lessons scheduled.
+        </p>
+
+      </div>
+
+    </div>
+
+    <div class="lesson-create-availability-empty"
+         th:if="${schedule == null and unavailableTitle != null}">
+
+      <span class="lesson-create-availability-empty__mark"
+            aria-hidden="true">
+        —
+      </span>
+
+      <div>
+
+        <strong th:text="${unavailableTitle}">
+          Schedule preview
+        </strong>
+
+        <p th:text="${unavailableText}">
+          Update the view to load the schedule.
+        </p>
+
+      </div>
+
+    </div>
+
+  </section>
+
+</th:block>
+
+
+<th:block th:fragment="createAvailability">
+
+  <aside class="ou-card lesson-create-availability"
+         aria-label="Availability">
+
+    <div class="lesson-create-section-heading">
+
+      <div>
+
+        <h2 class="ou-card__title">
+          Availability
+        </h2>
+
+        <p>
+          Existing lessons for the selected day.
+        </p>
+
+      </div>
+
+      <span class="ou-badge lesson-create-date-badge"
+            th:text="${#temporals.format(form.date, 'MMM d')}">
+        Sep 14
+      </span>
+
+    </div>
+
+    <div class="lesson-create-availability-context">
+
+      <div class="lesson-create-context-item">
+
+        <span>Course</span>
+
+        <strong th:if="${selected_course == null}">
+          Not selected
+        </strong>
+
+        <strong th:if="${selected_course != null}"
+                th:text="|${selected_course.code} — ${selected_course.name}|">
+          CS-101 — Java Programming
+        </strong>
+
+      </div>
+
+      <div class="lesson-create-context-item">
+
+        <span>Date</span>
+
+        <strong th:text="${#temporals.format(form.date, 'EEEE, MMM d, yyyy')}">
+          Monday, Sep 14, 2026
+        </strong>
+
+      </div>
+
+    </div>
+
+    <th:block th:replace="~{lessons/fragments/lesson-availability :: scheduleSection(
+        'Your schedule',
+        'Teacher',
+        ${teacher_schedule},
+        false,
+        true,
+        'No lessons',
+        'You have no lessons scheduled for this day.',
+        'Schedule preview',
+        'Update the view to load your schedule.'
+    )}">
+    </th:block>
+
+    <section class="lesson-create-availability-section"
+             th:if="${selected_group_valid != true}">
+
+      <div class="lesson-create-availability-heading">
+
+        <h3>Study group schedule</h3>
+
+        <span class="ou-badge">
+          Group
+        </span>
+
+      </div>
+
+      <div class="lesson-create-availability-empty">
+
+        <span class="lesson-create-availability-empty__mark"
+              aria-hidden="true">
+          —
+        </span>
+
+        <div>
+
+          <strong>Select a study group</strong>
+
+          <p>
+            Choose a group and update the view to see its lessons.
+          </p>
+
+        </div>
+
+      </div>
+
+    </section>
+
+    <th:block th:if="${selected_group_valid == true}">
+
+      <th:block th:replace="~{lessons/fragments/lesson-availability :: scheduleSection(
+          'Study group schedule',
+          'Group',
+          ${group_schedule},
+          true,
+          false,
+          'No lessons',
+          'This study group has no lessons scheduled for this day.',
+          ${null},
+          ${null}
+      )}">
+      </th:block>
+
+    </th:block>
+
+  </aside>
+
+</th:block>
+
+
+<th:block th:fragment="editAvailability">
+
+  <aside class="ou-card lesson-create-availability"
+         aria-label="Availability">
+
+    <div class="lesson-create-section-heading">
+
+      <div>
+
+        <h2 class="ou-card__title">
+          Availability
+        </h2>
+
+        <p>
+          Other lessons scheduled for the selected day.
+        </p>
+
+      </div>
+
+      <span class="ou-badge lesson-create-date-badge"
+            th:text="${#temporals.format(selected_date, 'MMM d')}">
+        Sep 14
+      </span>
+
+    </div>
+
+    <div class="lesson-create-availability-context">
+
+      <div class="lesson-create-context-item">
+
+        <span>Course</span>
+
+        <strong th:text="|${lesson.courseCode} — ${lesson.courseName}|">
+          CS-101 — Java Programming
+        </strong>
+
+      </div>
+
+      <div class="lesson-create-context-item">
+
+        <span>Date</span>
+
+        <strong th:text="${#temporals.format(selected_date, 'EEEE, MMM d, yyyy')}">
+          Monday, Sep 14, 2026
+        </strong>
+
+      </div>
+
+    </div>
+
+    <th:block th:replace="~{lessons/fragments/lesson-availability :: scheduleSection(
+        'Your schedule',
+        'Teacher',
+        ${teacher_schedule},
+        false,
+        true,
+        'No other lessons',
+        'You have no other lessons scheduled for this day.',
+        ${null},
+        ${null}
+    )}">
+    </th:block>
+
+    <th:block th:replace="~{lessons/fragments/lesson-availability :: scheduleSection(
+        'Study group schedule',
+        'Group',
+        ${group_schedule},
+        true,
+        false,
+        'No other lessons',
+        'This study group has no other lessons scheduled for this day.',
+        ${null},
+        ${null}
+    )}">
+    </th:block>
+
+  </aside>
+
+</th:block>
+
+</body>
+</html>

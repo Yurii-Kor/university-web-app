@@ -9,12 +9,9 @@ public record DailySchedulePageModel(
         String pageTitle,
         String pageSubtitle,
         LocalDate date,
-        LocalDate previousDate,
-        LocalDate nextDate,
         boolean today,
         List<LessonScheduleItemView> lessons,
         boolean showTeacherInfo,
         boolean showGroupInfo,
         boolean allowManage
-) {
-}
+) {}

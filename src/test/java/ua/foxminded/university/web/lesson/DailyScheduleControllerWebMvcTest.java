@@ -126,14 +126,6 @@ class DailyScheduleControllerWebMvcTest {
                 () -> assertTrue(
                         page.today()),
 
-                () -> assertEquals(
-                        REQUESTED_DATE.minusDays(1),
-                        page.previousDate()),
-
-                () -> assertEquals(
-                        REQUESTED_DATE.plusDays(1),
-                        page.nextDate()),
-
                 () -> assertFalse(
                         page.showTeacherInfo()),
 

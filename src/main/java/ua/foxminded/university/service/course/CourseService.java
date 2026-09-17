@@ -20,6 +20,7 @@ import jakarta.transaction.Transactional.TxType;
 import lombok.RequiredArgsConstructor;
 import ua.foxminded.university.model.domain.Course;
 import ua.foxminded.university.model.domain.StudyGroup;
+import ua.foxminded.university.model.domain.Teacher;
 import ua.foxminded.university.model.persistence.course.CourseRepository;
 import ua.foxminded.university.model.persistence.course.projection.CourseCardView;
 import ua.foxminded.university.model.persistence.studygroup.StudyGroupRepository;
@@ -31,7 +32,8 @@ import ua.foxminded.university.service.course.dto.CourseGroupsView;
 import ua.foxminded.university.service.course.dto.CourseSelfUpdateDto;
 import ua.foxminded.university.service.course.exception.CourseCreateException;
 import ua.foxminded.university.service.course.exception.CourseSelfUpdateException;
-import ua.foxminded.university.service.lesson.LessonTeacherReassignment;
+import ua.foxminded.university.service.course.exception.TeacherSummary;
+import ua.foxminded.university.service.lesson.LessonService;
 import ua.foxminded.university.service.util.DtoMapper;
 
 @Service
@@ -44,8 +46,9 @@ public class CourseService {
 	private final CourseRepository courseRepository;
 	private final TeacherRepository teacherRepository;
 	private final StudyGroupRepository groupRepository;
-	private final LessonTeacherReassignment lessonTeacherReassignment;
-	private final DtoMapper mapper;
+	
+	private final LessonService lessonService;	
+    private final DtoMapper mapper;
 
 	@Transactional(value = TxType.REQUIRES_NEW)
 	public Course create(CourseCreateDto draft) {
@@ -322,35 +325,52 @@ public class CourseService {
 	}
 
 	private void applyTeacherPatch(
-			Course managed,
-			CourseSelfUpdateDto patch) {
+	        Course managed,
+	        CourseSelfUpdateDto patch) {
 
-		Optional.ofNullable(patch.teacherId())
-				.filter(newTeacherId ->
-						isDifferentTeacher(
-								managed,
-								newTeacherId))
-				.ifPresent(newTeacherId -> {
-					var targetTeacher =
-							teacherRepository.findById(newTeacherId)
-									.orElseThrow(() ->
-											new CourseSelfUpdateException(
-													patch,
-													"Teacher not found: id="
-															+ newTeacherId));
+	    Optional.ofNullable(
+	            patch.teacherId())
+	            .filter(newTeacherId ->
+	                    isDifferentTeacher(
+	                            managed,
+	                            newTeacherId))
+	            .ifPresent(newTeacherId ->
+	                    reassignTeacher(
+	                            managed,
+	                            patch,
+	                            newTeacherId));
+	}
+	
+	private void reassignTeacher(
+	        Course managed,
+	        CourseSelfUpdateDto patch,
+	        long newTeacherId) {
 
-					lessonTeacherReassignment.reassignFutureLessons(
-							managed,
-							targetTeacher);
+	    var targetTeacher =
+	            teacherRepository.findById(
+	                    newTeacherId)
+	                    .orElseThrow(() ->
+	                            new CourseSelfUpdateException(
+	                                    patch,
+	                                    "Teacher not found: id="
+	                                            + newTeacherId));
 
-					managed.setTeacher(
-							targetTeacher);
+	    lessonService.reassignFutureLessons(
+	            managed.getId(),
+	            managed.getCode(),
+	            managed.getName(),
+	            toTeacherSummary(
+	                    managed.getTeacher()),
+	            toTeacherSummary(
+	                    targetTeacher));
 
-					log.debug(
-							"updateSelf: teacher updated (courseId={}, teacherId={})",
-							managed.getId(),
-							newTeacherId);
-				});
+	    managed.setTeacher(
+	            targetTeacher);
+
+	    log.debug(
+	            "updateSelf: teacher updated (courseId={}, teacherId={})",
+	            managed.getId(),
+	            newTeacherId);
 	}
 
 	private boolean isDifferentIgnoreCase(
@@ -373,4 +393,16 @@ public class CourseService {
 								teacher.getId()))
 				.orElse(true);
 	}
+	
+	private TeacherSummary toTeacherSummary(
+            Teacher teacher) {
+
+        var user = teacher.getUser();
+
+        return new TeacherSummary(
+                teacher.getId(),
+                user.getFirstName(),
+                user.getLastName(),
+                user.getEmail());
+    }
 }

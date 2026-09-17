@@ -43,8 +43,6 @@ public enum SchedulePageMode {
 				pageSubtitle,
 				weekStart,
 				weekEnd,
-				weekStart.minusWeeks(1),
-				weekStart.plusWeeks(1),
 				days,
 				showTeacherInfo,
 				showGroupInfo,
@@ -52,21 +50,19 @@ public enum SchedulePageMode {
 	}
 
 	public DailySchedulePageModel toDailyPage(
-			LocalDate date,
-			boolean today,
-			List<LessonScheduleItemView> lessons) {
+	        LocalDate date,
+	        boolean today,
+	        List<LessonScheduleItemView> lessons) {
 
-		return new DailySchedulePageModel(
-				pageTitle,
-				pageSubtitle,
-				date,
-				date.minusDays(1),
-				date.plusDays(1),
-				today,
-				lessons,
-				showTeacherInfo,
-				showGroupInfo,
-				allowManage);
+	    return new DailySchedulePageModel(
+	            pageTitle,
+	            pageSubtitle,
+	            date,
+	            today,
+	            lessons,
+	            showTeacherInfo,
+	            showGroupInfo,
+	            allowManage);
 	}
 
 	public static SchedulePageMode fromRoleKey(

@@ -20,7 +20,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import lombok.RequiredArgsConstructor;
 import ua.foxminded.university.service.lesson.dto.LessonCreateDto;
 import ua.foxminded.university.service.lesson.exception.LessonCreateException;
-import ua.foxminded.university.service.lesson.exception.RequestedSlot;
+import ua.foxminded.university.service.lesson.dto.RequestedSlot;
 import ua.foxminded.university.service.lesson.exception.ScheduleConflictException;
 import ua.foxminded.university.web.util.PrincipalHandler;
 
@@ -306,14 +306,7 @@ public class LessonCreateExceptionHandler {
 
 	private LessonCreateDto emptyForm() {
 		return new LessonCreateDto(
-				null,
-				null,
 				LocalDate.now(
-						clockProvider.getObject()),
-				null,
-				null,
-				null,
-				null,
-				null);
+						clockProvider.getObject()));
 	}
 }

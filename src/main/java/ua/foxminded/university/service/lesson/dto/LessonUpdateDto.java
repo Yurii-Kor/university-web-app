@@ -40,4 +40,17 @@ public record LessonUpdateDto(
 		LessonType lessonType,
 
 		String description
-) {}
+) {
+
+    public LessonUpdateDto() {
+
+        this(
+                null,
+                null,
+                null,
+                null,
+                null,
+                null);
+    }
+
+}

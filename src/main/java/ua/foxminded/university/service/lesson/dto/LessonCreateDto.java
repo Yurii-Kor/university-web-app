@@ -17,33 +17,65 @@ import ua.foxminded.university.model.domain.enums.LessonType;
 
 public record LessonCreateDto(
 
-		@NotNull
-		Long courseId,
+        @NotNull
+        Long courseId,
 
-		@NotNull
-		Long groupId,
+        @NotNull
+        Long groupId,
 
-		@NotNull
-		@DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
-		LocalDate date,
+        @NotNull
+        @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+        LocalDate date,
 
-		@NotNull
-		@DateTimeFormat(iso = DateTimeFormat.ISO.TIME)
-		LocalTime startTime,
+        @NotNull
+        @DateTimeFormat(iso = DateTimeFormat.ISO.TIME)
+        LocalTime startTime,
 
-		@NotNull
-		@DateTimeFormat(iso = DateTimeFormat.ISO.TIME)
-		LocalTime endTime,
+        @NotNull
+        @DateTimeFormat(iso = DateTimeFormat.ISO.TIME)
+        LocalTime endTime,
 
-		@NotBlank
-		@Size(max = ROOM_MAX)
-		@Pattern(
-				regexp = ROOM_CODE_REGEX,
-				message = ROOM_MESSAGE
-		)
-		String room,
+        @NotBlank
+        @Size(max = ROOM_MAX)
+        @Pattern(
+                regexp = ROOM_CODE_REGEX,
+                message = ROOM_MESSAGE
+        )
+        String room,
 
-		LessonType lessonType,
+        LessonType lessonType,
 
-		String description
-) {}
+        String description
+
+) {
+
+    public LessonCreateDto(
+            Long courseId,
+            Long groupId,
+            LocalDate date) {
+
+        this(
+                courseId,
+                groupId,
+                date,
+                null,
+                null,
+                null,
+                null,
+                null);
+    }
+
+    public LessonCreateDto(
+            LocalDate date) {
+
+        this(
+                null,
+                null,
+                date,
+                null,
+                null,
+                null,
+                null,
+                null);
+    }
+}

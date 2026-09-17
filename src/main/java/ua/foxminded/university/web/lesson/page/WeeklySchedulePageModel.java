@@ -8,8 +8,6 @@ public record WeeklySchedulePageModel(
         String pageSubtitle,
         LocalDate weekStart,
         LocalDate weekEnd,
-        LocalDate previousWeekDate,
-        LocalDate nextWeekDate,
         List<ScheduleDayModel> days,
         boolean showTeacherInfo,
         boolean showGroupInfo,

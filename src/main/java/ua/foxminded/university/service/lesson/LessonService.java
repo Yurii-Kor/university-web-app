@@ -1,5 +1,6 @@
 package ua.foxminded.university.service.lesson;
 
+import java.time.Clock;
 import java.time.OffsetDateTime;
 import java.util.List;
 
@@ -11,17 +12,17 @@ import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
 import jakarta.transaction.Transactional.TxType;
 import lombok.RequiredArgsConstructor;
-import ua.foxminded.university.model.domain.Course;
 import ua.foxminded.university.model.domain.Lesson;
-import ua.foxminded.university.model.domain.StudyGroup;
 import ua.foxminded.university.model.persistence.course.CourseRepository;
 import ua.foxminded.university.model.persistence.lesson.LessonRepository;
 import ua.foxminded.university.model.persistence.lesson.projection.LessonScheduleItemView;
 import ua.foxminded.university.model.persistence.studygroup.StudyGroupRepository;
+import ua.foxminded.university.model.persistence.teacher.TeacherRepository;
+import ua.foxminded.university.service.course.exception.TeacherSummary;
 import ua.foxminded.university.service.lesson.dto.LessonCreateDto;
 import ua.foxminded.university.service.lesson.dto.LessonUpdateDto;
-import ua.foxminded.university.service.lesson.exception.LessonCreateException;
-import ua.foxminded.university.service.lesson.exception.LessonUpdateException;
+import ua.foxminded.university.service.lesson.dto.LessonUpdateValidationData;
+import ua.foxminded.university.service.lesson.validation.LessonValidationFacade;
 import ua.foxminded.university.service.util.DtoMapper;
 
 @Service
@@ -29,212 +30,201 @@ import ua.foxminded.university.service.util.DtoMapper;
 @Transactional
 public class LessonService {
 
-	private static final Logger log =
-			LoggerFactory.getLogger(LessonService.class);
+    private static final Logger log =
+            LoggerFactory.getLogger(LessonService.class);
 
-	private final LessonRepository lessonRepository;
-	private final CourseRepository courseRepository;
-	private final StudyGroupRepository groupRepository;
+    private final LessonRepository lessonRepository;
+    private final CourseRepository courseRepository;
+    private final StudyGroupRepository groupRepository;
+    private final TeacherRepository teacherRepository;
 
-	private final LessonPolicy lessonPolicy;
-	private final LessonConflictChecker conflictChecker;
-	private final DtoMapper dtoMapper;
+    private final LessonValidationFacade validationFacade;
+    private final DtoMapper dtoMapper;
+    private final Clock clock;
 
-	@Transactional(value = TxType.REQUIRES_NEW)
-	public Lesson create(
-			long teacherId,
-			LessonCreateDto draft) {
+    @Transactional(value = TxType.REQUIRES_NEW)
+    public Lesson create(
+            long teacherId,
+            LessonCreateDto draft) {
 
-		var course =
-				requireCourse(draft.courseId());
+        validationFacade.validateForCreate(
+                teacherId,
+                draft);
 
-		var group =
-				requireGroup(draft.groupId());
+        var course =
+                courseRepository.getReferenceById(
+                        draft.courseId());
 
-		var lesson =
-				dtoMapper.toLessonEntity(
-						draft,
-						course,
-						group);
+        var group =
+                groupRepository.getReferenceById(
+                        draft.groupId());
 
-		var violations =
-				lessonPolicy.validateForCreate(
-						lesson,
-						teacherId);
+        var lesson =
+                dtoMapper.toLessonEntity(
+                        draft,
+                        course,
+                        group);
 
-		if (!violations.isEmpty()) {
-			throw new LessonCreateException(
-					draft,
-					violations);
-		}
+        return lessonRepository.save(lesson);
+    }
 
-		conflictChecker.assertNoConflicts(
-				lesson,
-				teacherId);
+    @Transactional(value = TxType.REQUIRES_NEW)
+    public Lesson update(
+            long teacherId,
+            long lessonId,
+            LessonUpdateDto form) {
 
-		return lessonRepository.save(lesson);
-	}
+        var lesson =
+                lessonRepository.findById(
+                        lessonId)
+                        .orElseThrow(() ->
+                                new EntityNotFoundException(
+                                        "Lesson not found: id=%d"
+                                                .formatted(
+                                                        lessonId)));
 
-	@Transactional(value = TxType.REQUIRES_NEW)
-	public Lesson update(
-			long teacherId,
-			long lessonId,
-			LessonUpdateDto form) {
+        var validationData =
+                toUpdateValidationData(
+                        lesson);
 
-		var lesson =
-				requireLesson(lessonId);
+        validationFacade.validateForUpdate(
+                teacherId,
+                validationData,
+                form);
 
-		var violations =
-				lessonPolicy.validateCanUpdate(
-						lesson,
-						teacherId);
+        dtoMapper.applyLessonUpdate(
+                lesson,
+                form);
 
-		if (!violations.isEmpty()) {
-			throw new LessonUpdateException(
-					lessonId,
-					form,
-					violations);
-		}
+        log.info(
+                "Updated lesson: id={}",
+                lessonId);
 
-		dtoMapper.applyLessonUpdate(
-				lesson,
-				form);
+        return lesson;
+    }
+    
+    @Transactional(value = TxType.REQUIRES_NEW)
+    public void deleteById(
+            long teacherId,
+            long lessonId) {
 
-		violations =
-				lessonPolicy.validateAfterUpdate(
-						lesson,
-						teacherId);
+        validationFacade.validateForDelete(
+                teacherId,
+                lessonId);
 
-		if (!violations.isEmpty()) {
-			throw new LessonUpdateException(
-					lessonId,
-					form,
-					violations);
-		}
+        var lesson =
+                lessonRepository.getReferenceById(
+                        lessonId);
 
-		conflictChecker.assertNoConflicts(
-				lesson,
-				teacherId,
-				lessonId);
+        lessonRepository.delete(
+                lesson);
 
-		log.info(
-				"Updated lesson: id={}",
-				lessonId);
+        log.info(
+                "Deleted lesson: id={}",
+                lessonId);
+    }
+    
+    @Transactional(TxType.MANDATORY)
+    public void reassignFutureLessons(
+            long courseId,
+            String courseCode,
+            String courseName,
+            TeacherSummary currentTeacher,
+            TeacherSummary targetTeacher) {
 
-		return lesson;
-	}
+        validationFacade.validateForReassignment(
+                courseId,
+                courseCode,
+                courseName,
+                currentTeacher,
+                targetTeacher);
 
-	@Transactional(value = TxType.REQUIRES_NEW)
-	public void deleteById(
-			long teacherId,
-			long lessonId) {
+        var targetTeacherReference =
+                teacherRepository.getReferenceById(
+                        targetTeacher.id());
 
-		var lesson =
-				requireLesson(lessonId);
+        var futureLessons =
+                lessonRepository.findFutureByCourseId(
+                        courseId,
+                        OffsetDateTime.now(clock));
 
-		var violations =
-				lessonPolicy.validateCanModify(
-						lesson,
-						teacherId);
+        futureLessons.forEach(lesson ->
+                lesson.setAssignedTeacher(
+                        targetTeacherReference));
+    }
 
-		if (!violations.isEmpty()) {
-			throw new IllegalStateException(
-					violations.getFirst()
-							.message());
-		}
+    @Transactional(value = TxType.SUPPORTS)
+    public List<Lesson> listGroupSchedule(
+            long groupId,
+            OffsetDateTime from,
+            OffsetDateTime to) {
 
-		lessonRepository.delete(lesson);
+        return lessonRepository.findGroupSchedule(
+                groupId,
+                from,
+                to);
+    }
 
-		log.info(
-				"Deleted lesson: id={}",
-				lessonId);
-	}
+    @Transactional(value = TxType.SUPPORTS)
+    public List<Lesson> listTeacherSchedule(
+            long teacherId,
+            OffsetDateTime from,
+            OffsetDateTime to) {
 
-	@Transactional(value = TxType.SUPPORTS)
-	public List<Lesson> listGroupSchedule(
-			long groupId,
-			OffsetDateTime from,
-			OffsetDateTime to) {
+        return lessonRepository.findTeacherSchedule(
+                teacherId,
+                from,
+                to);
+    }
 
-		return lessonRepository.findGroupSchedule(
-				groupId,
-				from,
-				to);
-	}
+    @Transactional(value = TxType.SUPPORTS)
+    public List<LessonScheduleItemView> listGroupScheduleItems(
+            long groupId,
+            OffsetDateTime from,
+            OffsetDateTime to) {
 
-	@Transactional(value = TxType.SUPPORTS)
-	public List<Lesson> listTeacherSchedule(
-			long teacherId,
-			OffsetDateTime from,
-			OffsetDateTime to) {
+        return lessonRepository.findGroupScheduleItems(
+                groupId,
+                from,
+                to);
+    }
 
-		return lessonRepository.findTeacherSchedule(
-				teacherId,
-				from,
-				to);
-	}
+    @Transactional(value = TxType.SUPPORTS)
+    public List<LessonScheduleItemView> listTeacherScheduleItems(
+            long teacherId,
+            OffsetDateTime from,
+            OffsetDateTime to) {
 
-	@Transactional(value = TxType.SUPPORTS)
-	public List<LessonScheduleItemView> listGroupScheduleItems(
-			long groupId,
-			OffsetDateTime from,
-			OffsetDateTime to) {
+        return lessonRepository.findTeacherScheduleItems(
+                teacherId,
+                from,
+                to);
+    }
 
-		return lessonRepository.findGroupScheduleItems(
-				groupId,
-				from,
-				to);
-	}
+    @Transactional(value = TxType.SUPPORTS)
+    public LessonScheduleItemView getTeacherScheduleItem(
+            long teacherId,
+            long lessonId) {
 
-	@Transactional(value = TxType.SUPPORTS)
-	public List<LessonScheduleItemView> listTeacherScheduleItems(
-			long teacherId,
-			OffsetDateTime from,
-			OffsetDateTime to) {
+        return lessonRepository.findTeacherScheduleItem(
+                teacherId,
+                lessonId)
+                .orElseThrow(() ->
+                        new EntityNotFoundException(
+                                "Lesson not found for teacher: lessonId=%d, teacherId=%d"
+                                        .formatted(
+                                                lessonId,
+                                                teacherId)));
+    }
 
-		return lessonRepository.findTeacherScheduleItems(
-				teacherId,
-				from,
-				to);
-	}
+    private LessonUpdateValidationData toUpdateValidationData(
+            Lesson lesson) {
 
-	@Transactional(value = TxType.SUPPORTS)
-	public LessonScheduleItemView getTeacherScheduleItem(
-	        long teacherId,
-	        long lessonId) {
-
-	    return lessonRepository.findTeacherScheduleItem(
-	            teacherId,
-	            lessonId)
-	            .orElseThrow(() ->
-	                    new EntityNotFoundException(
-	                            "Lesson not found for teacher: lessonId=%d, teacherId=%d"
-	                                    .formatted(
-	                                            lessonId,
-	                                            teacherId)));
-	 }
-
-	private Course requireCourse(long courseId) {
-		return courseRepository.findById(courseId)
-				.orElseThrow(() ->
-						new EntityNotFoundException(
-								"Course not found: id="
-										+ courseId));
-	}
-
-	private StudyGroup requireGroup(long groupId) {
-		return groupRepository.findById(groupId)
-				.orElseThrow(() ->
-						new EntityNotFoundException(
-								"StudyGroup not found: id="
-										+ groupId));
-	}
-
-	private Lesson requireLesson(long lessonId) {
-		return lessonRepository.findById(lessonId)
-				.orElseThrow(() ->
-						new EntityNotFoundException(
-								"Lesson not found: id="
-										+ lessonId));
-	}
+        return new LessonUpdateValidationData(
+                lesson.getId(),
+                lesson.getCourse().getId(),
+                lesson.getGroup().getId(),
+                lesson.getAssignedTeacher().getId(),
+                lesson.getStartTime());
+    }
 }

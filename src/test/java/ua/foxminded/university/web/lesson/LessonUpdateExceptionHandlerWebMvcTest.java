@@ -20,9 +20,9 @@ import org.springframework.ui.Model;
 import ua.foxminded.university.TestClockConfig;
 import ua.foxminded.university.model.domain.enums.LessonType;
 import ua.foxminded.university.model.persistence.lesson.projection.OverlapHit;
-import ua.foxminded.university.service.lesson.LessonPolicyViolation;
+import ua.foxminded.university.service.lesson.dto.LessonValidationViolation;
 import ua.foxminded.university.service.lesson.exception.LessonUpdateException;
-import ua.foxminded.university.service.lesson.exception.RequestedSlot;
+import ua.foxminded.university.service.lesson.dto.RequestedSlot;
 import ua.foxminded.university.service.lesson.exception.ScheduleConflictException;
 import ua.foxminded.university.web.testconfig.MethodSecurityTestConfig;
 import ua.foxminded.university.web.util.ExceptionMessageReader;
@@ -50,7 +50,7 @@ class LessonUpdateExceptionHandlerWebMvcTest
                         TEACHER_LESSON_ID,
                         form,
                         List.of(
-                                new LessonPolicyViolation(
+                                new LessonValidationViolation(
                                         "startTime",
                                         CREATE_POLICY_MESSAGE)));
 
@@ -115,7 +115,7 @@ class LessonUpdateExceptionHandlerWebMvcTest
                         TEACHER_LESSON_ID,
                         form,
                         List.of(
-                                new LessonPolicyViolation(
+                                new LessonValidationViolation(
                                         null,
                                         UPDATE_GLOBAL_POLICY_MESSAGE)));
 

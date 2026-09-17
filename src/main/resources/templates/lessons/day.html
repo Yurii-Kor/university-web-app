@@ -89,7 +89,7 @@
          aria-label="Schedule day navigation">
 
       <a class="ou-btn ou-btn--ghost"
-         th:href="@{/schedule/day(date=${page.previousDate})}">
+         th:href="@{/schedule/day(date=${page.date.minusDays(1)})}">
         ← Previous day
       </a>
 
@@ -99,7 +99,7 @@
       </a>
 
       <a class="ou-btn ou-btn--ghost"
-         th:href="@{/schedule/day(date=${page.nextDate})}">
+         th:href="@{/schedule/day(date=${page.date.plusDays(1)})}">
         Next day →
       </a>
 

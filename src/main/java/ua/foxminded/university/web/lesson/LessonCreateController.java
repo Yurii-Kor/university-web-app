@@ -63,12 +63,7 @@ public class LessonCreateController {
 		var form = new LessonCreateDto(
 				courseId,
 				groupId,
-				selectedDate,
-				null,
-				null,
-				null,
-				null,
-				null);
+				selectedDate);
 
 		model.addAttribute(
 				"form",

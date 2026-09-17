@@ -65,7 +65,7 @@
          aria-label="Schedule week navigation">
 
       <a class="ou-btn ou-btn--ghost"
-         th:href="@{/schedule(date=${page.previousWeekDate})}">
+         th:href="@{/schedule(date=${page.weekStart.minusWeeks(1)})}">
         ← Previous week
       </a>
 
@@ -75,7 +75,7 @@
       </a>
 
       <a class="ou-btn ou-btn--ghost"
-         th:href="@{/schedule(date=${page.nextWeekDate})}">
+         th:href="@{/schedule(date=${page.weekStart.plusWeeks(1)})}">
         Next week →
       </a>
 

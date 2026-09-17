@@ -21,7 +21,7 @@ import ua.foxminded.university.service.appuser.dto.AppUserCreateDto;
 import ua.foxminded.university.service.course.dto.CourseCreateDto;
 import ua.foxminded.university.service.lesson.dto.LessonCreateDto;
 import ua.foxminded.university.service.lesson.dto.LessonUpdateDto;
-import ua.foxminded.university.service.lesson.exception.RequestedSlot;
+import ua.foxminded.university.service.lesson.dto.RequestedSlot;
 import ua.foxminded.university.service.student.dto.StudentCreateDto;
 import ua.foxminded.university.service.studygroup.dto.StudyGroupCreateDto;
 import ua.foxminded.university.service.teacher.dto.TeacherCreateDto;
