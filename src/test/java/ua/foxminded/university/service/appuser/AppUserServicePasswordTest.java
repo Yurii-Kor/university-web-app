@@ -6,7 +6,6 @@ import static ua.foxminded.university.service.appuser.AppUserServiceTestConstant
 import java.util.List;
 
 import jakarta.persistence.EntityNotFoundException;
-import jakarta.validation.ConstraintViolationException;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -61,42 +60,6 @@ class AppUserServicePasswordTest {
 	}
 
 	@Test
-	@DisplayName("changePasswordSelf: missing required fields -> ConstraintViolationException")
-	void changePasswordSelf_missingFields_fails() {
-		var nullIdDto = new AppUserPasswordChangeDto(
-				null,
-				PWD,
-				PWD_NEW);
-
-		assertThrows(
-				ConstraintViolationException.class,
-				() -> appUserService.changePasswordSelf(
-						nullIdDto));
-
-		var nullCurrentPasswordDto =
-				new AppUserPasswordChangeDto(
-						TEST_ADMIN_ID,
-						null,
-						PWD_NEW);
-
-		assertThrows(
-				ConstraintViolationException.class,
-				() -> appUserService.changePasswordSelf(
-						nullCurrentPasswordDto));
-
-		var nullNewPasswordDto =
-				new AppUserPasswordChangeDto(
-						TEST_ADMIN_ID,
-						PWD,
-						null);
-
-		assertThrows(
-				ConstraintViolationException.class,
-				() -> appUserService.changePasswordSelf(
-						nullNewPasswordDto));
-	}
-
-	@Test
 	@DisplayName("changePasswordSelf: new password same as current -> IllegalArgumentException")
 	void changePasswordSelf_samePassword_fails() {
 		var dto = new AppUserPasswordChangeDto(
@@ -132,19 +95,6 @@ class AppUserServicePasswordTest {
 
 		assertThrows(
 				IllegalArgumentException.class,
-				() -> appUserService.changePasswordSelf(dto));
-	}
-
-	@Test
-	@DisplayName("changePasswordSelf: new password violates pattern -> ConstraintViolationException")
-	void changePasswordSelf_badNewPassword_fails() {
-		var dto = new AppUserPasswordChangeDto(
-				TEST_ADMIN_ID,
-				PWD,
-				PWD_BAD);
-
-		assertThrows(
-				ConstraintViolationException.class,
 				() -> appUserService.changePasswordSelf(dto));
 	}
 }

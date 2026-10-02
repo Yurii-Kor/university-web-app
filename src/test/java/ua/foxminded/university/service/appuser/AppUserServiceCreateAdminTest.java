@@ -3,8 +3,6 @@ package ua.foxminded.university.service.appuser;
 import static org.junit.jupiter.api.Assertions.*;
 import static ua.foxminded.university.service.appuser.AppUserServiceTestConstants.*;
 
-import jakarta.validation.ConstraintViolationException;
-
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -59,34 +57,6 @@ class AppUserServiceCreateAdminTest {
 		passwordPolicy.assertCurrentMatches(
 				PWD,
 				createdAdmin.getPassword());
-	}
-
-	@Test
-	@DisplayName("createAdmin: null email -> ConstraintViolationException")
-	void createAdmin_nullEmail_fails() {
-		var dto = new AppUserCreateDto(
-				null,
-				PWD,
-				"Alice",
-				"Admin");
-
-		assertThrows(
-				ConstraintViolationException.class,
-				() -> appUserService.createAdmin(dto));
-	}
-
-	@Test
-	@DisplayName("createAdmin: null password -> ConstraintViolationException")
-	void createAdmin_nullPassword_fails() {
-		var dto = new AppUserCreateDto(
-				ADMIN_NULL_PASSWORD_EMAIL,
-				null,
-				"Alice",
-				"Admin");
-
-		assertThrows(
-				ConstraintViolationException.class,
-				() -> appUserService.createAdmin(dto));
 	}
 
 	@Test

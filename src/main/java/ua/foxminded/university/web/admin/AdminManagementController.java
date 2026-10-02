@@ -7,7 +7,6 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
-import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.WebDataBinder;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
@@ -69,12 +68,7 @@ public class AdminManagementController {
 
     @PostMapping("/create")
     public String createAdmin(@Valid @ModelAttribute("form") AdminCreateForm form,
-                              BindingResult br,
                               RedirectAttributes ra) {
-
-        if (br.hasErrors()) {
-            return "admin/create";
-        }
 
         var dto = mapper.toCreateDto(form);
         appUserService.createAdmin(dto);

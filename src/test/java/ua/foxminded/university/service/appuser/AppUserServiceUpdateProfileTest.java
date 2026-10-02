@@ -6,7 +6,6 @@ import static ua.foxminded.university.service.appuser.AppUserServiceTestConstant
 import java.util.List;
 
 import jakarta.persistence.EntityNotFoundException;
-import jakarta.validation.ConstraintViolationException;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -104,20 +103,6 @@ class AppUserServiceUpdateProfileTest {
 				LAST_NAME,
 				found.getLastName(),
 				"Last name must remain unchanged");
-	}
-
-	@Test
-	@DisplayName("updateProfileFields: null id -> ConstraintViolationException")
-	void updateProfileFields_nullId_fails() {
-		var dto = new AppUserSelfUpdateDto(
-				null,
-				UPDATED_EMAIL,
-				UPDATED_FIRST_NAME,
-				UPDATED_LAST_NAME);
-
-		assertThrows(
-				ConstraintViolationException.class,
-				() -> appUserService.updateProfileFields(dto));
 	}
 
 	@Test

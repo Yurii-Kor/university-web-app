@@ -1,6 +1,8 @@
 package ua.foxminded.university.web.admin;
 
 import static org.hamcrest.Matchers.contains;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.*;
@@ -14,8 +16,6 @@ import java.time.OffsetDateTime;
 import java.util.List;
 
 import jakarta.persistence.EntityNotFoundException;
-import jakarta.validation.ConstraintViolation;
-import jakarta.validation.Path;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -27,6 +27,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.validation.BindingResult;
 
 import ua.foxminded.university.model.persistence.appuser.projection.AdminRowView;
 import ua.foxminded.university.service.appuser.AppUserService;
@@ -128,24 +129,32 @@ class AdminManagementControllerWebMvcTest {
     }
 
     @Test
-    @DisplayName("POST /admin/create password mismatch -> 200, admin/create, field error confirmPassword, service not called")
-    void postCreateAdmin_passwordMismatch_staysOnForm() throws Exception {
-        var dto = new AppUserCreateDto("admin@ex.com", "Abcd1234!", "Alice", "Admin");
+    @DisplayName(
+            "POST /admin/create password mismatch -> redirects create with field error, service not called")
+    void postCreateAdmin_passwordMismatch_redirectsCreate() throws Exception {
 
-        when(mapper.toCreateDto(any(AdminCreateForm.class))).thenReturn(dto);
-
-        mockMvc.perform(post("/admin/create")
-                        .with(user(Long.toString(SELF_ID)).roles("ADMIN"))
+        var result = mockMvc
+                .perform(post("/admin/create").with(user(Long.toString(SELF_ID)).roles("ADMIN"))
                         .with(csrf())
                         .param("email", "admin@ex.com")
                         .param("firstName", "Alice")
                         .param("lastName", "Admin")
                         .param("newPassword", "Abcd1234!")
                         .param("confirmPassword", "DIFFERENT!"))
-                .andExpect(status().isOk())
-                .andExpect(view().name("admin/create"))
-                .andExpect(model().attributeHasFieldErrors("form", "confirmPassword"));
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/admin/create"))
+                .andExpect(flash().attributeExists("form"))
+                .andExpect(flash().attributeExists(BindingResult.MODEL_KEY_PREFIX + "form"))
+                .andReturn();
 
+        var bindingResult =
+                (BindingResult) result.getFlashMap()
+                        .get(BindingResult.MODEL_KEY_PREFIX
+                                        + "form");
+
+        assertNotNull(bindingResult);
+        assertTrue(bindingResult.hasFieldErrors("confirmPassword"));
+        verify(mapper, never()).toCreateDto(any());
         verify(appUserService, never()).createAdmin(any());
     }
 
@@ -251,30 +260,32 @@ class AdminManagementControllerWebMvcTest {
     }
 
     @Test
-    @DisplayName("POST /admin/create when validator returns violation -> 200, admin/create, field error set from violation")
-    void postCreateAdmin_validationViolation_bindsFieldError() throws Exception {
-        var dto = new AppUserCreateDto("bad", "Abcd1234!", "Alice", "Admin");
-        when(mapper.toCreateDto(any(AdminCreateForm.class))).thenReturn(dto);
+    @DisplayName(
+            "POST /admin/create invalid email -> redirects create with email field error, service not called")
+    void postCreateAdmin_invalidEmail_redirectsCreate() throws Exception {
 
-        ConstraintViolation<AppUserCreateDto> violation = mock(ConstraintViolation.class);
-        Path path = mock(Path.class);
-
-        when(path.toString()).thenReturn("email");
-        when(violation.getPropertyPath()).thenReturn(path);
-        when(violation.getMessage()).thenReturn("must be a well-formed email address");
-
-        mockMvc.perform(post("/admin/create")
-                        .with(user(Long.toString(SELF_ID)).roles("ADMIN"))
+        var result = mockMvc
+                .perform(post("/admin/create").with(user(Long.toString(SELF_ID)).roles("ADMIN"))
                         .with(csrf())
                         .param("email", "bad")
                         .param("firstName", "Alice")
                         .param("lastName", "Admin")
                         .param("newPassword", "Abcd1234!")
                         .param("confirmPassword", "Abcd1234!"))
-                .andExpect(status().isOk())
-                .andExpect(view().name("admin/create"))
-                .andExpect(model().attributeHasFieldErrors("form", "email"));
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/admin/create"))
+                .andExpect(flash().attributeExists("form"))
+                .andExpect(flash().attributeExists(BindingResult.MODEL_KEY_PREFIX + "form"))
+                .andReturn();
 
+        var bindingResult =
+                (BindingResult) result.getFlashMap()
+                        .get(BindingResult.MODEL_KEY_PREFIX
+                                        + "form");
+
+        assertNotNull(bindingResult);
+        assertTrue(bindingResult.hasFieldErrors("email"));
+        verify(mapper, never()).toCreateDto(any());
         verify(appUserService, never()).createAdmin(any());
     }
 }

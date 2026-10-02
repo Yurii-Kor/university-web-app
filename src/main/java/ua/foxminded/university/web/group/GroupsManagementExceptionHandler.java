@@ -1,7 +1,6 @@
 package ua.foxminded.university.web.group;
 
 import jakarta.persistence.EntityNotFoundException;
-import jakarta.validation.ConstraintViolationException;
 
 import lombok.RequiredArgsConstructor;
 
@@ -11,7 +10,6 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import ua.foxminded.university.service.studygroup.exception.StudyGroupDeleteException;
 import ua.foxminded.university.service.studygroup.exception.StudyGroupRenameException;
-import ua.foxminded.university.service.util.validation.ContextConstraintViolationException;
 import ua.foxminded.university.web.util.ExceptionMessageReader;
 
 @ControllerAdvice(assignableTypes = GroupsManagementController.class)
@@ -56,26 +54,6 @@ public class GroupsManagementExceptionHandler {
                 messageReader.safeMessage(
                         ex,
                         "Group cannot be deleted."));
-
-        return "redirect:/groups";
-    }
-
-    @ExceptionHandler(ConstraintViolationException.class)
-    public String handleValidation(
-            ConstraintViolationException ex,
-            RedirectAttributes ra) {
-
-        if (ex instanceof ContextConstraintViolationException ctx) {
-            ctx.entityId()
-                    .ifPresent(id ->
-                            ra.addFlashAttribute(
-                                    "groupId",
-                                    id));
-        }
-
-        ra.addFlashAttribute(
-                "err",
-                messageReader.formatViolations(ex));
 
         return "redirect:/groups";
     }
