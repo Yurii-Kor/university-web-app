@@ -85,23 +85,23 @@ public class AppUserService {
 	}
 
 	@Transactional(value = TxType.REQUIRES_NEW)
-	public void changePasswordSelf(AppUserPasswordChangeDto patch) {
+	public void changePasswordSelf(long userId, AppUserPasswordChangeDto patch) {
 
-		var managed = usersRepository.findById(patch.id())
-				.orElseThrow(() -> new EntityNotFoundException("User not found: id=" + patch.id()));
+		var managed = usersRepository.findById(userId)
+				.orElseThrow(() -> new EntityNotFoundException("User not found: id=" + userId));
 
 		passwordPolicy.assertCurrentMatches(patch.currentPassword(), managed.getPassword());
 		passwordPolicy.assertNewDifferentFromCurrent(patch.currentPassword(), patch.newPassword());
 		
 		managed.setPassword(passwordPolicy.encodePassword(patch.newPassword()));
-		log.info("changePasswordSelf: password changed (userId={})", patch.id());
+		log.info("changePasswordSelf: password changed (userId={})", userId);
 	}
 
 	@Transactional(TxType.REQUIRES_NEW)
-	public void updateProfileFields(AppUserSelfUpdateDto patch) {
+	public void updateProfileFields(long userId, AppUserSelfUpdateDto patch) {
 
-		var managed = usersRepository.findById(patch.id())
-				.orElseThrow(() -> new EntityNotFoundException("User not found: id=" + patch.id()));
+		var managed = usersRepository.findById(userId)
+				.orElseThrow(() -> new EntityNotFoundException("User not found: id=" + userId));
 
 	    applyEmailPatch(managed, patch.email());
 	    applyFirstNamePatch(managed, patch.firstName());

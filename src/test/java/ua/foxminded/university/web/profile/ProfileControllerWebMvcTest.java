@@ -2,6 +2,7 @@ package ua.foxminded.university.web.profile;
 
 import static org.hamcrest.Matchers.sameInstance;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -35,6 +36,7 @@ import ua.foxminded.university.web.profile.page.ProfilePageModelFactory;
 import ua.foxminded.university.web.profile.page.strategy.AdminProfilePageStrategy;
 import ua.foxminded.university.web.profile.page.strategy.StudentProfilePageStrategy;
 import ua.foxminded.university.web.profile.page.strategy.TeacherProfilePageStrategy;
+import ua.foxminded.university.web.profile.validation.PasswordChangeFormValidator;
 import ua.foxminded.university.web.util.ExceptionMessageReader;
 import ua.foxminded.university.web.util.PrincipalHandler;
 
@@ -46,6 +48,7 @@ import ua.foxminded.university.web.util.PrincipalHandler;
 	AdminProfilePageStrategy.class,
 	StudentProfilePageStrategy.class,
 	TeacherProfilePageStrategy.class,
+	PasswordChangeFormValidator.class,
 	ExceptionMessageReader.class
 })
 class ProfileControllerWebMvcTest {
@@ -125,14 +128,25 @@ class ProfileControllerWebMvcTest {
 				.andExpect(redirectedUrl("/profile"))
 				.andExpect(flash().attribute("updated", true));
 
-		verify(appUserService).updateProfileFields(new AppUserSelfUpdateDto(DEFAULT_ID, "a@b.com", "John", "Doe"));
+		verify(appUserService)
+        .updateProfileFields(
+                DEFAULT_ID,
+                new AppUserSelfUpdateDto(
+                        "a@b.com",
+                        "John",
+                        "Doe"));
 	}
 
 	@Test
 	@DisplayName("POST /profile/self/update when IllegalArgumentException -> redirects /profile, flash err=message")
 	void postUpdateSelf_illegalArgument_redirectsProfileAndSetsErrFlash() throws Exception {
-		doThrow(new IllegalArgumentException("Invalid input")).when(appUserService)
-				.updateProfileFields(any(AppUserSelfUpdateDto.class));
+	    doThrow(
+                new IllegalArgumentException(
+                        "Invalid input"))
+                .when(appUserService)
+                .updateProfileFields(
+                        eq(DEFAULT_ID.longValue()),
+                        any(AppUserSelfUpdateDto.class));
 
 		mockMvc.perform(post("/profile/self/update").with(user(Long.toString(DEFAULT_ID)).roles("TEACHER"))
 				.with(csrf())
@@ -147,8 +161,13 @@ class ProfileControllerWebMvcTest {
 	@Test
 	@DisplayName("POST /profile/self/update when EntityNotFoundException -> redirects /login, flash err=fixed message")
 	void postUpdateSelf_entityNotFound_redirectsLoginAndSetsErrFlash() throws Exception {
-		doThrow(new EntityNotFoundException("not found")).when(appUserService)
-				.updateProfileFields(any(AppUserSelfUpdateDto.class));
+	    doThrow(
+                new EntityNotFoundException(
+                        "not found"))
+                .when(appUserService)
+                .updateProfileFields(
+                        eq(DEFAULT_ID.longValue()),
+                        any(AppUserSelfUpdateDto.class));
 
 		mockMvc.perform(post("/profile/self/update").with(user(Long.toString(DEFAULT_ID)).roles("TEACHER"))
 				.with(csrf())

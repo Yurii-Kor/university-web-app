@@ -44,11 +44,11 @@ class AppUserServicePasswordTest {
 	@DisplayName("changePasswordSelf: happy path — password changed and encoded")
 	void changePasswordSelf_happyPath_success() {
 		var dto = new AppUserPasswordChangeDto(
-				TEST_ADMIN_ID,
 				PWD,
+				PWD_NEW,
 				PWD_NEW);
 
-		appUserService.changePasswordSelf(dto);
+		appUserService.changePasswordSelf(TEST_ADMIN_ID, dto);
 
 		var updated = appUserService.findByIds(
 				List.of(TEST_ADMIN_ID))
@@ -63,38 +63,38 @@ class AppUserServicePasswordTest {
 	@DisplayName("changePasswordSelf: new password same as current -> IllegalArgumentException")
 	void changePasswordSelf_samePassword_fails() {
 		var dto = new AppUserPasswordChangeDto(
-				TEST_ADMIN_ID,
+				PWD,
 				PWD,
 				PWD);
 
 		assertThrows(
 				IllegalArgumentException.class,
-				() -> appUserService.changePasswordSelf(dto));
+				() -> appUserService.changePasswordSelf(TEST_ADMIN_ID, dto));
 	}
 
 	@Test
 	@DisplayName("changePasswordSelf: user not found -> EntityNotFoundException")
 	void changePasswordSelf_notFound_fails() {
 		var dto = new AppUserPasswordChangeDto(
-				MISSING_ID,
 				PWD,
-				PWD_NEW);
+				PWD_NEW,
+                PWD_NEW);
 
 		assertThrows(
 				EntityNotFoundException.class,
-				() -> appUserService.changePasswordSelf(dto));
+				() -> appUserService.changePasswordSelf(MISSING_ID, dto));
 	}
 
 	@Test
 	@DisplayName("changePasswordSelf: wrong current password -> IllegalArgumentException")
 	void changePasswordSelf_wrongCurrent_fails() {
 		var dto = new AppUserPasswordChangeDto(
-				TEST_ADMIN_ID,
 				PWD_NEW,
-				PWD_NEW);
+				PWD,
+				PWD);
 
 		assertThrows(
 				IllegalArgumentException.class,
-				() -> appUserService.changePasswordSelf(dto));
+				() -> appUserService.changePasswordSelf(TEST_ADMIN_ID, dto));
 	}
 }

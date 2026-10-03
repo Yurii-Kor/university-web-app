@@ -6,9 +6,6 @@ import jakarta.validation.constraints.*;
 
 public record AppUserPasswordChangeDto(
 
-        @NotNull
-        Long id,
-
         @NotBlank
         String currentPassword,
 
@@ -18,5 +15,8 @@ public record AppUserPasswordChangeDto(
             regexp = PASSWORD_REGEX,
             message = PASSWORD_MESSAGE
         )
-        String newPassword
+        String newPassword,
+
+        @NotBlank
+        String confirmPassword
 ) {}

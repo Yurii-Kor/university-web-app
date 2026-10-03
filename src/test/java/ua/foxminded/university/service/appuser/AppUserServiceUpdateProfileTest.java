@@ -50,12 +50,13 @@ class AppUserServiceUpdateProfileTest {
 				createDto);
 
 		var updateDto = new AppUserSelfUpdateDto(
-				createdAdmin.getId(),
 				ADMIN_UPDATED_EMAIL,
 				UPDATED_FIRST_NAME,
 				UPDATED_LAST_NAME);
 
-		appUserService.updateProfileFields(updateDto);
+		appUserService.updateProfileFields(
+		        createdAdmin.getId(),
+		        updateDto);
 
 		var reloaded = appUserService.findByIds(
 				List.of(createdAdmin.getId()))
@@ -78,12 +79,11 @@ class AppUserServiceUpdateProfileTest {
 	@DisplayName("updateProfileFields: no-op — same email and null names")
 	void updateProfileFields_noop_sameEmail_ok() {
 		var dto = new AppUserSelfUpdateDto(
-				TEST_ADMIN_ID,
 				TEST_ADMIN_EMAIL,
 				null,
 				null);
 
-		appUserService.updateProfileFields(dto);
+		appUserService.updateProfileFields(TEST_ADMIN_ID, dto);
 
 		var found = appUserService.findByIds(
 				List.of(TEST_ADMIN_ID))
@@ -109,27 +109,25 @@ class AppUserServiceUpdateProfileTest {
 	@DisplayName("updateProfileFields: user not found -> EntityNotFoundException")
 	void updateProfileFields_notFound_fails() {
 		var dto = new AppUserSelfUpdateDto(
-				MISSING_ID,
 				UPDATED_EMAIL,
 				null,
 				null);
 
 		assertThrows(
 				EntityNotFoundException.class,
-				() -> appUserService.updateProfileFields(dto));
+				() -> appUserService.updateProfileFields(MISSING_ID, dto));
 	}
 
 	@Test
 	@DisplayName("updateProfileFields: set email that belongs to another user -> IllegalArgumentException")
 	void updateProfileFields_emailTaken_fails() {
 		var dto = new AppUserSelfUpdateDto(
-				TEST_ADMIN_ID,
 				TAKEN_EMAIL,
 				null,
 				null);
 
 		assertThrows(
 				IllegalArgumentException.class,
-				() -> appUserService.updateProfileFields(dto));
+				() -> appUserService.updateProfileFields(TEST_ADMIN_ID, dto));
 	}
 }
