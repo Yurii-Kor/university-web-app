@@ -51,12 +51,14 @@
                     name="academicRank"
                     required>
 
-              <option th:each="rank : ${T(ua.foxminded.university.model.domain.enums.AcademicRank).values()}"
-                      th:value="${rank}"
-                      th:text="${rank}"
-                      th:selected="${useRequested
-                          ? rank == requestedAcademicRank
-                          : rank == teacher.academicRank}">
+			  <option th:each="rank : ${T(ua.foxminded.university.model.domain.enums.AcademicRank).values()}"
+			          th:value="${rank.name()}"
+			          th:text="${rank.name()}"
+		  	          th:selected="${useRequested
+			              ? requestedAcademicRank != null
+			                and rank.name().equals(requestedAcademicRank.name())
+			              : teacher.academicRank != null
+			                and rank.name().equals(teacher.academicRank.name())}">
                 LECTURER
               </option>
 

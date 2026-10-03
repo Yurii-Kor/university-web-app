@@ -1,0 +1,98 @@
+id: students
+title: Students
+order: 4
+
+description: Browse students visible to the current account and manage active student records according to role permissions.
+
+roles:
+  TEACHER:
+    available: true
+    tab_label: Students
+    page_title: My students
+    page_description: Students in groups assigned to your courses.
+
+    scope: Students from study groups assigned to courses taught by the current teacher.
+    presentation: cards
+
+    display_fields:
+      - id: name
+        label: Name
+
+      - id: email
+        label: Email
+
+      - id: group
+        label: Group
+
+    stories:
+      - View students from groups assigned to courses taught by the teacher.
+      - View each student's name, email, and study group.
+
+    actions: []
+
+  STUDENT:
+    available: true
+    tab_label: Students
+    page_title: My group
+    page_description: Other students in your study group.
+
+    scope: Other students from the current student's study group.
+    presentation: cards
+
+    display_fields:
+      - id: name
+        label: Name
+
+      - id: email
+        label: Email
+
+    stories:
+      - View other students from the same study group.
+      - View each group member's name and email.
+
+    actions: []
+
+  ADMIN:
+    available: true
+    tab_label: Students
+    page_title: Students
+    page_description: Enabled students in the system.
+
+    scope: All enabled student accounts.
+    presentation: cards
+    paginated: true
+
+    display_fields:
+      - id: name
+        label: Name
+
+      - id: email
+        label: Email
+
+      - id: group
+        label: Group
+
+      - id: enrollment_year
+        label: Enrollment
+
+    stories:
+      - View all enabled students in the system.
+      - Browse the student list using pagination.
+      - Create a new student account.
+      - Change a student's assigned study group.
+      - Update a student's enrollment year.
+
+    editable_fields:
+      - group
+      - enrollment_year
+
+    actions:
+      - create_student
+      - update_student
+
+    unavailable_actions:
+      - delete_student
+
+    restrictions:
+      - action: delete_student
+        condition: Student deletion is not available from the Students page.

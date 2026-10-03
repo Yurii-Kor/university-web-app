@@ -1,0 +1,103 @@
+id: profile
+title: Profile
+order: 1
+
+description: View and manage personal account information.
+
+common:
+  stories:
+    - View own account information.
+    - Edit own email, first name, and last name.
+    - Change own account password.
+
+  editable_fields:
+    - email
+    - first_name
+    - last_name
+
+  actions:
+    - update_profile
+    - change_password
+
+roles:
+  TEACHER:
+    available: true
+    page_title: Teacher profile
+
+    display_fields:
+      - id: email
+        label: Email
+
+      - id: first_name
+        label: First name
+
+      - id: last_name
+        label: Last name
+
+      - id: created_at
+        label: Created at
+
+      - id: academic_rank
+        label: Academic rank
+
+      - id: office
+        label: Office
+
+      - id: role
+        label: Role
+
+    stories:
+      - View own academic rank.
+      - View own office information.
+
+  STUDENT:
+    available: true
+    page_title: Student profile
+
+    display_fields:
+      - id: email
+        label: Email
+
+      - id: first_name
+        label: First name
+
+      - id: last_name
+        label: Last name
+
+      - id: created_at
+        label: Created at
+
+      - id: enrollment_year
+        label: Enrollment year
+
+      - id: group
+        label: Group
+
+      - id: role
+        label: Role
+
+    stories:
+      - View own enrollment year.
+      - View assigned study group.
+
+  ADMIN:
+    available: true
+    page_title: Account details
+
+    display_fields:
+      - id: email
+        label: Email
+
+      - id: first_name
+        label: First name
+
+      - id: last_name
+        label: Last name
+
+      - id: created_at
+        label: Created at
+
+      - id: role
+        label: Role
+
+    stories: []

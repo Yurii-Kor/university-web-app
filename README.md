@@ -21,18 +21,303 @@
 ![Docker](https://img.shields.io/badge/Containers-Docker-2496ED?logo=docker&logoColor=white)
 ![Application](https://img.shields.io/badge/Type-Web%20Application-6C757D)
 
-
 A role-based university timetable and academic management web application built with [Spring Boot](https://www.baeldung.com/spring-boot-start), Spring MVC, Thymeleaf, Spring Data JPA, and PostgreSQL.
 
-The application provides role-specific workflows for students, teachers, and administrators. It supports account and profile management, study groups, courses, scheduled lessons, timetable views, user role transitions, and soft deletion with restoration of supported records.
+The application provides role-specific workflows for students, teachers, and administrators. It supports account and profile management, study groups, courses, scheduled lessons, weekly and daily timetable views, PDF schedule export, user role transitions, and soft deletion with restoration of supported records.
 
 Authentication is implemented through Spring Security [form login](https://www.baeldung.com/spring-security-login). Authorization is enforced through both HTTP security configuration and [method-level security](https://www.baeldung.com/spring-security-method-security), while [Spring Security integration with Thymeleaf](https://www.baeldung.com/spring-security-thymeleaf) controls role-dependent navigation, available actions, and page content.
 
 The project follows a layered package structure that separates the domain model, Spring Data JPA persistence, application services, web presentation, and security concerns. Its test suite combines unit and integration testing with focused Spring MVC tests using [`@WebMvcTest`](https://www.baeldung.com/spring-boot-testing#unit-testing-with-webmvctest).
 
-
 ---
 
+<!--
+User-story source of truth:
+src/main/resources/content/user-stories/
+-->
+
+<details>
+<summary><h2>User Stories</h2></summary>
+
+The application is organized around eight role-aware functional areas. Expand an area below to see its user stories and role-specific behavior.
+
+<details>
+<summary><strong>1. Profile</strong> — personal account and profile management</summary>
+
+### Common
+
+As an authenticated user, I can:
+
+- view my own account information;
+- update my email, first name, and last name;
+- change my account password.
+
+### Student
+
+As a **Student**, I can also:
+
+- view my enrollment year;
+- view my assigned study group.
+
+### Teacher
+
+As a **Teacher**, I can also:
+
+- view my academic rank;
+- view my office information.
+
+### Admin
+
+As an **Admin**, I use the common profile capabilities for my account.
+
+</details>
+
+<details>
+<summary><strong>2. Courses</strong> — role-specific course browsing and management</summary>
+
+### Common
+
+As an authenticated user, I can:
+
+- browse the course cards available to my account;
+- show or hide course descriptions.
+
+### Student
+
+As a **Student**, I can:
+
+- view the courses assigned to my study group.
+
+### Teacher
+
+As a **Teacher**, I can:
+
+- view the courses assigned to me;
+- update the description of a course I teach.
+
+### Admin
+
+As an **Admin**, I can:
+
+- view all university courses;
+- create a new course;
+- update a course description;
+- update a course code and name;
+- change the teacher assigned to a course;
+- delete a course;
+- manage the study groups assigned to a course.
+
+</details>
+
+<details>
+<summary><strong>3. Study Groups</strong> — group information and administration</summary>
+
+### Student
+
+As a **Student**, I can:
+
+- view my assigned study group;
+- view the number of students in my group.
+
+### Teacher
+
+As a **Teacher**, I can:
+
+- view the study groups where I teach;
+- view the number of students in each study group;
+- view the number of courses associated with each study group.
+
+### Admin
+
+As an **Admin**, I can:
+
+- view all active study groups;
+- create a new study group;
+- update a study group's name;
+- soft delete an empty study group.
+
+A study group with assigned students cannot be deleted.
+
+</details>
+
+<details>
+<summary><strong>4. Students</strong> — role-aware student directory</summary>
+
+### Student
+
+As a **Student**, I can:
+
+- view the other students in my study group;
+- view each group member's name and email.
+
+### Teacher
+
+As a **Teacher**, I can:
+
+- view students from study groups assigned to courses I teach;
+- view each student's name, email, and study group.
+
+### Admin
+
+As an **Admin**, I can:
+
+- view all enabled student accounts;
+- browse the student list using pagination;
+- create a new student account;
+- change a student's assigned study group;
+- update a student's enrollment year.
+
+Student deletion is intentionally not available from the **Students** page. Sensitive account operations are handled in **Account Management**.
+
+</details>
+
+<details>
+<summary><strong>5. Teachers</strong> — role-aware teacher directory</summary>
+
+### Student
+
+As a **Student**, I can:
+
+- view teachers assigned to courses of my study group;
+- view each teacher's name, email, academic rank, and office.
+
+### Teacher
+
+As a **Teacher**, I can:
+
+- view other active teachers as colleagues;
+- view each colleague's name, email, academic rank, and office.
+
+### Admin
+
+As an **Admin**, I can:
+
+- view all active teachers;
+- browse the teacher list using pagination;
+- create a new teacher account;
+- update a teacher's academic rank;
+- update a teacher's office.
+
+Teacher deletion is intentionally not available from the **Teachers** page. Sensitive account operations are handled in **Account Management**.
+
+</details>
+
+<details>
+<summary><strong>6. Schedule</strong> — weekly and daily timetable management</summary>
+
+### Common
+
+As a **Student** or **Teacher**, I can:
+
+- view the schedule for a selected week;
+- open a specific day from the weekly schedule;
+- view the schedule for a selected day;
+- navigate to previous and next weeks;
+- navigate to previous and next days;
+- return to the current week or day;
+- download the selected weekly schedule as a PDF file.
+
+### Student
+
+As a **Student**, I can:
+
+- view lessons assigned to my study group;
+- view the teacher assigned to each lesson.
+
+The student schedule is read-only.
+
+### Teacher
+
+As a **Teacher**, I can:
+
+- view lessons assigned to me;
+- view the study group assigned to each lesson;
+- create a lesson for a course I teach;
+- select only study groups assigned to the selected course;
+- review my existing lessons for the selected day before creating or updating a lesson;
+- review the selected study group's existing lessons for the selected day;
+- update an existing lesson;
+- delete an existing lesson.
+
+When creating or updating a lesson, the application prevents scheduling conflicts involving the **teacher**, **study group**, and **room**.
+
+During an update, the lesson currently being edited is excluded from conflict checks against itself.
+
+The course and study group of an existing lesson remain fixed during update, while the date, time, room, lesson type, and description can be changed.
+
+### Admin
+
+The **Schedule** area is not available to administrators.
+
+</details>
+
+<details>
+<summary><strong>7. Admins</strong> — administrator account management</summary>
+
+The **Admins** area is available only to administrators.
+
+As an **Admin**, I can:
+
+- view all administrator accounts, including my own;
+- identify my currently signed-in administrator account in the list;
+- create a new administrator account;
+- block an active administrator account;
+- enable a blocked administrator account;
+- delete another administrator account.
+
+An administrator cannot delete their own account.
+
+</details>
+
+<details>
+<summary><strong>8. Account Management</strong> — sensitive account lifecycle and role conversion</summary>
+
+The **Account Management** area is available only to administrators and contains separate **Students** and **Teachers** views.
+
+As an **Admin**, I can:
+
+- browse student and teacher accounts using pagination;
+- view account status and role-specific profile information;
+- enable blocked accounts;
+- disable active accounts;
+- soft delete student and teacher accounts;
+- convert a Student account to a Teacher account;
+- convert a Teacher account to a Student account.
+
+### Role conversion
+
+Role conversion reuses the existing account instead of creating an unrelated new account.
+
+Role-specific profile data is preserved through soft deletion and can later be reused when it remains valid.
+
+Before conversion, the frontend requests a restoration assessment from the backend.
+
+If a previous target-role profile can be restored as-is:
+
+- its existing data can be reused;
+- the administrator does not need to enter the target-role profile data again.
+
+If the stored target-role profile cannot be reused:
+
+- the administrator is asked to provide the required replacement data before conversion.
+
+For **Student → Teacher**, the target profile requires:
+
+- academic rank;
+- office.
+
+For **Teacher → Student**, the target profile requires:
+
+- study group;
+- enrollment year.
+
+For example, a previously assigned study group may no longer be available. In that case, new student profile data must be provided before the conversion can be completed.
+
+</details>
+
+</details>
+
+---
 
 <details open>
 <summary><h2>Project Structure</h2></summary>
@@ -55,7 +340,7 @@ The project follows a layered structure:
 
 3. **Web layer**
    - Contains Spring MVC controllers, request binding, exception handling, and web configuration.
-   - Web components are grouped by user-facing areas such as accounts, administration, courses, groups, profiles, students, and teachers.
+   - Web components are grouped by user-facing areas such as accounts, administration, courses, groups, lessons, profiles, students, teachers, and the public home page.
 
 ![Application package structure](docs/architecture/application-structure.svg)
 
@@ -65,9 +350,7 @@ Supporting DTOs, projections, validators, mappers, configuration classes, and ex
 
 </details>
 
-
 ---
-
 
 <details open>
 <summary><h2>Database</h2></summary>
@@ -117,9 +400,7 @@ Generated accounts follow predictable development-only credential patterns:
 
 </details>
 
-
 ---
-
 
 <details open>
 <summary><h2>🐳 Dockerization</h2></summary>
@@ -139,171 +420,3 @@ docker pull yuriikorolkov/university-web-app:latest
 ```
 
 </details>
-
-
----
-
-
-
-## User Stories
-
-
-
-### Auth
-
-**Story:** As a User (Student/Teacher), I log in with email + password and land on my own data.  
-
-**Acceptance**
-
-- **Given** valid credentials  
-
-- **When** I submit the login  
-
-- **Then** I receive my profile `{id, role, firstName, lastName}` and the UI shows my role badge  
-
-- **Else** invalid credentials → clear error without extra details
-
-
-
----
-
-
-
-### Courses (tile view + course details)
-
-
-
-#### Student
-
-**Story:** See the courses I study and open a course.  
-
-**Acceptance**
-
-- **Given** I’m logged in as Student  
-
-- **When** I open *Courses*  
-
-- **Then** I see tiles `{id, code, name}` of **my** courses  
-
-- **And** clicking a tile opens **Course details** `{name, description, my group}`
-
-
-
-#### Teacher
-
-**Story:** See the courses I teach and open a course.  
-
-**Acceptance**
-
-- **Given** I’m logged in as Teacher  
-
-- **When** I open *Courses*  
-
-- **Then** I see tiles of **my** courses  
-
-- **And** clicking a tile opens **Course details** `{name, description, groups of the current course}`  
-
-- *(Optional later: edit name/description)*
-
-
-
----
-
-
-
-### Groups (read-only in MVP)
-
-#### Teacher
-
-**Story:** For a selected course, see all its groups and each group’s roster.  
-
-**Acceptance**
-
-- **Given** the course belongs to me  
-
-- **When** I open *Course details*  
-
-- **Then** I see the list of groups `{id, title}`  
-
-- **And** opening a group shows its students `{id, fullName, email}`  
-
-- **And** no add/remove of students in MVP (pre-seeded data)
-
-
-
-#### Student
-
-**Story:** In a selected course, see my group and its roster.  
-
-**Acceptance**
-
-- **Given** I open *Course details*  
-
-- **Then** I see exactly one **my group** for that course (if any)  
-
-- **And** opening it shows the roster (read-only)
-
-
-
----
-
-
-
-### Schedule (Month / Day)
-
-#### Student
-
-**Story:** View my timetable for a month and drill down to a day.  
-
-**Acceptance**
-
-- **Given** I’m logged in as Student  
-
-- **When** I open *Schedule* for `YYYY-MM`  
-
-- **Then** I see Month view with indicators on days that have classes for my groups  
-
-- **And** clicking a day shows a sorted list by `start` with `{time, courseName, groupTitle, room}`  
-
-- **And** optional filters by `course`  
-
-- **TZ:** results respect local timezone (e.g. Asia/Jerusalem); DB stores UTC
-
-
-
-#### Teacher
-
-**Story:** View my timetable and manage group slots.  
-
-**Acceptance (view)**
-
-- Month/Day like Student, but for my courses/groups; filters by `course/group`
-
-**Acceptance (CRUD)**
-
-- **Given** I’m logged in as Teacher - manager of the *Schedule* according to my   
-
-- **When** I create/update/delete a slot `{start, end, room}`  
-
-- **Then** students in that group see the changes  
-
-- **And** validation: `end > start`, **no overlaps within the same group**  
-
-- **Else** not owner → forbidden
-
-
-
----
-
-
-
-## Non-functional (short)
-
-- **Timezones:** store timestamps in UTC; return ISO-8601; render in **Asia/Jerusalem**.
-
-- **Ranges:** Month = `\[firstDayT00:00, firstDayNextMonthT00:00)`, Day = `\[dateT00:00, nextDateT00:00)`, in local TZ.
-
-- **Sorting:** by `start` (then `end`, then `courseName`).
-
-- **Access:** Students see only their groups; Teachers only their own courses/groups.
-

@@ -1,0 +1,214 @@
+id: accounts
+title: Account Management
+order: 8
+
+description: Manage sensitive student and teacher account operations, including account status, soft deletion, and role conversion.
+
+roles:
+  STUDENT:
+    available: false
+    reason: Account management is restricted to admins.
+
+  TEACHER:
+    available: false
+    reason: Account management is restricted to admins.
+
+  ADMIN:
+    available: true
+    tab_label: Accounts
+    page_title: Account Management
+
+    scope: Student and teacher accounts in the system.
+    presentation: cards
+    paginated: true
+
+    stories:
+      - Browse student and teacher accounts in separate views.
+      - View account status and role-specific profile information.
+      - Enable blocked accounts.
+      - Disable active accounts.
+      - Soft delete student and teacher accounts.
+      - Convert a student account to a teacher account.
+      - Convert a teacher account to a student account.
+      - Reuse previously stored role-profile data when it can be restored.
+      - Provide new role-profile data when previously stored data cannot be reused.
+
+    actions:
+      - enable_account
+      - disable_account
+      - soft_delete_account
+      - change_student_to_teacher
+      - change_teacher_to_student
+
+views:
+  STUDENTS:
+    title: Students
+    page_description: Manage sensitive operations for student accounts.
+
+    scope: Student accounts in the system.
+    paginated: true
+    presentation: cards
+
+    display_fields:
+      - id: account_type
+        label: Account type
+
+      - id: name
+        label: Name
+
+      - id: status
+        label: Status
+
+      - id: id
+        label: ID
+
+      - id: email
+        label: Email
+
+      - id: created_at
+        label: Created
+
+      - id: group
+        label: Group
+
+      - id: enrollment_year
+        label: Enrollment
+
+    stories:
+      - View student account details.
+      - View whether a student account is active or blocked.
+      - Enable a blocked student account.
+      - Disable an active student account.
+      - Soft delete a student account.
+      - Change a student account to a teacher account.
+
+    actions:
+      - enable_account
+      - disable_account
+      - soft_delete_account
+      - change_to_teacher
+
+  TEACHERS:
+    title: Teachers
+    page_description: Manage sensitive operations for teacher accounts.
+
+    scope: Teacher accounts in the system.
+    paginated: true
+    presentation: cards
+
+    display_fields:
+      - id: account_type
+        label: Account type
+
+      - id: name
+        label: Name
+
+      - id: status
+        label: Status
+
+      - id: id
+        label: ID
+
+      - id: email
+        label: Email
+
+      - id: created_at
+        label: Created
+
+      - id: academic_rank
+        label: Rank
+
+      - id: office
+        label: Office
+
+    stories:
+      - View teacher account details.
+      - View whether a teacher account is active or blocked.
+      - Enable a blocked teacher account.
+      - Disable an active teacher account.
+      - Soft delete a teacher account.
+      - Change a teacher account to a student account.
+
+    actions:
+      - enable_account
+      - disable_account
+      - soft_delete_account
+      - change_to_student
+
+account_status:
+  states:
+    - ACTIVE
+    - BLOCKED
+
+  actions:
+    enable:
+      available_when: The account is blocked.
+      result: The account becomes active.
+
+    disable:
+      available_when: The account is active.
+      result: The account becomes blocked.
+
+soft_delete:
+  available_for:
+    - STUDENT
+    - TEACHER
+
+  behavior:
+    - Student and teacher accounts are deleted using soft deletion.
+    - Soft-deleted role-specific data remains stored and may later be reusable.
+
+role_conversion:
+  description: Change an existing account between student and teacher roles while preserving reusable role-profile data.
+
+  behavior:
+    - The existing account is reused instead of creating an unrelated new account.
+    - Role-specific profile data is preserved through soft deletion rather than being permanently removed.
+    - Before conversion, the frontend requests restoration information from the backend.
+    - The backend determines whether previously stored target-role profile data can be reused.
+    - If the target-role profile can be restored as-is, the conversion can proceed without entering replacement profile data.
+    - If the previous target-role data cannot be reused, the administrator must provide the required target-role fields.
+
+  student_to_teacher:
+    action: change_to_teacher
+    source_role: STUDENT
+    target_role: TEACHER
+
+    target_fields:
+      - academic_rank
+      - office
+
+    stories:
+      - Request conversion of a student account to a teacher account.
+      - Check whether a previous teacher profile can be restored.
+      - Restore reusable teacher profile data without entering it again.
+      - Provide academic rank and office when new teacher profile data is required.
+
+  teacher_to_student:
+    action: change_to_student
+    source_role: TEACHER
+    target_role: STUDENT
+
+    target_fields:
+      - group
+      - enrollment_year
+
+    stories:
+      - Request conversion of a teacher account to a student account.
+      - Check whether a previous student profile can be restored.
+      - Restore reusable student profile data without entering it again.
+      - Provide a study group and enrollment year when new student profile data is required.
+
+    example_revalidation_case:
+      - A previously assigned study group may no longer be available, so new student profile data must be provided.
+
+restore_check:
+  trigger: An administrator starts a student-to-teacher or teacher-to-student conversion.
+
+  flow:
+    - The frontend sends a restoration check request to the backend.
+    - The backend checks whether suitable target-role profile data already exists.
+    - The frontend receives the restoration result.
+    - If existing profile data can be reused, additional target-role fields are not required.
+    - If existing profile data cannot be reused, the conversion form requests the required target-role fields.
+    - The role conversion is submitted after the required information is available.

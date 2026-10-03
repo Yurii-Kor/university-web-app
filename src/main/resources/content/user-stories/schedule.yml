@@ -1,0 +1,212 @@
+id: schedule
+title: Schedule
+order: 6
+
+description: View role-specific weekly and daily schedules, navigate through dates, export weekly schedules, and manage lessons with conflict validation.
+
+common:
+  tab_label: Schedule
+
+  views:
+    - weekly_schedule
+    - daily_schedule
+
+  stories:
+    - View the schedule for the selected week.
+    - Open a specific day from the weekly schedule.
+    - View the schedule for the selected day.
+    - Navigate to previous and next weeks.
+    - Navigate to previous and next days.
+    - Return to the current week or day.
+    - Download the selected weekly schedule as a PDF file.
+
+  actions:
+    - export_week_pdf
+
+  lesson_fields:
+    - start_time
+    - end_time
+    - lesson_type
+    - course
+    - room
+    - description
+
+roles:
+  TEACHER:
+    available: true
+    page_title: My schedule
+    page_description: Your teaching schedule.
+
+    scope: Lessons assigned to the current teacher.
+    presentation: schedule
+    read_only: false
+
+    display_fields:
+      - id: time
+        label: Time
+
+      - id: lesson_type
+        label: Lesson type
+
+      - id: course
+        label: Course
+
+      - id: group
+        label: Group
+
+      - id: room
+        label: Room
+
+      - id: description
+        label: Description
+
+    stories:
+      - View lessons taught by the current teacher.
+      - View the study group assigned to each lesson.
+      - Create a lesson for a course taught by the current teacher.
+      - Select only study groups assigned to the selected course when creating a lesson.
+      - Review the teacher's existing lessons for the selected day before creating or updating a lesson.
+      - Review the selected study group's existing lessons for the selected day before creating or updating a lesson.
+      - Update an existing lesson.
+      - Delete an existing lesson.
+
+    actions:
+      - create_lesson
+      - update_lesson
+      - delete_lesson
+
+  STUDENT:
+    available: true
+    page_title: My schedule
+    page_description: Your study group schedule.
+
+    scope: Lessons assigned to the current student's study group.
+    presentation: schedule
+    read_only: true
+
+    display_fields:
+      - id: time
+        label: Time
+
+      - id: lesson_type
+        label: Lesson type
+
+      - id: course
+        label: Course
+
+      - id: teacher
+        label: Teacher
+
+      - id: room
+        label: Room
+
+      - id: description
+        label: Description
+
+    stories:
+      - View lessons assigned to the student's study group.
+      - View the teacher assigned to each lesson.
+
+    actions: []
+
+  ADMIN:
+    available: false
+    reason: The Schedule tab is available only to students and teachers.
+
+lesson_management:
+  available_to:
+    - TEACHER
+
+  create:
+    page_title: Create lesson
+
+    stories:
+      - Select a course taught by the current teacher.
+      - Select a study group assigned to the selected course.
+      - Select the lesson date.
+      - Review teacher and study-group availability for the selected day.
+      - Enter lesson start and end time.
+      - Enter the lesson room.
+      - Select the lesson type.
+      - Optionally provide a lesson description.
+      - Create the lesson when all scheduling rules are satisfied.
+
+    editable_fields:
+      - course
+      - group
+      - date
+      - start_time
+      - end_time
+      - room
+      - lesson_type
+      - description
+
+    restrictions:
+      - action: create_lesson
+        condition: The selected course must be taught by the current teacher.
+
+      - action: create_lesson
+        condition: The selected study group must be assigned to the selected course.
+
+  update:
+    page_title: Edit lesson
+
+    stories:
+      - View the existing course and study group of the lesson.
+      - Review teacher and study-group availability for the selected day.
+      - Change the lesson date and time.
+      - Change the room.
+      - Change the lesson type.
+      - Change the optional lesson description.
+      - Save the lesson when all scheduling rules are satisfied.
+
+    fixed_fields:
+      - course
+      - group
+
+    editable_fields:
+      - date
+      - start_time
+      - end_time
+      - room
+      - lesson_type
+      - description
+
+    restrictions:
+      - action: update_lesson
+        condition: The lesson course cannot be changed during update.
+
+      - action: update_lesson
+        condition: The lesson study group cannot be changed during update.
+
+  delete:
+    stories:
+      - Delete an existing lesson from the teacher's schedule.
+
+conflict_validation:
+  description: Prevent scheduling conflicts before a lesson is created or updated.
+
+  checks:
+    - id: teacher_overlap
+      description: The teacher cannot have another lesson that overlaps the requested time.
+
+    - id: group_overlap
+      description: The study group cannot have another lesson that overlaps the requested time.
+
+    - id: room_overlap
+      description: The room cannot be occupied by another lesson that overlaps the requested time.
+
+  update_behavior:
+    - The lesson currently being edited is excluded from conflict checks against itself.
+
+availability:
+  description: Show surrounding schedule context before a teacher creates or updates a lesson.
+
+  sections:
+    - id: teacher_schedule
+      title: Your schedule
+      description: Existing lessons of the current teacher for the selected day.
+
+    - id: group_schedule
+      title: Study group schedule
+      description: Existing lessons of the selected study group for the selected day.
