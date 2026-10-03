@@ -36,7 +36,6 @@ import ua.foxminded.university.web.profile.page.ProfilePageModelFactory;
 import ua.foxminded.university.web.profile.page.strategy.AdminProfilePageStrategy;
 import ua.foxminded.university.web.profile.page.strategy.StudentProfilePageStrategy;
 import ua.foxminded.university.web.profile.page.strategy.TeacherProfilePageStrategy;
-import ua.foxminded.university.web.profile.validation.PasswordChangeFormValidator;
 import ua.foxminded.university.web.util.ExceptionMessageReader;
 import ua.foxminded.university.web.util.PrincipalHandler;
 
@@ -48,7 +47,6 @@ import ua.foxminded.university.web.util.PrincipalHandler;
 	AdminProfilePageStrategy.class,
 	StudentProfilePageStrategy.class,
 	TeacherProfilePageStrategy.class,
-	PasswordChangeFormValidator.class,
 	ExceptionMessageReader.class
 })
 class ProfileControllerWebMvcTest {
