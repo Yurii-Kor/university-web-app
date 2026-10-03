@@ -52,6 +52,11 @@
           Sep 9 – Sep 15, 2030
         </strong>
         
+		<a class="ou-btn ou-btn--ghost"
+	       th:href="@{/schedule/export(date=${page.weekStart})}">
+	      Download PDF
+	    </a>
+        
         <a class="ou-btn"
      	  th:if="${page.allowManage}"
      	  th:href="@{/lessons/create}">

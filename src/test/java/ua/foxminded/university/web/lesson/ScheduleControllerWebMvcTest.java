@@ -28,6 +28,8 @@ import ua.foxminded.university.model.persistence.studygroup.projection.StudentGr
 import ua.foxminded.university.service.lesson.LessonService;
 import ua.foxminded.university.service.studygroup.StudyGroupService;
 import ua.foxminded.university.service.teacher.TeacherService;
+import ua.foxminded.university.web.lesson.export.ScheduleExportDataFactory;
+import ua.foxminded.university.web.lesson.export.pdf.SchedulePdfGenerator;
 import ua.foxminded.university.web.lesson.page.DailySchedulePageModelFactory;
 import ua.foxminded.university.web.lesson.page.WeeklySchedulePageModel;
 import ua.foxminded.university.web.lesson.page.WeeklySchedulePageModelFactory;
@@ -53,6 +55,12 @@ class ScheduleControllerWebMvcTest {
 	
 	@MockitoBean
 	private DailySchedulePageModelFactory dailyPageFactory;
+	
+	@MockitoBean
+	private ScheduleExportDataFactory exportDataFactory;
+
+	@MockitoBean
+	private SchedulePdfGenerator pdfGenerator;
 
 	@MockitoBean
 	private LessonService lessonService;
