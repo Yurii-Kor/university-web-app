@@ -5,28 +5,28 @@ import java.util.List;
 
 import org.springframework.stereotype.Component;
 
-import ua.foxminded.university.web.home.page.UserStoryFeatureView;
+import ua.foxminded.university.web.home.content.dto.UserStoryDefinition;
 
 @Component
 public class UserStoryCatalog {
 
-    private final List<UserStoryFeatureView> features;
+    private final List<UserStoryDefinition> definitions;
 
     public UserStoryCatalog(
             UserStoryResourceLoader resourceLoader,
             UserStoryParser parser) {
 
-        this.features =
+        this.definitions =
                 resourceLoader.load()
                         .stream()
                         .map(parser::parse)
                         .sorted(
                                 Comparator.comparingInt(
-                                        UserStoryFeatureView::order))
+                                        UserStoryDefinition::order))
                         .toList();
     }
 
-    public List<UserStoryFeatureView> getFeatures() {
-        return features;
+    public List<UserStoryDefinition> getDefinitions() {
+        return definitions;
     }
 }
