@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+
+<head>
+	<meta http-equiv="Content-Type"
+		content="text/html; charset=UTF-8" />
+
+	<title>Weekly schedule</title>
+
+	<link rel="stylesheet"
+		type="text/css"
+		href="css/export/schedule-pdf.css" />
+</head>
+
+<body>
+
+	<div class="brand">
+		<span class="brand-accent">O</span>pen
+		<span class="brand-accent">U</span>niversity
+	</div>
+
+	<div class="subtitle">
+		WEEKLY SCHEDULE
+	</div>
+
+	<div class="owner">
+		<span class="owner-label"
+			th:text="|${data.ownerType}: |">
+			Student:
+		</span>
+
+		<span class="owner-name"
+			th:text="${data.ownerName}">
+			John Smith
+		</span>
+	</div>
+
+	<div class="owner-detail"
+		th:each="detail : ${data.ownerDetails}"
+		th:text="${detail}">
+		Group: CS-101
+	</div>
+
+	<div class="week"
+		th:text="|Week: ${data.schedule.weekStart.format(weekDateFormat)} - ${data.schedule.weekEnd.format(weekDateFormat)}|">
+		Week: October 5, 2026 - October 11, 2026
+	</div>
+
+	<div th:if="${hasLessons}">
+
+		<div class="day"
+			th:each="day : ${data.schedule.days}"
+			th:if="${!#lists.isEmpty(day.lessons)}">
+
+			<div class="day-title"
+				th:text="${day.date.format(dayFormat)}">
+				Monday, October 5, 2026
+			</div>
+
+			<table>
+
+				<thead>
+					<tr>
+						<th class="col-time">
+							Time
+						</th>
+
+						<th class="col-course">
+							Course
+						</th>
+
+						<th class="col-role"
+							th:text="${data.schedule.showTeacherInfo}
+								? 'Teacher'
+								: 'Group'">
+							Teacher
+						</th>
+
+						<th class="col-type">
+							Type
+						</th>
+
+						<th class="col-room">
+							Room
+						</th>
+					</tr>
+				</thead>
+
+				<tbody>
+
+					<tr th:each="lesson : ${day.lessons}">
+
+						<td th:text="|${lesson.startTime.format(timeFormat)} - ${lesson.endTime.format(timeFormat)}|">
+							10:00 - 11:30
+						</td>
+
+						<td th:text="|${lesson.courseCode} - ${lesson.courseName}|">
+							CS101 - Programming
+						</td>
+
+						<td>
+							<span th:if="${data.schedule.showTeacherInfo}"
+								th:text="|${lesson.teacherFirstName ?: ''} ${lesson.teacherLastName ?: ''}|">
+								John Smith
+							</span>
+
+							<span th:if="${data.schedule.showGroupInfo}"
+								th:text="${lesson.groupName ?: '-'}">
+								CS-101
+							</span>
+						</td>
+
+						<td th:text="${#strings.replace(lesson.lessonType.name(), '_', ' ')}">
+							LECTURE
+						</td>
+
+						<td th:text="${lesson.room ?: '-'}">
+							101
+						</td>
+
+					</tr>
+
+				</tbody>
+
+			</table>
+
+		</div>
+
+	</div>
+
+	<div class="empty"
+		th:unless="${hasLessons}">
+		No lessons scheduled for this week.
+	</div>
+
+</body>
+
+</html>

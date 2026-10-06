@@ -1,16 +1,17 @@
 package ua.foxminded.university.web.lesson.export.pdf;
 
-import static ua.foxminded.university.web.lesson.export.pdf.SchedulePdfStyles.PAGE_MARGIN;
-
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.time.format.DateTimeFormatter;
+import java.util.Locale;
 import java.util.Objects;
 
-import org.openpdf.text.Document;
 import org.openpdf.text.DocumentException;
-import org.openpdf.text.PageSize;
-import org.openpdf.text.pdf.PdfWriter;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Component;
+import org.thymeleaf.context.Context;
+import org.thymeleaf.spring6.SpringTemplateEngine;
+import org.xhtmlrenderer.pdf.ITextRenderer;
 
 import lombok.RequiredArgsConstructor;
 import ua.foxminded.university.web.lesson.export.ScheduleExportData;
@@ -19,47 +20,108 @@ import ua.foxminded.university.web.lesson.export.ScheduleExportData;
 @RequiredArgsConstructor
 public class SchedulePdfGenerator {
 
-    private final SchedulePdfHeaderWriter headerWriter;
-    private final SchedulePdfScheduleWriter scheduleWriter;
+	private static final String TEMPLATE =
+			"lessons/export/schedule-pdf";
 
-    public byte[] generate(
-            ScheduleExportData data) {
+	private static final String STATIC_RESOURCE_PATH =
+			"static/";
 
-        Objects.requireNonNull(
-                data,
-                "data must not be null");
+	private static final DateTimeFormatter WEEK_DATE_FORMAT =
+			DateTimeFormatter.ofPattern(
+					"MMMM d, uuuu",
+					Locale.ENGLISH);
 
-        var output = new ByteArrayOutputStream();
+	private static final DateTimeFormatter DAY_FORMAT =
+			DateTimeFormatter.ofPattern(
+					"EEEE, MMMM d, uuuu",
+					Locale.ENGLISH);
 
-        var document =
-                new Document(
-                        PageSize.A4.rotate(),
-                        PAGE_MARGIN,
-                        PAGE_MARGIN,
-                        PAGE_MARGIN,
-                        PAGE_MARGIN);
+	private static final DateTimeFormatter TIME_FORMAT =
+			DateTimeFormatter.ofPattern(
+					"HH:mm",
+					Locale.ENGLISH);
 
-        try {
-            PdfWriter.getInstance(
-                    document,
-                    output);
+	private final SpringTemplateEngine templateEngine;
 
-            document.addTitle("Weekly schedule");
-            document.addAuthor("Open University");
-            document.open();
+	public byte[] generate(
+			ScheduleExportData data) {
 
-            headerWriter.write(document, data);
-            scheduleWriter.write(document, data.schedule());
+		Objects.requireNonNull(
+				data,
+				"data must not be null");
 
-        } catch (DocumentException | IOException ex) {
-            throw new IllegalStateException(
-                    "Failed to generate schedule PDF.",
-                    ex);
+		var context =
+				createContext(
+						data);
 
-        } finally {
-            if (document.isOpen()) document.close();
-        }
+		var html =
+				templateEngine.process(
+						TEMPLATE,
+						context);
 
-        return output.toByteArray();
-    }
+		var output =
+				new ByteArrayOutputStream();
+
+		try {
+			var renderer =
+					new ITextRenderer();
+
+			var baseUrl =
+					new ClassPathResource(
+							STATIC_RESOURCE_PATH)
+									.getURL()
+									.toExternalForm();
+
+			renderer.setDocumentFromString(
+					html,
+					baseUrl);
+
+			renderer.layout();
+
+			renderer.createPDF(
+					output);
+
+			return output.toByteArray();
+
+		} catch (DocumentException | IOException e) {
+			throw new IllegalStateException(
+					"Failed to generate schedule PDF.",
+					e);
+		}
+	}
+
+	private Context createContext(
+			ScheduleExportData data) {
+
+		var context =
+				new Context(
+						Locale.ENGLISH);
+
+		context.setVariable(
+				"data",
+				data);
+
+		context.setVariable(
+				"weekDateFormat",
+				WEEK_DATE_FORMAT);
+
+		context.setVariable(
+				"dayFormat",
+				DAY_FORMAT);
+
+		context.setVariable(
+				"timeFormat",
+				TIME_FORMAT);
+
+		context.setVariable(
+				"hasLessons",
+				data.schedule()
+						.days()
+						.stream()
+						.anyMatch(day ->
+								!day.lessons()
+										.isEmpty()));
+
+		return context;
+	}
 }

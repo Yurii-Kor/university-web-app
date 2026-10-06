@@ -10,7 +10,13 @@ import java.time.OffsetDateTime;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.openpdf.text.pdf.PdfReader;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.ImportAutoConfiguration;
+import org.springframework.boot.autoconfigure.thymeleaf.ThymeleafAutoConfiguration;
+import org.springframework.test.context.ContextConfiguration;
+import org.springframework.test.context.junit.jupiter.SpringExtension;
 
 import ua.foxminded.university.model.domain.enums.LessonType;
 import ua.foxminded.university.model.persistence.lesson.projection.LessonScheduleItemView;
@@ -18,6 +24,9 @@ import ua.foxminded.university.web.lesson.export.ScheduleExportData;
 import ua.foxminded.university.web.lesson.page.ScheduleDayModel;
 import ua.foxminded.university.web.lesson.page.WeeklySchedulePageModel;
 
+@ExtendWith(SpringExtension.class)
+@ContextConfiguration(classes = SchedulePdfGenerator.class)
+@ImportAutoConfiguration(ThymeleafAutoConfiguration.class)
 class SchedulePdfGeneratorTest {
 
     private static final LocalDate WEEK_START =
@@ -32,10 +41,8 @@ class SchedulePdfGeneratorTest {
                     1,
                     13);
 
-    private final SchedulePdfGenerator generator =
-            new SchedulePdfGenerator(
-                    new SchedulePdfHeaderWriter(),
-                    new SchedulePdfScheduleWriter());
+    @Autowired
+    private SchedulePdfGenerator generator;
 
     @Test
     void generate_studentSchedule_returnsValidPdf()
@@ -91,7 +98,9 @@ class SchedulePdfGeneratorTest {
                                 "Enrollment year: 2028"),
                         schedule);
 
-        var pdf = generator.generate(data);
+        var pdf =
+                generator.generate(
+                        data);
 
         assertValidPdf(pdf);
     }
@@ -127,7 +136,9 @@ class SchedulePdfGeneratorTest {
                                 "Office: B-101"),
                         schedule);
 
-        var pdf = generator.generate(data);
+        var pdf =
+                generator.generate(
+                        data);
 
         assertValidPdf(pdf);
     }
@@ -138,7 +149,8 @@ class SchedulePdfGeneratorTest {
 
         assertNotNull(pdf);
 
-        assertTrue(pdf.length > 5);
+        assertTrue(
+                pdf.length > 5);
 
         assertEquals(
                 "%PDF-",
@@ -148,13 +160,12 @@ class SchedulePdfGeneratorTest {
                         5,
                         StandardCharsets.US_ASCII));
 
-        var reader =  new PdfReader(pdf);
+        var reader =
+                new PdfReader(
+                        pdf);
 
-        try {
-            assertTrue(
-                    reader.getNumberOfPages() >= 1);
-        } finally {
-            reader.close();
-        }
+        assertTrue(
+                reader.getNumberOfPages() >= 1);
+        reader.close();
     }
 }

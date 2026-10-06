@@ -71,9 +71,9 @@
 		</dependency>
 
 		<dependency>
-			<groupId>com.github.librepdf</groupId>
-			<artifactId>openpdf</artifactId>
-			<version>3.0.5</version>
+		    <groupId>org.xhtmlrenderer</groupId>
+		    <artifactId>flying-saucer-pdf</artifactId>
+		    <version>10.5.0</version>
 		</dependency>
 
 		<dependency>
