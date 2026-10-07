@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en"
+      xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{groups/group :: layout(
+          ${page},
+          ~{::studentGroupDetails}
+      )}">
+
+<body>
+
+	<div th:fragment="studentGroupDetails">
+
+		<dl class="group-details-kv"
+		    aria-label="Study group details">
+
+			<dt class="group-details-kv__key">
+				Group
+			</dt>
+
+			<dd class="group-details-kv__value"
+			    th:text="${page.groupName}">
+				CS-101
+			</dd>
+
+			<dt class="group-details-kv__key">
+				Students
+			</dt>
+
+			<dd class="group-details-kv__value"
+			    th:text="${page.studentCount}">
+				20
+			</dd>
+
+		</dl>
+
+	</div>
+
+</body>
+</html>

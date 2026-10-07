@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en"
+      xmlns:th="http://www.thymeleaf.org"
+      th:fragment="layout(page, content)">
+
+<head>
+	<meta charset="utf-8" />
+
+	<title th:text="${page.pageTitle + ' • University'}">
+		Group
+	</title>
+
+	<meta name="viewport"
+	      content="width=device-width, initial-scale=1" />
+
+	<link rel="icon"
+	      th:href="@{/favicon.ico}"
+	      href="/favicon.ico" />
+
+	<link rel="stylesheet"
+	      th:href="@{/css/app.css}"
+	      href="/css/app.css" />
+
+	<link rel="stylesheet"
+	      th:href="@{/css/pages/group-details.css}"
+	      href="/css/pages/group-details.css" />
+</head>
+
+<body class="group-details-page">
+
+	<div th:replace="~{fragments/header :: ouHeader('groups')}"></div>
+
+	<main class="group-details-main">
+		<div class="group-details-wrap">
+
+			<section class="ou-card"
+			         aria-labelledby="group-details-title">
+
+				<div class="group-details-card-inner">
+
+					<header class="group-details-heading">
+
+						<h1 id="group-details-title"
+						    class="ou-card__title"
+						    th:text="${page.pageTitle}">
+							My group
+						</h1>
+
+						<p class="group-details-subtitle"
+						   th:text="${page.pageSubtitle}">
+							Your study group.
+						</p>
+
+					</header>
+
+					<div th:replace="${content}"></div>
+
+				</div>
+
+			</section>
+
+		</div>
+	</main>
+
+</body>
+</html>
