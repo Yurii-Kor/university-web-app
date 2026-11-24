@@ -6,9 +6,6 @@ import jakarta.validation.constraints.*;
 
 public record AppUserSelfUpdateDto(
 
-        @NotNull
-        Long id,
-
         @Email
         @Size(max = EMAIL_MAX)
         String email,

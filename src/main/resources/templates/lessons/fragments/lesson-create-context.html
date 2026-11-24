@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en"
+      xmlns:th="http://www.thymeleaf.org">
+<body>
+
+<th:block th:fragment="createContext">
+
+  <section class="ou-card lesson-create-context"
+           aria-label="Lesson context">
+
+    <div class="lesson-create-section-heading">
+
+      <div>
+
+        <h2 class="ou-card__title">
+          Lesson context
+        </h2>
+
+        <p>
+          Select a course, study group and date to review availability.
+        </p>
+
+      </div>
+
+    </div>
+
+    <form class="lesson-create-context-form"
+          th:action="@{/lessons/create}"
+          method="get">
+
+      <!-- Course -->
+
+      <div class="form-field">
+
+        <label class="lesson-create-label"
+               for="context-course">
+          Course
+        </label>
+
+        <select id="context-course"
+                class="ou-input"
+                name="courseId">
+
+          <option value="">
+            — Select course —
+          </option>
+
+          <option th:each="course : ${all_courses}"
+                  th:value="${course.id}"
+                  th:selected="${form.courseId != null and form.courseId.equals(course.id)}"
+                  th:text="|${course.code} — ${course.name}|">
+            CS-101 — Java Programming
+          </option>
+
+        </select>
+
+      </div>
+
+      <!-- Group -->
+
+      <div class="form-field"
+           th:if="${course_groups != null}">
+
+        <label class="lesson-create-label"
+               for="context-group">
+          Study group
+        </label>
+
+        <select id="context-group"
+                class="ou-input"
+                name="groupId">
+
+          <option value="">
+            — Select study group —
+          </option>
+
+          <option th:each="group : ${course_groups.assigned}"
+                  th:value="${group.id}"
+                  th:selected="${form.groupId != null and form.groupId.equals(group.id)}"
+                  th:text="${group.name}">
+            SE-21
+          </option>
+
+        </select>
+
+        <p class="form-help">
+          Only groups assigned to the selected course are available.
+        </p>
+
+      </div>
+
+      <!-- Date -->
+
+      <div class="form-field">
+
+        <label class="lesson-create-label"
+               for="context-date">
+          Date
+        </label>
+
+        <input id="context-date"
+               class="ou-input"
+               type="date"
+               name="date"
+               th:value="${form.date}" />
+
+      </div>
+
+      <div class="lesson-create-context-actions">
+
+        <button class="ou-btn ou-btn--ghost"
+                type="submit">
+          Update view
+        </button>
+
+      </div>
+
+    </form>
+
+  </section>
+
+</th:block>
+
+</body>
+</html>

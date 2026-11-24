@@ -10,14 +10,12 @@ import org.springframework.test.context.junit.jupiter.SpringExtension;
 
 import ua.foxminded.university.model.domain.AppUser;
 import ua.foxminded.university.security.config.PasswordEncoderConfig;
-import ua.foxminded.university.service.util.validation.EntityValidatior;
 import ua.foxminded.university.service.util.validation.config.ValidatorConfig;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 @ExtendWith(SpringExtension.class)
-@ContextConfiguration(classes = { ValidatorConfig.class, PasswordEncoderConfig.class, PasswordPolicy.class,
-		EntityValidatior.class })
+@ContextConfiguration(classes = { ValidatorConfig.class, PasswordEncoderConfig.class, PasswordPolicy.class })
 class PasswordPolicyTest {
 
 	private static final String VALID_PWD = "Abcd1234!";

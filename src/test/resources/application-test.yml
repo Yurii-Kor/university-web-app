@@ -14,8 +14,7 @@ spring:
 
   flyway:
     enabled: true
-    locations: classpath:db/migration
-    target: 1            
+    locations: classpath:db/migration/schema
     out-of-order: false
     validate-on-migrate: true
     baseline-on-migrate: false

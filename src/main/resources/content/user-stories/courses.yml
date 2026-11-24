@@ -1,0 +1,69 @@
+id: courses
+title: Courses
+order: 2
+
+description: Browse university courses and manage course information according to the current account role.
+
+common:
+  stories:
+    - Browse course cards available to the current account.
+    - Show or hide course descriptions.
+
+  display_fields:
+    - id: id
+      label: ID
+
+    - id: code
+      label: Code
+
+    - id: name
+      label: Name
+
+    - id: description
+      label: Description
+
+roles:
+  TEACHER:
+    available: true
+    scope: Courses taught by the current teacher.
+
+    stories:
+      - View courses assigned to the teacher.
+      - Update the description of an assigned course.
+
+    actions:
+      - update_description
+
+  STUDENT:
+    available: true
+    scope: Courses assigned to the student's study group.
+
+    stories:
+      - View courses available to the student's study group.
+
+    actions: []
+
+  ADMIN:
+    available: true
+    scope: All university courses.
+
+    stories:
+      - View all courses.
+      - Create a new course.
+      - Update a course description.
+      - Update a course code and name.
+      - Change the teacher assigned to a course.
+      - Delete a course.
+      - Manage study groups assigned to a course.
+
+    editable_fields:
+      - code
+      - name
+      - teacher
+
+    actions:
+      - create_course
+      - update_description
+      - update_course
+      - delete_course
+      - manage_groups

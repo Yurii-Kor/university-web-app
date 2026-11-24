@@ -1,0 +1,58 @@
+id: admins
+title: Admins
+order: 7
+
+description: View and manage administrator accounts in the system.
+
+roles:
+  STUDENT:
+    available: false
+    reason: Administrator account management is restricted to admins.
+
+  TEACHER:
+    available: false
+    reason: Administrator account management is restricted to admins.
+
+  ADMIN:
+    available: true
+    tab_label: Admins
+    page_title: Admins
+    page_description: List of all admin accounts in the system.
+
+    scope: All administrator accounts, including the current administrator.
+    presentation: cards
+
+    display_fields:
+      - id: email
+        label: Email
+
+      - id: name
+        label: Name
+
+      - id: status
+        label: Status
+
+      - id: id
+        label: ID
+
+      - id: created_at
+        label: Created
+
+    stories:
+      - View all administrator accounts in the system.
+      - Identify the currently signed-in administrator in the list.
+      - Create a new administrator account.
+      - Block an active administrator account.
+      - Enable a blocked administrator account.
+      - Delete an administrator account.
+
+    actions:
+      - create_admin
+      - block_admin
+      - enable_admin
+      - delete_admin
+
+    restrictions:
+      - action: delete_admin
+        condition: The current administrator cannot delete their own account.
+        message: An administrator cannot delete their own account.

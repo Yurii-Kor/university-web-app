@@ -2,10 +2,10 @@ package ua.foxminded.university.web.admin;
 
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.validation.BindException;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import jakarta.persistence.EntityNotFoundException;
-import jakarta.validation.ConstraintViolationException;
 import lombok.RequiredArgsConstructor;
 import ua.foxminded.university.service.appuser.exception.AdminCreateException;
 import ua.foxminded.university.web.util.ExceptionMessageReader;
@@ -22,11 +22,11 @@ public class AdminExceptionHandler {
 		return "redirect:/admin/create";
 	}
 
-	@ExceptionHandler(ConstraintViolationException.class)
-	public String handleValidation(ConstraintViolationException ex, RedirectAttributes ra) {
-		ra.addFlashAttribute("err", messageReader.formatViolations(ex));
-		return "redirect:/admin/create";
-	}
+    @ExceptionHandler(BindException.class)
+    public String handleValidation(BindException ex, RedirectAttributes ra) {
+        ex.getModel().forEach(ra::addFlashAttribute);
+        return "redirect:/admin/create";
+    }
 
 	@ExceptionHandler(IllegalArgumentException.class)
 	public String handleBadRequest(IllegalArgumentException ex, RedirectAttributes ra) {

@@ -8,6 +8,9 @@ body.groups-page {
   background: var(--bg);
 }
 
+
+/* ---------- Toolbar ---------- */
+
 .groups-toolbar {
   display: flex;
   align-items: flex-start;
@@ -21,10 +24,14 @@ body.groups-page {
   color: var(--text-muted);
 }
 
+
+/* ---------- Groups grid ---------- */
+
 .groups-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--space-3);
+  align-items: start;
 }
 
 @media (max-width: 860px) {
@@ -33,10 +40,15 @@ body.groups-page {
   }
 }
 
+
+/* ---------- Group card ---------- */
+
 .group-card.ou-card {
   background: rgba(255, 221, 170, 0.22);
   padding: var(--space-3);
-  transition: box-shadow 0.15s ease, transform 0.15s ease;
+  transition:
+    box-shadow 0.15s ease,
+    transform 0.15s ease;
 }
 
 .group-card.ou-card:hover {
@@ -53,6 +65,9 @@ body.groups-page {
   font-size: 1.05rem;
 }
 
+
+/* ---------- Group info ---------- */
+
 .group-kv {
   margin: 0;
   display: grid;
@@ -61,12 +76,6 @@ body.groups-page {
   row-gap: 8px;
   padding-top: var(--space-2);
   border-top: 1px dashed rgba(0, 0, 0, 0.16);
-}
-
-@media (max-width: 420px) {
-  .group-kv {
-    grid-template-columns: 72px 1fr;
-  }
 }
 
 .group-kv dt {
@@ -79,16 +88,166 @@ body.groups-page {
   margin: 0;
 }
 
+@media (max-width: 420px) {
+  .group-kv {
+    grid-template-columns: 72px 1fr;
+  }
+}
+
+
+/* ---------- Card alerts ---------- */
+
+.group-card .ou-alert {
+  margin-top: var(--space-3);
+}
+
+
+/* ---------- Group actions ---------- */
+
+.group-actions {
+  margin-top: var(--space-3);
+}
+
+.group-actions-bar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: var(--space-2);
+  width: 100%;
+}
+
+
+/* ---------- Update details ---------- */
+
+.group-self-edit {
+  min-width: 0;
+}
+
+.group-self-edit > summary {
+  width: fit-content;
+  list-style: none;
+}
+
+.group-self-edit > summary::-webkit-details-marker {
+  display: none;
+}
+
+
+/*
+ * When the update form is opened, it occupies the
+ * entire actions row and the Delete action disappears.
+ */
+.group-self-edit[open] {
+  grid-column: 1 / -1;
+  width: 100%;
+}
+
+.group-self-edit[open] + .group-actions-bar__other {
+  display: none;
+}
+
+
+/* ---------- Rename form ---------- */
+
+.group-self-edit__form {
+  display: grid;
+  gap: var(--space-3);
+  width: 100%;
+  margin-top: var(--space-2);
+}
+
+.group-self-edit__divider {
+  width: 100%;
+  border-top: 1px dashed rgba(0, 0, 0, 0.16);
+  margin-top: var(--space-2);
+  padding-top: var(--space-1);
+}
+
+.group-self-edit__fields {
+  display: grid;
+  gap: var(--space-3);
+  width: 100%;
+}
+
+.group-self-edit__fields > div {
+  display: grid;
+  gap: 7px;
+  width: 100%;
+}
+
+.group-self-edit__label {
+  display: block;
+  margin: 0;
+  color: var(--text-muted);
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+
+.group-self-edit__fields .ou-input {
+  width: 100%;
+  min-width: 0;
+}
+
+.group-self-edit__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+  flex-wrap: wrap;
+}
+
+
+/* ---------- Delete action ---------- */
+
+.group-actions-bar__other {
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  min-width: max-content;
+}
+
+.group-actions-bar__delete {
+  margin: 0;
+  justify-self: end;
+}
+
+
+/* ---------- Pagination ---------- */
+
+.groups-pager,
 .groups-pagination {
   margin-top: var(--space-4);
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: var(--space-3);
+  gap: var(--space-2);
   flex-wrap: wrap;
 }
 
 .groups-pagination__info {
   color: var(--text-muted);
   font-weight: 600;
+}
+
+
+/* ---------- Responsive actions ---------- */
+
+@media (max-width: 560px) {
+  .group-actions-bar {
+    grid-template-columns: 1fr;
+  }
+
+  .group-actions-bar__other {
+    justify-content: flex-start;
+    min-width: 0;
+  }
+
+  .group-actions-bar__delete {
+    justify-self: start;
+  }
+
+  .group-self-edit__actions {
+    justify-content: flex-start;
+  }
 }

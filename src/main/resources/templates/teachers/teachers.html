@@ -1,75 +1,136 @@
 <!doctype html>
 <html lang="en"
-      xmlns:th="http://www.thymeleaf.org"
-      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+      xmlns:th="http://www.thymeleaf.org">
 <head>
+
   <meta charset="utf-8" />
-  <title>Teachers</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <link rel="icon" th:href="@{/favicon.ico}" href="/favicon.ico" />
-  <link rel="stylesheet" th:href="@{/css/app.css}" href="/css/app.css" />
-  <link rel="stylesheet" th:href="@{/css/pages/teachers.css}" href="/css/pages/teachers.css" />
+
+  <title th:text="${page.pageTitle}">
+    Teachers
+  </title>
+
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1" />
+
+  <link rel="icon"
+        th:href="@{/favicon.ico}"
+        href="/favicon.ico" />
+
+  <link rel="stylesheet"
+        th:href="@{/css/app.css}"
+        href="/css/app.css" />
+
+  <link rel="stylesheet"
+        th:href="@{/css/pages/teachers.css}"
+        href="/css/pages/teachers.css" />
+
 </head>
 
 <body class="ou-page teachers-page">
-  <div th:replace="~{fragments/header :: ouHeader('teachers')}"></div>
+
+  <div th:replace="~{fragments/header :: ouHeader('teachers')}">
+  </div>
 
   <main class="teachers-main">
-    <section class="ou-card" aria-label="Teachers management">
+
+    <section class="ou-card teachers-shell"
+             aria-label="Teachers">
 
       <div class="teachers-toolbar">
+
         <div>
-          <h1 class="ou-card__title">Teachers</h1>
-          <p class="teachers-subtitle">List of all teacher accounts in the system.</p>
+
+          <h1 class="ou-card__title"
+              th:text="${page.pageTitle}">
+            Teachers
+          </h1>
+
+          <p class="teachers-subtitle"
+             th:text="${page.pageSubtitle}">
+            Teachers.
+          </p>
+
         </div>
 
-        <a class="ou-btn ou-btn--ghost" th:href="@{/teachers/create}">
-          + Create teacher
+        <a class="ou-btn"
+           th:if="${page.showCreateButton}"
+           th:href="@{/teachers/create}">
+          Create teacher
         </a>
+
       </div>
 
       <div class="ou-alert ou-alert--success"
-           th:if="${ok != null}"
+           th:if="${ok != null and teacherId == null}"
            th:text="${ok}">
         Done.
       </div>
 
       <div class="ou-alert ou-alert--error"
-           th:if="${err != null}"
+           th:if="${err != null and teacherId == null}"
            th:text="${err}">
         Something went wrong.
       </div>
 
-      <div class="ou-alert ou-alert--warn" th:if="${#lists.isEmpty(teachers)}">
+      <div class="teachers-grid"
+           th:if="${!#lists.isEmpty(page.teachers)}">
+
+        <th:block th:each="teacher : ${page.teachers}">
+
+          <th:block th:replace="~{teachers/cards/teacher-card :: teacherCard(
+              ${teacher},
+              ${page.allowEdit},
+              ${page.currentPage}
+          )}">
+          </th:block>
+
+        </th:block>
+
+      </div>
+
+      <div class="ou-alert ou-alert--warn"
+           th:if="${#lists.isEmpty(page.teachers)}">
         No teachers found.
       </div>
 
-      <div class="teachers-grid" th:if="${!#lists.isEmpty(teachers)}">
-        <th:block th:each="t : ${teachers}">
-          <th:block th:replace="~{teachers/fragments/teacher-card :: teacherCard(${t})}"></th:block>
-        </th:block>
-      </div>
+      <nav class="teachers-pager"
+           th:if="${page.totalPages > 1}"
+           aria-label="Teachers pages">
 
-      <nav class="teachers-pagination" th:if="${totalPages > 1}">
         <a class="ou-btn ou-btn--ghost"
-           th:if="${hasPrevious}"
-           th:href="@{/teachers(page=${currentPage - 1})}">
+           th:if="${page.hasPrevious}"
+           th:href="@{/teachers(page=${page.currentPage - 1})}">
           ← Previous
         </a>
 
-        <span class="teachers-pagination__info"
-              th:text="|Page ${currentPage + 1} of ${totalPages}|">
-          Page 1 of 1
-        </span>
+        <th:block th:each="p : ${#numbers.sequence(0, page.totalPages - 1)}">
+
+          <a class="ou-btn"
+             th:classappend="${p == page.currentPage}
+                 ? ''
+                 : ' ou-btn--ghost'"
+             th:href="@{/teachers(page=${p})}"
+             th:text="${p + 1}">
+            1
+          </a>
+
+        </th:block>
 
         <a class="ou-btn ou-btn--ghost"
-           th:if="${hasNext}"
-           th:href="@{/teachers(page=${currentPage + 1})}">
+           th:if="${page.hasNext}"
+           th:href="@{/teachers(page=${page.currentPage + 1})}">
           Next →
         </a>
+
       </nav>
 
     </section>
+
   </main>
+
+  <script th:src="@{/js/details-form-cancel.js}"
+          src="/js/details-form-cancel.js">
+  </script>
+
 </body>
 </html>

@@ -6,9 +6,6 @@ import jakarta.validation.constraints.*;
 
 public record StudyGroupRenameDto(
 
-        @NotNull
-        Long id,
-
         @NotBlank
         @Size(max = GROUP_NAME_MAX)
         @Pattern(

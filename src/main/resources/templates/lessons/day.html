@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="en"
+      xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="utf-8" />
+
+  <title th:text="${page.pageTitle}">
+    Schedule
+  </title>
+
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1" />
+
+  <link rel="icon"
+        th:href="@{/favicon.ico}"
+        href="/favicon.ico" />
+
+  <link rel="stylesheet"
+        th:href="@{/css/app.css}"
+        href="/css/app.css" />
+
+  <link rel="stylesheet"
+        th:href="@{/css/pages/forms.css}"
+        href="/css/pages/forms.css" />
+
+  <link rel="stylesheet"
+        th:href="@{/css/pages/schedule.css}"
+        href="/css/pages/schedule.css" />
+</head>
+
+<body class="ou-page schedule-page">
+
+<div th:replace="~{fragments/header :: ouHeader('schedule')}"></div>
+
+<main class="schedule-main">
+
+  <section class="ou-card schedule-shell"
+           aria-label="Daily schedule">
+
+    <div class="schedule-toolbar">
+
+      <div>
+
+        <h1 class="ou-card__title"
+            th:text="${page.pageTitle}">
+          My schedule
+        </h1>
+
+        <p class="schedule-subtitle"
+           th:text="${page.pageSubtitle}">
+          Your schedule.
+        </p>
+
+      </div>
+
+      <div class="schedule-toolbar__period">
+
+        <span class="schedule-toolbar__period-label">
+          Day
+        </span>
+
+        <strong th:text="${#temporals.format(page.date, 'EEEE, MMM d, yyyy')}">
+          Thursday, Jan 10, 2030
+        </strong>
+
+        <a class="ou-btn"
+           th:if="${page.allowManage}"
+           th:href="@{/lessons/create(date=${page.date})}">
+          + Create lesson
+        </a>
+
+      </div>
+
+    </div>
+
+    <div class="ou-alert ou-alert--success"
+         th:if="${ok}"
+         th:text="${ok}">
+      Lesson deleted.
+    </div>
+
+    <div class="ou-alert ou-alert--error"
+         th:if="${err}"
+         th:text="${err}">
+      Lesson could not be deleted.
+    </div>
+
+    <nav class="schedule-navigation"
+         aria-label="Schedule day navigation">
+
+      <a class="ou-btn ou-btn--ghost"
+         th:href="@{/schedule/day(date=${page.date.minusDays(1)})}">
+        ← Previous day
+      </a>
+
+      <a class="ou-btn"
+         th:href="@{/schedule/day}">
+        Today
+      </a>
+
+      <a class="ou-btn ou-btn--ghost"
+         th:href="@{/schedule/day(date=${page.date.plusDays(1)})}">
+        Next day →
+      </a>
+
+    </nav>
+
+    <div class="daily-schedule-heading">
+
+      <div>
+
+        <div class="daily-schedule-heading__weekday"
+             th:text="${#strings.toUpperCase(#temporals.format(page.date, 'EEEE'))}">
+          THURSDAY
+        </div>
+
+        <div class="daily-schedule-heading__date"
+             th:text="${#temporals.format(page.date, 'MMMM d, yyyy')}">
+          January 10, 2030
+        </div>
+
+      </div>
+
+      <span class="ou-badge schedule-day-card__today"
+            th:if="${page.today}">
+        Today
+      </span>
+
+    </div>
+
+    <div class="daily-schedule-lessons"
+         th:if="${!#lists.isEmpty(page.lessons)}">
+
+      <div th:each="lesson : ${page.lessons}">
+
+        <th:block th:replace="~{lessons/cards/lesson-card :: lessonCard(
+            ${lesson},
+            ${page.showTeacherInfo},
+            ${page.showGroupInfo}
+        )}">
+        </th:block>
+
+        <div class="form-actions"
+             th:if="${page.allowManage and lesson.startTime.isAfter(now)}">
+
+          <a class="ou-btn ou-btn--ghost"
+             th:href="@{/lessons/{lessonId}/edit(
+                 lessonId=${lesson.id}
+             )}">
+            Edit lesson
+          </a>
+
+          <form class="ou-inline-form"
+                method="post"
+                th:action="@{/lessons/{lessonId}/delete(
+                    lessonId=${lesson.id}
+                )}">
+
+            <input type="hidden"
+                   th:name="${_csrf.parameterName}"
+                   th:value="${_csrf.token}" />
+
+            <input type="hidden"
+                   name="date"
+                   th:value="${page.date}" />
+
+            <button type="submit"
+                    class="ou-btn ou-btn--danger"
+                    onclick="return confirm('Delete this lesson? This action cannot be undone.');">
+              Delete lesson
+            </button>
+
+          </form>
+
+        </div>
+
+      </div>
+
+    </div>
+
+    <div class="daily-schedule-empty"
+         th:if="${#lists.isEmpty(page.lessons)}">
+
+      <span class="daily-schedule-empty__mark"
+            aria-hidden="true">
+        —
+      </span>
+
+      <div>
+
+        <strong>No lessons</strong>
+
+        <p>
+          There are no lessons scheduled for this day.
+        </p>
+
+      </div>
+
+    </div>
+
+    <div class="daily-schedule-footer">
+
+      <a class="ou-btn ou-btn--ghost"
+         th:href="@{/schedule(date=${page.date})}">
+        ← Back to week
+      </a>
+
+    </div>
+
+  </section>
+
+</main>
+
+</body>
+</html>

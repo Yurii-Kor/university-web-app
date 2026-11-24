@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en"
+      xmlns:th="http://www.thymeleaf.org">
+<body>
+
+<th:block th:fragment="teacherCard(
+    teacher,
+    allowEdit,
+    currentPage
+)">
+
+  <article class="ou-card teacher-card"
+           th:attr="data-id=${teacher.id}"
+           th:with="isTarget=${teacherId != null
+                              and teacherId == teacher.id}">
+
+    <div class="teacher-card__head">
+
+      <div class="teacher-card__who">
+
+        <div class="teacher-card__name">
+
+          <span th:text="${teacher.firstName}">
+            Robert
+          </span>
+
+          <span th:text="${teacher.lastName}">
+            Miller
+          </span>
+
+        </div>
+
+        <div class="teacher-card__email"
+             th:text="${teacher.email}">
+          robert.miller@example.com
+        </div>
+
+      </div>
+
+    </div>
+
+    <dl class="teacher-kv">
+
+      <dt>Academic rank</dt>
+
+      <dd th:text="${teacher.academicRank}">
+        LECTURER
+      </dd>
+
+      <dt>Office</dt>
+
+      <dd th:text="${teacher.office}">
+        A-101
+      </dd>
+
+    </dl>
+
+    <th:block th:if="${isTarget and (ok != null or err != null)}">
+
+      <div class="ou-alert ou-alert--success"
+           th:if="${ok != null}"
+           th:text="${ok}">
+        Done.
+      </div>
+
+      <div class="ou-alert ou-alert--error"
+           th:if="${err != null}"
+           th:text="${err}">
+        Something went wrong.
+      </div>
+
+    </th:block>
+
+    <div class="teacher-actions"
+         th:if="${allowEdit}">
+
+      <th:block th:replace="~{teachers/cards/teacher-actions :: teacherActions(
+          ${teacher},
+          ${currentPage}
+      )}">
+      </th:block>
+
+    </div>
+
+  </article>
+
+</th:block>
+
+</body>
+</html>

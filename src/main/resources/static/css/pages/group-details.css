@@ -1,0 +1,81 @@
+/* Group details pages */
+body.group-details-page {
+	background: var(--bg);
+}
+
+.group-details-main {
+	padding: var(--space-5) var(--space-3);
+}
+
+.group-details-wrap {
+	max-width: 920px;
+	margin: 0 auto;
+}
+
+/* Keep details content visually aligned with profile pages */
+.group-details-card-inner {
+	max-width: 680px;
+	margin: 0 auto;
+}
+
+.group-details-heading {
+	margin-bottom: var(--space-4);
+}
+
+.group-details-subtitle {
+	margin: var(--space-2) 0 0;
+	color: var(--text-muted);
+	font-size: 0.95rem;
+}
+
+/* Key-value details */
+.group-details-kv {
+	margin: 0;
+	padding: 0;
+
+	display: grid;
+	grid-template-columns: 180px 1fr;
+
+	column-gap: var(--space-3);
+	row-gap: var(--space-2);
+}
+
+.group-details-kv__key,
+.group-details-kv__value {
+	margin: 0;
+	padding: 10px 12px;
+
+	border-radius: var(--radius-md);
+	background: rgba(0, 0, 0, 0.03);
+}
+
+.group-details-kv__key {
+	color: var(--text-muted);
+	font-weight: 600;
+}
+
+.group-details-kv__value {
+	max-width: 420px;
+	word-break: break-word;
+	overflow-wrap: anywhere;
+}
+
+@media (max-width: 640px) {
+
+	.group-details-kv {
+		grid-template-columns: 1fr;
+	}
+
+	.group-details-kv__key,
+	.group-details-kv__value {
+		border-radius: var(--radius-md);
+	}
+
+	.group-details-kv__key {
+		background: rgba(0, 0, 0, 0.05);
+	}
+
+	.group-details-kv__value {
+		max-width: none;
+	}
+}

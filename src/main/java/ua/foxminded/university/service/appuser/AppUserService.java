@@ -28,7 +28,6 @@ import ua.foxminded.university.service.appuser.dto.AppUserPasswordChangeDto;
 import ua.foxminded.university.service.appuser.dto.AppUserSelfUpdateDto;
 import ua.foxminded.university.service.appuser.exception.AdminCreateException;
 import ua.foxminded.university.service.util.DtoMapper;
-import ua.foxminded.university.service.util.validation.EntityValidatior;
 
 @Service
 @RequiredArgsConstructor
@@ -41,12 +40,10 @@ public class AppUserService {
 
 	private final AppUserRepository usersRepository;
 	private final PasswordPolicy passwordPolicy;
-	private final EntityValidatior validator;
 	private final DtoMapper mapper;
 	
 	@Transactional(value = TxType.REQUIRES_NEW)
 	public AppUser createAdmin(AppUserCreateDto draft) {
-		validator.validate(draft);
 		
 		if (usersRepository.existsByEmailIgnoreCase(draft.email())) {
 	        throw new AdminCreateException(draft, "Email already exists: " + draft.email());
@@ -88,25 +85,23 @@ public class AppUserService {
 	}
 
 	@Transactional(value = TxType.REQUIRES_NEW)
-	public void changePasswordSelf(AppUserPasswordChangeDto patch) {
-		validator.validate(patch);
+	public void changePasswordSelf(long userId, AppUserPasswordChangeDto patch) {
 
-		var managed = usersRepository.findById(patch.id())
-				.orElseThrow(() -> new EntityNotFoundException("User not found: id=" + patch.id()));
+		var managed = usersRepository.findById(userId)
+				.orElseThrow(() -> new EntityNotFoundException("User not found: id=" + userId));
 
 		passwordPolicy.assertCurrentMatches(patch.currentPassword(), managed.getPassword());
 		passwordPolicy.assertNewDifferentFromCurrent(patch.currentPassword(), patch.newPassword());
 		
 		managed.setPassword(passwordPolicy.encodePassword(patch.newPassword()));
-		log.info("changePasswordSelf: password changed (userId={})", patch.id());
+		log.info("changePasswordSelf: password changed (userId={})", userId);
 	}
 
 	@Transactional(TxType.REQUIRES_NEW)
-	public void updateProfileFields(AppUserSelfUpdateDto patch) {
-		validator.validate(patch);
+	public void updateProfileFields(long userId, AppUserSelfUpdateDto patch) {
 
-		var managed = usersRepository.findById(patch.id())
-				.orElseThrow(() -> new EntityNotFoundException("User not found: id=" + patch.id()));
+		var managed = usersRepository.findById(userId)
+				.orElseThrow(() -> new EntityNotFoundException("User not found: id=" + userId));
 
 	    applyEmailPatch(managed, patch.email());
 	    applyFirstNamePatch(managed, patch.firstName());

@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="en"
+      xmlns:th="http://www.thymeleaf.org">
+<body>
+
+<th:block th:fragment="toolbar(title, subtitle, backDate)">
+
+  <section class="ou-card lesson-create-toolbar">
+
+    <div>
+
+      <h1 class="lesson-create-title"
+          th:text="${title}">
+        Lesson
+      </h1>
+
+      <p class="lesson-create-subtitle"
+         th:text="${subtitle}">
+        Lesson details.
+      </p>
+
+    </div>
+
+    <a class="ou-btn ou-btn--ghost"
+       th:href="@{/schedule/day(date=${backDate})}">
+      ← Back to schedule
+    </a>
+
+  </section>
+
+</th:block>
+
+
+<th:block th:fragment="formErrors">
+
+  <div class="ou-alert ou-alert--error"
+       th:if="${err != null}"
+       th:text="${err}">
+    Something went wrong.
+  </div>
+
+  <div class="ou-alert ou-alert--error"
+       th:if="${err == null and #fields.hasAnyErrors()}">
+    Please fix the errors below and try again.
+  </div>
+
+</th:block>
+
+
+<th:block th:fragment="lessonFields(showDate, showLessonTypeHelp)">
+
+  <!-- Date -->
+
+  <div class="form-field"
+       th:if="${showDate}">
+
+    <label class="lesson-create-label"
+           for="date">
+      Date
+    </label>
+
+    <input id="date"
+           class="ou-input"
+           type="date"
+           th:field="*{date}" />
+
+    <p class="form-error"
+       th:if="${#fields.hasErrors('date')}"
+       th:errors="*{date}">
+      Date error
+    </p>
+
+  </div>
+
+  <!-- Time -->
+
+  <div class="lesson-create-time-grid">
+
+    <div class="form-field">
+
+      <label class="lesson-create-label"
+             for="startTime">
+        Start time
+      </label>
+
+      <input id="startTime"
+             class="ou-input"
+             type="time"
+             th:field="*{startTime}" />
+
+      <p class="form-error"
+         th:if="${#fields.hasErrors('startTime')}"
+         th:errors="*{startTime}">
+        Start time error
+      </p>
+
+    </div>
+
+    <div class="form-field">
+
+      <label class="lesson-create-label"
+             for="endTime">
+        End time
+      </label>
+
+      <input id="endTime"
+             class="ou-input"
+             type="time"
+             th:field="*{endTime}" />
+
+      <p class="form-error"
+         th:if="${#fields.hasErrors('endTime')}"
+         th:errors="*{endTime}">
+        End time error
+      </p>
+
+    </div>
+
+  </div>
+
+  <!-- Room -->
+
+  <div class="form-field">
+
+    <label class="lesson-create-label"
+           for="room">
+      Room
+    </label>
+
+    <input id="room"
+           class="ou-input"
+           type="text"
+           placeholder="A-101"
+           th:field="*{room}" />
+
+    <p class="form-help">
+      Enter the room code where the lesson will take place.
+    </p>
+
+    <p class="form-error"
+       th:if="${#fields.hasErrors('room')}"
+       th:errors="*{room}">
+      Room error
+    </p>
+
+  </div>
+
+  <!-- Lesson type -->
+
+  <div class="form-field">
+
+    <label class="lesson-create-label"
+           for="lessonType">
+      Lesson type
+    </label>
+
+    <select id="lessonType"
+            class="ou-input"
+            th:field="*{lessonType}">
+
+      <option value="">
+        — Select lesson type —
+      </option>
+
+      <option th:each="type : ${lesson_types}"
+              th:value="${type}"
+              th:text="${#strings.replace(type.name(), '_', ' ')}">
+        LECTURE
+      </option>
+
+    </select>
+
+    <p class="form-help"
+       th:if="${showLessonTypeHelp}">
+      Optional. If omitted, the lesson will use the default type.
+    </p>
+
+    <p class="form-error"
+       th:if="${#fields.hasErrors('lessonType')}"
+       th:errors="*{lessonType}">
+      Lesson type error
+    </p>
+
+  </div>
+
+  <!-- Description -->
+
+  <div class="form-field">
+
+    <label class="lesson-create-label"
+           for="description">
+      Description
+    </label>
+
+    <textarea id="description"
+              class="ou-input ou-input--textarea"
+              rows="5"
+              placeholder="Optional lesson notes"
+              th:field="*{description}">
+    </textarea>
+
+    <p class="form-help">
+      Optional. Add information useful to students attending the lesson.
+    </p>
+
+    <p class="form-error"
+       th:if="${#fields.hasErrors('description')}"
+       th:errors="*{description}">
+      Description error
+    </p>
+
+  </div>
+
+</th:block>
+
+
+<th:block th:fragment="formActions(backDate, submitLabel)">
+
+  <div class="form-actions">
+
+    <a class="ou-btn ou-btn--ghost"
+       th:href="@{/schedule/day(date=${backDate})}">
+      Cancel
+    </a>
+
+    <button class="ou-btn"
+            type="submit"
+            th:text="${submitLabel}">
+      Submit
+    </button>
+
+  </div>
+
+</th:block>
+
+</body>
+</html>

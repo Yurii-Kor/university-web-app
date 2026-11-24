@@ -1,84 +1,249 @@
 package ua.foxminded.university.model.persistence.lesson;
 
+import java.time.OffsetDateTime;
+import java.util.List;
+import java.util.Optional;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+
 import ua.foxminded.university.model.domain.Lesson;
+import ua.foxminded.university.model.persistence.lesson.projection.LessonScheduleItemView;
 import ua.foxminded.university.model.persistence.lesson.projection.OverlapHit;
 
-import java.time.OffsetDateTime;
-import java.util.Collection;
-import java.util.List;
-
 public interface LessonRepository extends JpaRepository<Lesson, Long> {
+    
+    boolean existsByIdAndAssignedTeacher_Id(
+            Long lessonId,
+            Long teacherId);
 
-    List<Lesson> findAllByGroup_IdAndStartTimeBetweenOrderByStartTime(
-            Long groupId, OffsetDateTime from, OffsetDateTime to);
-
-    List<Lesson> findAllByCourse_IdAndStartTimeBetweenOrderByStartTime(
-            Long courseId, OffsetDateTime from, OffsetDateTime to);
-
-    @Query("""
-            select l
-            from Lesson l
-            join l.course c
-            join c.teacher t
-            where t.id = :teacherId
-              and l.startTime between :from and :to
-            order by l.startTime
-            """)
-    List<Lesson> findTeacherSchedule(@Param("teacherId") Long teacherId,
-                                     @Param("from") OffsetDateTime from,
-                                     @Param("to") OffsetDateTime to);
-
+    boolean existsByIdAndStartTimeAfter(
+            Long lessonId,
+            OffsetDateTime startTime);
+    
     @Query("""
             select new ua.foxminded.university.model.persistence.lesson.projection.OverlapHit(
-                l.id, l.group.id, l.course.id, l.course.teacher.id, l.startTime, l.endTime, l.room
+                l.id,
+                l.group.id,
+                l.course.id,
+                l.assignedTeacher.id,
+                l.startTime,
+                l.endTime,
+                l.room
             )
             from Lesson l
-            where l.group.id = :groupId
-              and l.startTime < :end
-              and l.endTime   > :start
+            where l.course.id = :courseId
+              and l.startTime > :now
+            order by l.startTime, l.id
             """)
-    List<OverlapHit> findGroupOverlaps(@Param("groupId") Long groupId,
-                                       @Param("start") OffsetDateTime start,
-                                       @Param("end") OffsetDateTime end);
+    List<OverlapHit> findFutureOverlapHitsByCourseId(
+            @Param("courseId") Long courseId,
+            @Param("now") OffsetDateTime now);
 
-    @Query("""
-            select new ua.foxminded.university.model.persistence.lesson.projection.OverlapHit(
-                l.id, l.group.id, l.course.id, c.teacher.id, l.startTime, l.endTime, l.room
-            )
-            from Lesson l
-            join l.course c
-            where c.teacher.id = :teacherId
-              and l.startTime < :end
-              and l.endTime   > :start
-            """)
-    List<OverlapHit> findTeacherOverlaps(@Param("teacherId") Long teacherId,
-                                         @Param("start") OffsetDateTime start,
-                                         @Param("end") OffsetDateTime end);
+	@Query("""
+			select l
+			from Lesson l
+			where l.group.id = :groupId
+			  and l.startTime >= :from
+			  and l.startTime < :to
+			order by l.startTime, l.id
+			""")
+	List<Lesson> findGroupSchedule(
+			@Param("groupId") Long groupId,
+			@Param("from") OffsetDateTime from,
+			@Param("to") OffsetDateTime to);
 
-    @Query("""
-            select new ua.foxminded.university.model.persistence.lesson.projection.OverlapHit(
-                l.id, l.group.id, l.course.id, l.course.teacher.id, l.startTime, l.endTime, l.room
-            )
-            from Lesson l
-            where upper(l.room) = upper(:room)
-              and l.startTime < :end
-              and l.endTime   > :start
-            """)
-    List<OverlapHit> findRoomOverlaps(@Param("room") String room,
-                                      @Param("start") OffsetDateTime start,
-                                      @Param("end") OffsetDateTime end);
+	@Query("""
+			select l
+			from Lesson l
+			where l.course.id = :courseId
+			  and l.startTime >= :from
+			  and l.startTime < :to
+			order by l.startTime, l.id
+			""")
+	List<Lesson> findCourseSchedule(
+			@Param("courseId") Long courseId,
+			@Param("from") OffsetDateTime from,
+			@Param("to") OffsetDateTime to);
 
-    @Query("select l.id from Lesson l where l.id in :ids")
-    List<Long> findExistingIds(@Param("ids") Collection<Long> ids);
+	@Query("""
+			select l
+			from Lesson l
+			where l.assignedTeacher.id = :teacherId
+			  and l.startTime >= :from
+			  and l.startTime < :to
+			order by l.startTime, l.id
+			""")
+	List<Lesson> findTeacherSchedule(
+			@Param("teacherId") Long teacherId,
+			@Param("from") OffsetDateTime from,
+			@Param("to") OffsetDateTime to);
 
-    @Query("""
-            select l.id
-            from Lesson l
-            where l.id in :ids and l.course.teacher.id = :teacherId
-            """)
-    List<Long> findOwnedIds(@Param("ids") Collection<Long> ids,
-                            @Param("teacherId") Long teacherId);
+	@Query("""
+			select new ua.foxminded.university.model.persistence.lesson.projection.LessonScheduleItemView(
+				l.id,
+				c.id,
+				c.code,
+				c.name,
+				g.id,
+				g.name,
+				t.id,
+				u.firstName,
+				u.lastName,
+				l.startTime,
+				l.endTime,
+				l.room,
+				l.lessonType,
+				l.description
+			)
+			from Lesson l
+			join l.course c
+			join l.group g
+			join l.assignedTeacher t
+			join t.user u
+			where g.id = :groupId
+			  and l.startTime >= :from
+			  and l.startTime < :to
+			order by l.startTime, l.id
+			""")
+	List<LessonScheduleItemView> findGroupScheduleItems(
+			@Param("groupId") Long groupId,
+			@Param("from") OffsetDateTime from,
+			@Param("to") OffsetDateTime to);
+
+	@Query("""
+			select new ua.foxminded.university.model.persistence.lesson.projection.LessonScheduleItemView(
+				l.id,
+				c.id,
+				c.code,
+				c.name,
+				g.id,
+				g.name,
+				t.id,
+				u.firstName,
+				u.lastName,
+				l.startTime,
+				l.endTime,
+				l.room,
+				l.lessonType,
+				l.description
+			)
+			from Lesson l
+			join l.course c
+			join l.group g
+			join l.assignedTeacher t
+			join t.user u
+			where t.id = :teacherId
+			  and l.startTime >= :from
+			  and l.startTime < :to
+			order by l.startTime, l.id
+			""")
+	List<LessonScheduleItemView> findTeacherScheduleItems(
+			@Param("teacherId") Long teacherId,
+			@Param("from") OffsetDateTime from,
+			@Param("to") OffsetDateTime to);
+
+	@Query("""
+			select new ua.foxminded.university.model.persistence.lesson.projection.LessonScheduleItemView(
+				l.id,
+				c.id,
+				c.code,
+				c.name,
+				g.id,
+				g.name,
+				t.id,
+				u.firstName,
+				u.lastName,
+				l.startTime,
+				l.endTime,
+				l.room,
+				l.lessonType,
+				l.description
+			)
+			from Lesson l
+			join l.course c
+			join l.group g
+			join l.assignedTeacher t
+			join t.user u
+			where l.id = :lessonId
+			  and t.id = :teacherId
+			""")
+	Optional<LessonScheduleItemView> findTeacherScheduleItem(
+			@Param("teacherId") Long teacherId,
+			@Param("lessonId") Long lessonId);
+
+	@Query("""
+			select l
+			from Lesson l
+			where l.course.id = :courseId
+			  and l.startTime > :now
+			order by l.startTime, l.id
+			""")
+	List<Lesson> findFutureByCourseId(
+			@Param("courseId") Long courseId,
+			@Param("now") OffsetDateTime now);
+
+	@Query("""
+			select new ua.foxminded.university.model.persistence.lesson.projection.OverlapHit(
+				l.id,
+				l.group.id,
+				l.course.id,
+				l.assignedTeacher.id,
+				l.startTime,
+				l.endTime,
+				l.room
+			)
+			from Lesson l
+			where l.group.id = :groupId
+			  and l.startTime < :end
+			  and l.endTime > :start
+			order by l.startTime, l.id
+			""")
+	List<OverlapHit> findGroupOverlaps(
+			@Param("groupId") Long groupId,
+			@Param("start") OffsetDateTime start,
+			@Param("end") OffsetDateTime end);
+
+	@Query("""
+			select new ua.foxminded.university.model.persistence.lesson.projection.OverlapHit(
+				l.id,
+				l.group.id,
+				l.course.id,
+				l.assignedTeacher.id,
+				l.startTime,
+				l.endTime,
+				l.room
+			)
+			from Lesson l
+			where l.assignedTeacher.id = :teacherId
+			  and l.startTime < :end
+			  and l.endTime > :start
+			order by l.startTime, l.id
+			""")
+	List<OverlapHit> findTeacherOverlaps(
+			@Param("teacherId") Long teacherId,
+			@Param("start") OffsetDateTime start,
+			@Param("end") OffsetDateTime end);
+
+	@Query("""
+			select new ua.foxminded.university.model.persistence.lesson.projection.OverlapHit(
+				l.id,
+				l.group.id,
+				l.course.id,
+				l.assignedTeacher.id,
+				l.startTime,
+				l.endTime,
+				l.room
+			)
+			from Lesson l
+			where upper(l.room) = upper(:room)
+			  and l.startTime < :end
+			  and l.endTime > :start
+			order by l.startTime, l.id
+			""")
+	List<OverlapHit> findRoomOverlaps(
+			@Param("room") String room,
+			@Param("start") OffsetDateTime start,
+			@Param("end") OffsetDateTime end);
 }

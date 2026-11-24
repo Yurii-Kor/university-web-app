@@ -1,0 +1,95 @@
+id: groups
+title: Study groups
+order: 3
+
+description: View study-group information and manage university groups according to the current account role.
+
+roles:
+  STUDENT:
+    available: true
+    tab_label: Group
+    page_title: My group
+    page_description: Your study group.
+
+    scope: The study group assigned to the current student.
+    presentation: summary
+
+    display_fields:
+      - id: group
+        label: Group
+
+      - id: students
+        label: Students
+
+    stories:
+      - View the study group assigned to the student.
+      - View the number of students in the assigned study group.
+
+    actions: []
+
+  TEACHER:
+    available: true
+    tab_label: Groups
+    page_title: My groups
+    page_description: Groups where you teach.
+
+    scope: Study groups where the current teacher teaches.
+    presentation: cards
+
+    display_fields:
+      - id: name
+        label: Group
+
+      - id: students
+        label: Students
+
+      - id: courses
+        label: Courses
+
+    stories:
+      - View study groups where the teacher teaches.
+      - View the number of students in each study group.
+      - View the number of courses associated with each study group.
+
+    actions: []
+
+  ADMIN:
+    available: true
+    tab_label: Groups
+    page_title: Groups
+    page_description: All study groups in the system.
+
+    scope: All active study groups.
+    presentation: cards
+
+    display_fields:
+      - id: name
+        label: Group
+
+      - id: students
+        label: Students
+
+      - id: courses
+        label: Courses
+
+    stories:
+      - View all active study groups.
+      - Create a new study group.
+      - Update a study group's name.
+      - Delete an empty study group using soft deletion.
+
+    editable_fields:
+      - name
+
+    actions:
+      - create_group
+      - update_group
+      - soft_delete_group
+
+    restrictions:
+      - action: soft_delete_group
+        condition: The study group must not contain any students.
+        message: A study group with assigned students cannot be deleted.
+
+    delete_behavior:
+      type: soft_delete

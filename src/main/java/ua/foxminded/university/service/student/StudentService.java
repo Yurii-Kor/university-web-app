@@ -1,199 +1,193 @@
 package ua.foxminded.university.service.student;
 
-import java.util.*;
-import java.util.stream.Collectors;
+import java.time.Year;
+import java.util.Objects;
+import java.util.Optional;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Service;
-
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.stereotype.Service;
+
 import jakarta.persistence.EntityNotFoundException;
 import jakarta.transaction.Transactional;
 import jakarta.transaction.Transactional.TxType;
 import lombok.RequiredArgsConstructor;
-import ua.foxminded.university.model.domain.AppUser;
 import ua.foxminded.university.model.domain.Student;
 import ua.foxminded.university.model.domain.StudyGroup;
 import ua.foxminded.university.model.persistence.appuser.AppUserRepository;
 import ua.foxminded.university.model.persistence.student.StudentRepository;
-import ua.foxminded.university.model.persistence.student.projection.DeletedStudentCardProjection;
+import ua.foxminded.university.model.persistence.student.projection.AdminStudentCardView;
 import ua.foxminded.university.model.persistence.student.projection.StudentCardView;
+import ua.foxminded.university.model.persistence.student.projection.StudentPeerCardView;
 import ua.foxminded.university.model.persistence.student.projection.StudentProfileView;
+import ua.foxminded.university.model.persistence.student.projection.TeacherStudentCardView;
 import ua.foxminded.university.model.persistence.studygroup.StudyGroupRepository;
 import ua.foxminded.university.security.PasswordPolicy;
-import ua.foxminded.university.service.student.dto.DeletedStudentCardView;
 import ua.foxminded.university.service.student.dto.StudentCreateDto;
-import ua.foxminded.university.service.util.validation.EntityValidatior;
+import ua.foxminded.university.service.student.dto.StudentUpdateDto;
+import ua.foxminded.university.service.student.exception.StudentCreateException;
+import ua.foxminded.university.service.student.exception.StudentUpdateException;
 import ua.foxminded.university.service.util.DtoMapper;
-import ua.foxminded.university.service.util.DuplicateGuard;
-import ua.foxminded.university.service.util.projectionmapper.ProjectionMapper;
 
 @Service
 @RequiredArgsConstructor
 @Transactional
 public class StudentService {
 
-	private static final int NOT_UPDATED = 0;
+    private static final Logger log = LoggerFactory.getLogger(StudentService.class);
 
-	private static final Logger log = LoggerFactory.getLogger(StudentService.class);
+    private final StudentRepository studentRepository;
+    private final AppUserRepository usersRepository;
+    private final StudyGroupRepository groupRepository;
 
-	private final StudentRepository studentRepository;
-	private final AppUserRepository usersRepository;
-	private final StudyGroupRepository groupRepository;
+    private final DtoMapper dtoMapper;
+    private final PasswordPolicy passwordPolicy;
 
-	private final ProjectionMapper<DeletedStudentCardProjection, DeletedStudentCardView> projectionMapper;
-	private final DtoMapper dtoMapper;
-	private final EntityValidatior validator;
-	private final PasswordPolicy passwordPolicy;
-	private final DuplicateGuard duplicateGuard;
+    @Transactional(value = TxType.REQUIRES_NEW)
+    public Student create(StudentCreateDto draft) {
+        assertStudentEmailFreeInDb(draft);
 
-	@Transactional(value = TxType.REQUIRES_NEW)
-	public List<Student> createAll(Collection<StudentCreateDto> drafts) {
-		validator.validateAll(drafts);
+        var group = requireGroup(draft);
 
-		var toPersist = dtoMapper.toStudentEntities(drafts);
-		if (toPersist.isEmpty()) {
-			log.warn("createAll: nothing to persist (null/empty input)");
-			return List.of();
-		}
+        var student = dtoMapper.toStudentEntity(draft);
+        
+        applyDefaultEnrollmentYear(student);
+        student.setGroup(group);
 
-		var emailsLower = toPersist.stream()
-				.map(Student::getUser)
-				.filter(Objects::nonNull)
-				.map(AppUser::getEmail)
-				.filter(Objects::nonNull)
-				.map(String::trim)
-				.map(String::toLowerCase)
-				.toList();
+        passwordPolicy.encodeNewPassword(student.getUser());
 
-		duplicateGuard.assertNoDuplicates(emailsLower, "normalized student emails");
-		assertStudentEmailsFreeInDb(emailsLower);
-		assertStudentGroupsExist(toPersist);
-
-		toPersist.forEach(s -> s.setGroup(groupRepository.getReferenceById(s.getGroup().getId())));
-		toPersist.forEach(s -> passwordPolicy.encodeNewPassword(s.getUser()));
-
-		return studentRepository.saveAll(toPersist);
-	}
-
-	@Transactional(value = TxType.SUPPORTS)
-	public List<Student> findByIds(Collection<Long> ids) {
-		var distinct = Optional.ofNullable(ids)
-				.orElseGet(Collections::emptyList)
-				.stream()
-				.filter(Objects::nonNull)
-				.collect(Collectors.toSet());
-
-		if (distinct.isEmpty()) {
-			log.warn("findByIds: null/empty input or only nulls after filtering");
-			return List.of();
-		}
-
-		return studentRepository.findAllById(distinct);
-	}
-	
-	@Transactional(value = TxType.SUPPORTS)
-	public Page<StudentCardView> listStudentCardsForAdmin(Pageable pageable) {
-	    return studentRepository.findStudentCardsAll(pageable);
-	}
-
-    @Transactional(value = TxType.SUPPORTS)
-    public Page<DeletedStudentCardView> listDeletedStudentCardsForAdmin(Pageable pageable) {
-        return studentRepository.findDeletedStudentCards(pageable).map(projectionMapper::toView);
+        return studentRepository.save(student);
     }
 
-	@Transactional(value = TxType.SUPPORTS)
-	public StudentProfileView getStudentProfileView(long id) {
-		return studentRepository.findStudentProfileViewById(id)
-				.orElseThrow(() -> new EntityNotFoundException("Student not found: id=" + id));
-	}
+    public Page<StudentCardView> listStudentCardsForAccountManagement(Pageable pageable) {
+        return studentRepository.findStudentCardsForAccountManagement(pageable);
+    }
 
-	@Transactional(value = TxType.REQUIRES_NEW)
-	public int moveStudentsToGroup(Collection<Long> studentIds, long targetGroupId) {
-		if (Optional.ofNullable(studentIds).map(Collection::isEmpty).orElse(true)) {
-			log.warn("moveStudentsToGroup called with null/empty student Ids");
-			return NOT_UPDATED;
-		}
+    public Page<AdminStudentCardView> listStudentCardsForAdmin(Pageable pageable) {
+        return studentRepository.findStudentCardsForAdmin(pageable);
+    }
 
-		var newGroup = requireGroupRef(targetGroupId);
+    public Page<TeacherStudentCardView> listStudentCardsForTeacher(
+            long teacherId,
+            Pageable pageable) {
 
-		var ids = studentIds.stream().filter(Objects::nonNull).collect(Collectors.toSet());
-		if (ids.isEmpty()) {
-			log.warn("moveStudentsToGroup: only nulls in provided ids");
-			return NOT_UPDATED;
-		}
+        return studentRepository.findStudentCardsForTeacher(teacherId, pageable);
+    }
 
-		assertStudentsExist(ids);
+    public Page<StudentPeerCardView> listStudentCardsForStudent(
+            long studentId,
+            Pageable pageable) {
 
-		return studentRepository.updateGroupByIds(newGroup, ids);
-	}
-	
-	@Transactional(value = TxType.REQUIRES_NEW)
-	public void deleteById(long id) {
-	    var student = studentRepository.findById(id)
-	            .orElseThrow(() -> new EntityNotFoundException("Active student not found: id=" + id));
+        return studentRepository.findStudentCardsForStudent(studentId, pageable);
+    }
 
-	    studentRepository.delete(student);
-	    log.info("Soft deleted student: id={}", id);
-	}
+    public StudentProfileView getStudentProfileView(long id) {
 
-	
+        return studentRepository.findStudentProfileViewById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Student not found: id=" + id));
+    }
 
-	private void assertStudentEmailsFreeInDb(Collection<String> emailsLower) {
-		var normalized = emailsLower.stream()
-				.filter(Objects::nonNull)
-				.map(String::trim)
-				.map(String::toLowerCase)
-				.collect(Collectors.toSet());
+    @Transactional(value = TxType.REQUIRES_NEW)
+    public Student update(
+            long studentId,
+            StudentUpdateDto patch) {
 
-		if (normalized.isEmpty()) return;
+        var student = requireStudent(studentId);
 
-		var conflicts = usersRepository.findExistingEmailsIgnoreCase(normalized);
-		if (!conflicts.isEmpty()) {
-			log.warn("createAll: emails already exist in DB: {}", conflicts);
-			throw new IllegalArgumentException("Emails already exist: " + conflicts);
-		}
-	}
+        applyGroupPatch(student, patch);
+        applyEnrollmentYearPatch(student, patch);
 
-	private StudyGroup requireGroupRef(long groupId) {
-		if (!groupRepository.existsById(groupId)) {
-			log.error("moveStudentsToGroup: StudyGroup not found: id={}", groupId);
-			throw new EntityNotFoundException("StudyGroup not found: id=" + groupId);
-		}
+        log.info("Updated student: id={}", studentId);
 
-		return groupRepository.getReferenceById(groupId);
-	}
+        return student;
+    }
 
-	private void assertStudentGroupsExist(Collection<Student> students) {
-		var groupIds = students.stream()
-				.map(Student::getGroup)
-				.filter(Objects::nonNull)
-				.map(StudyGroup::getId)
-				.filter(Objects::nonNull)
-				.collect(Collectors.toSet());
+    @Transactional(value = TxType.REQUIRES_NEW)
+    public void deleteById(long studentId) {
+        var student = requireStudent(studentId);
 
-		if (groupIds.isEmpty()) return;
+        studentRepository.delete(student);
+        log.info("Soft deleted student: id={}", studentId);
+    }
+    
+    private void applyDefaultEnrollmentYear(
+            Student student) {
 
-		var existing = new HashSet<>(groupRepository.findExistingIds(groupIds));
-		var missing = groupIds.stream().filter(id -> !existing.contains(id)).collect(Collectors.toSet());
+        student.setEnrollmentYear(
+                Optional.ofNullable(
+                        student.getEnrollmentYear())
+                        .orElseGet(() ->
+                                Year.now()
+                                        .getValue()));
+    }
 
-		if (!missing.isEmpty()) {
-			log.error("createAll: student groups not found: {}", missing);
-			throw new EntityNotFoundException("StudyGroups not found: " + missing);
-		}
-	}
+    private void applyGroupPatch(Student managed, StudentUpdateDto patch) {
 
-	private void assertStudentsExist(Collection<Long> studentIds) {
-		if (studentIds.isEmpty()) return;
+        Optional.ofNullable(patch.groupId())
+                .filter(newGroupId -> isDifferentGroup(managed, newGroupId))
+                .ifPresent(newGroupId -> {
+                    var group = groupRepository.findById(newGroupId)
+                            .orElseThrow(() -> new StudentUpdateException(
+                                    managed.getId(),
+                                    "StudyGroup not found: id=" + newGroupId));
 
-		var existing = new HashSet<>(studentRepository.findExistingIds(studentIds));
-		var missing = studentIds.stream().filter(id -> !existing.contains(id)).collect(Collectors.toSet());
+                    managed.setGroup(group);
 
-		if (!missing.isEmpty()) {
-			log.error("moveStudentsToGroup: some student ids not found: {}", missing);
-			throw new EntityNotFoundException("Students not found: " + missing);
-		}
-	}
+                    log.debug(
+                            "update: group updated (studentId={}, groupId={})",
+                            managed.getId(),
+                            newGroupId);
+                });
+    }
+
+    private void applyEnrollmentYearPatch(Student managed, StudentUpdateDto patch) {
+
+        Optional.ofNullable(patch.enrollmentYear())
+                .filter(newEnrollmentYear ->
+                        !Objects.equals(newEnrollmentYear, managed.getEnrollmentYear()))
+                .ifPresent(newEnrollmentYear -> {
+                    managed.setEnrollmentYear(newEnrollmentYear);
+
+                    log.debug(
+                            "update: enrollment year updated (studentId={}, enrollmentYear={})",
+                            managed.getId(),
+                            newEnrollmentYear);
+                });
+    }
+
+    private boolean isDifferentGroup(Student managed, Long newGroupId) {
+
+        return Optional.ofNullable(managed.getGroup())
+                .map(group -> !newGroupId.equals(group.getId()))
+                .orElse(true);
+    }
+
+    private void assertStudentEmailFreeInDb(StudentCreateDto draft) {
+
+        if (usersRepository.existsByEmailIgnoreCase(draft.email())) {
+            throw new StudentCreateException(
+                    "email",
+                    draft,
+                    "An account with this email already exists.");
+        }
+    }
+
+    private StudyGroup requireGroup(StudentCreateDto draft) {
+
+        return groupRepository.findById(draft.groupId())
+                .orElseThrow(() ->
+                    new StudentCreateException(
+                            "groupId",
+                            draft,
+                            "Selected study group is no longer available."));
+    }
+
+    private Student requireStudent(long studentId) {
+
+        return studentRepository.findById(studentId)
+                .orElseThrow(() ->
+                    new EntityNotFoundException("Student not found: id=" + studentId));
+    }
 }

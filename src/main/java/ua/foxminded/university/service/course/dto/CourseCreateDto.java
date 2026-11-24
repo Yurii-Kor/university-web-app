@@ -7,18 +7,21 @@ import jakarta.validation.constraints.*;
 public record CourseCreateDto(
 
         @NotBlank
-        @Size(min = COURSE_CODE_MIN, max = COURSE_CODE_MAX)
+        @Size(
+                min = COURSE_CODE_MIN,
+                max = COURSE_CODE_MAX
+        )
         @Pattern(
-             regexp = COURSE_CODE_REGEX,
-             message = COURSE_CODE_MESSAGE
+                regexp = COURSE_CODE_REGEX,
+                message = COURSE_CODE_MESSAGE
         )
         String code,
 
         @NotBlank
         @Size(max = COURSE_NAME_MAX)
         @Pattern(
-             regexp = TEXT_NOT_BLANK_WHEN_PRESENT_REGEX,
-             message = TEXT_NOT_BLANK_WHEN_PRESENT_MESSAGE
+                regexp = TEXT_NOT_BLANK_WHEN_PRESENT_REGEX,
+                message = TEXT_NOT_BLANK_WHEN_PRESENT_MESSAGE
         )
         String name,
 
@@ -27,4 +30,15 @@ public record CourseCreateDto(
 
         @NotNull
         Long teacherId
-) {}
+
+) {
+
+    public CourseCreateDto() {
+
+        this(
+                null,
+                null,
+                null,
+                null);
+    }
+}

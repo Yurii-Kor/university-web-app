@@ -1,0 +1,287 @@
+body.lesson-create-page {
+  background: var(--bg);
+}
+
+
+/* ===== Page ===== */
+
+.lesson-create-main {
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: var(--space-4);
+}
+
+
+/* ===== Toolbar ===== */
+
+.lesson-create-toolbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.lesson-create-title {
+  margin: 0;
+  font-family: 'Abel', system-ui, sans-serif;
+  font-size: 1.8rem;
+  letter-spacing: 0.2px;
+}
+
+.lesson-create-subtitle {
+  margin: 6px 0 0 0;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+
+/* ===== Two-column layout ===== */
+
+.lesson-create-layout {
+  display: grid;
+  grid-template-columns: minmax(340px, 2fr) minmax(0, 3fr);
+  gap: var(--space-4);
+  align-items: start;
+}
+
+.lesson-create-column {
+  display: grid;
+  gap: var(--space-4);
+}
+
+
+/* ===== Section heading ===== */
+
+.lesson-create-section-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.lesson-create-section-heading .ou-card__title {
+  margin-bottom: 4px;
+}
+
+.lesson-create-section-heading p {
+  margin: 0;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+
+/* ===== Context ===== */
+
+.lesson-create-context-form {
+  display: grid;
+  gap: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px dashed rgba(0, 0, 0, 0.16);
+}
+
+.lesson-create-label {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--text-muted);
+  font-weight: 700;
+}
+
+.lesson-create-context-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+
+/* ===== Lesson form ===== */
+
+.lesson-create-form {
+  display: grid;
+  gap: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px dashed rgba(0, 0, 0, 0.16);
+}
+
+.lesson-create-time-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.lesson-create-form .ou-input--textarea {
+  min-height: 120px;
+}
+
+
+/* ===== Empty form state ===== */
+
+.lesson-create-empty-state {
+  min-height: 180px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border: 1px dashed rgba(0, 0, 0, 0.18);
+  border-radius: var(--radius-lg);
+  background: rgba(255, 221, 170, 0.14);
+  color: var(--text-muted);
+}
+
+.lesson-create-empty-state__mark {
+  flex: 0 0 auto;
+  font-size: 1.5rem;
+}
+
+.lesson-create-empty-state strong {
+  display: block;
+  color: var(--text);
+}
+
+.lesson-create-empty-state p {
+  margin: 4px 0 0 0;
+}
+
+
+/* ===== Availability ===== */
+
+.lesson-create-availability {
+  min-width: 0;
+}
+
+.lesson-create-date-badge {
+  flex: 0 0 auto;
+  color: var(--accent);
+  background: rgba(0, 85, 170, 0.10);
+  border-color: rgba(0, 85, 170, 0.28);
+}
+
+.lesson-create-availability-context {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: rgba(255, 221, 170, 0.20);
+}
+
+.lesson-create-context-item {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.lesson-create-context-item span {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.lesson-create-context-item strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+
+/* ===== Availability sections ===== */
+
+.lesson-create-availability-section {
+  padding-top: var(--space-3);
+  margin-top: var(--space-3);
+  border-top: 1px dashed rgba(0, 0, 0, 0.16);
+}
+
+.lesson-create-availability-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.lesson-create-availability-heading h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.lesson-create-availability-lessons {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.lesson-create-availability-empty {
+  min-height: 180px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border: 1px dashed rgba(0, 0, 0, 0.18);
+  border-radius: var(--radius-lg);
+  background: rgba(255, 221, 170, 0.14);
+  color: var(--text-muted);
+}
+
+.lesson-create-availability-empty__mark {
+  flex: 0 0 auto;
+  font-size: 1.5rem;
+}
+
+.lesson-create-availability-empty strong {
+  display: block;
+  color: var(--text);
+}
+
+.lesson-create-availability-empty p {
+  margin: 4px 0 0 0;
+}
+
+
+/* ===== Responsive ===== */
+
+@media (max-width: 980px) {
+
+  .lesson-create-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 620px) {
+
+  .lesson-create-main {
+    padding: var(--space-2);
+  }
+
+  .lesson-create-toolbar {
+    flex-direction: column;
+  }
+
+  .lesson-create-time-grid,
+  .lesson-create-availability-context {
+    grid-template-columns: 1fr;
+  }
+
+  .lesson-create-section-heading {
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 420px) {
+
+  .lesson-create-context,
+  .lesson-create-form-card,
+  .lesson-create-availability {
+    padding: var(--space-3);
+  }
+
+  .lesson-create-empty-state,
+  .lesson-create-availability-empty {
+    min-height: 130px;
+    padding: var(--space-3);
+  }
+}

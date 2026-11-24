@@ -1,0 +1,107 @@
+id: teachers
+title: Teachers
+order: 5
+
+description: Browse teachers visible to the current account and manage active teacher records according to role permissions.
+
+roles:
+  TEACHER:
+    available: true
+    tab_label: Teachers
+    page_title: Teachers
+    page_description: Your colleagues.
+
+    scope: All other active teachers except the current teacher.
+    presentation: cards
+
+    display_fields:
+      - id: name
+        label: Name
+
+      - id: email
+        label: Email
+
+      - id: academic_rank
+        label: Academic rank
+
+      - id: office
+        label: Office
+
+    stories:
+      - View other teachers in the system as colleagues.
+      - View each colleague's name, email, academic rank, and office.
+
+    actions: []
+
+  STUDENT:
+    available: true
+    tab_label: Teachers
+    page_title: My teachers
+    page_description: Teachers assigned to your group.
+
+    scope: Teachers who teach courses assigned to the current student's study group.
+    presentation: cards
+
+    display_fields:
+      - id: name
+        label: Name
+
+      - id: email
+        label: Email
+
+      - id: academic_rank
+        label: Academic rank
+
+      - id: office
+        label: Office
+
+    stories:
+      - View teachers assigned to courses of the student's study group.
+      - View each teacher's name, email, academic rank, and office.
+
+    actions: []
+
+  ADMIN:
+    available: true
+    tab_label: Teachers
+    page_title: Teachers
+    page_description: All teachers in the system.
+
+    scope: All active teachers in the system.
+    presentation: cards
+    paginated: true
+
+    display_fields:
+      - id: name
+        label: Name
+
+      - id: email
+        label: Email
+
+      - id: academic_rank
+        label: Academic rank
+
+      - id: office
+        label: Office
+
+    stories:
+      - View all active teachers in the system.
+      - Browse the teacher list using pagination.
+      - Create a new teacher account.
+      - Update a teacher's academic rank.
+      - Update a teacher's office.
+
+    editable_fields:
+      - academic_rank
+      - office
+
+    actions:
+      - create_teacher
+      - update_teacher
+
+    unavailable_actions:
+      - delete_teacher
+
+    restrictions:
+      - action: delete_teacher
+        condition: Teacher deletion is not available from the Teachers page.

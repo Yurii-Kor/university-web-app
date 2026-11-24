@@ -1,0 +1,114 @@
+@page {
+	size: A4 landscape;
+	margin: 12mm;
+}
+
+body {
+	font-family: Helvetica, Arial, sans-serif;
+	color: #1f2937;
+	font-size: 10pt;
+}
+
+.brand {
+	margin-bottom: 3px;
+	font-size: 20pt;
+	font-weight: bold;
+}
+
+.brand-accent {
+	color: #0055aa;
+}
+
+.subtitle {
+	margin-bottom: 18px;
+	color: #6b7280;
+	font-size: 9pt;
+	font-weight: bold;
+}
+
+.owner {
+	margin-bottom: 2px;
+}
+
+.owner-label {
+	color: #6b7280;
+	font-weight: bold;
+}
+
+.owner-name {
+	font-size: 13pt;
+	font-weight: bold;
+}
+
+.owner-detail {
+	margin: 2px 0;
+	color: #6b7280;
+}
+
+.week {
+	margin: 14px 0;
+	font-size: 11pt;
+	font-weight: bold;
+}
+
+.day {
+	margin-top: 10px;
+	page-break-inside: avoid;
+}
+
+.day-title {
+	margin: 0 0 6px;
+	color: #0055aa;
+	font-size: 11pt;
+	font-weight: bold;
+	text-transform: uppercase;
+}
+
+table {
+	width: 100%;
+	margin-bottom: 10px;
+	border-collapse: collapse;
+	table-layout: fixed;
+}
+
+th {
+	padding: 7px;
+	border: 1px solid #0055aa;
+	background-color: #0055aa;
+	color: #ffffff;
+	text-align: left;
+	font-size: 9pt;
+}
+
+td {
+	padding: 7px;
+	border: 1px solid #d1d5db;
+	vertical-align: middle;
+	font-size: 9pt;
+}
+
+.col-time {
+	width: 14%;
+}
+
+.col-course {
+	width: 38%;
+}
+
+.col-role {
+	width: 22%;
+}
+
+.col-type {
+	width: 15%;
+}
+
+.col-room {
+	width: 11%;
+}
+
+.empty {
+	margin-top: 12px;
+	color: #6b7280;
+	font-size: 11pt;
+}

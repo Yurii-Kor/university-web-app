@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="en"
+      xmlns:th="http://www.thymeleaf.org">
+<head>
+
+  <meta charset="utf-8" />
+
+  <title>Create teacher</title>
+
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1" />
+
+  <link rel="icon"
+        th:href="@{/favicon.ico}"
+        href="/favicon.ico" />
+
+  <link rel="stylesheet"
+        th:href="@{/css/app.css}"
+        href="/css/app.css" />
+
+  <link rel="stylesheet"
+        th:href="@{/css/pages/forms.css}"
+        href="/css/pages/forms.css" />
+
+</head>
+
+<body class="ou-page teacher-create-page">
+
+  <div th:replace="~{fragments/header :: ouHeader('teachers')}">
+  </div>
+
+  <main class="ou-form-main">
+
+    <section class="ou-card"
+             aria-label="Create teacher">
+
+      <div class="ou-form-toolbar">
+
+        <div>
+
+          <h1 class="ou-card__title">
+            Create teacher
+          </h1>
+
+          <p class="ou-form-subtitle">
+            Add a new teacher to the system.
+          </p>
+
+        </div>
+
+        <a class="ou-btn ou-btn--ghost"
+           th:href="@{/teachers}">
+          ← Back to teachers
+        </a>
+
+      </div>
+
+      <form class="form-grid form-grid--kv"
+            th:action="@{/teachers/create}"
+            th:object="${form}"
+            method="post"
+            novalidate>
+
+        <input type="hidden"
+               th:name="${_csrf.parameterName}"
+               th:value="${_csrf.token}" />
+
+        <div class="ou-alert ou-alert--error"
+             th:if="${err != null}"
+             th:text="${err}">
+          Something went wrong.
+        </div>
+
+        <div class="ou-alert ou-alert--error"
+             th:if="${err == null and #fields.hasAnyErrors()}">
+          Please fix the errors below and try again.
+        </div>
+
+        <!-- Email -->
+        <div class="form-row-kv">
+
+          <label for="email">
+            Email
+          </label>
+
+          <div class="form-field">
+
+            <input id="email"
+                   class="ou-input"
+                   type="email"
+                   autocomplete="email"
+                   placeholder="teacher@example.com"
+                   th:field="*{email}" />
+
+            <p class="form-help">
+              Enter a unique email address for the teacher account.
+            </p>
+
+            <p class="form-error"
+               th:if="${#fields.hasErrors('email')}"
+               th:errors="*{email}">
+              Email error
+            </p>
+
+          </div>
+
+        </div>
+
+        <!-- Password -->
+        <div class="form-row-kv">
+
+          <label for="password">
+            Password
+          </label>
+
+          <div class="form-field">
+
+            <input id="password"
+                   class="ou-input"
+                   type="password"
+                   autocomplete="new-password"
+                   placeholder="Password"
+                   th:field="*{password}" />
+
+            <p class="form-help">
+              Enter the initial password for the teacher account.
+            </p>
+
+            <p class="form-error"
+               th:if="${#fields.hasErrors('password')}"
+               th:errors="*{password}">
+              Password error
+            </p>
+
+          </div>
+
+        </div>
+
+        <!-- First name -->
+        <div class="form-row-kv">
+
+          <label for="firstName">
+            First name
+          </label>
+
+          <div class="form-field">
+
+            <input id="firstName"
+                   class="ou-input"
+                   type="text"
+                   autocomplete="given-name"
+                   placeholder="Robert"
+                   th:field="*{firstName}" />
+
+            <p class="form-error"
+               th:if="${#fields.hasErrors('firstName')}"
+               th:errors="*{firstName}">
+              First name error
+            </p>
+
+          </div>
+
+        </div>
+
+        <!-- Last name -->
+        <div class="form-row-kv">
+
+          <label for="lastName">
+            Last name
+          </label>
+
+          <div class="form-field">
+
+            <input id="lastName"
+                   class="ou-input"
+                   type="text"
+                   autocomplete="family-name"
+                   placeholder="Miller"
+                   th:field="*{lastName}" />
+
+            <p class="form-error"
+               th:if="${#fields.hasErrors('lastName')}"
+               th:errors="*{lastName}">
+              Last name error
+            </p>
+
+          </div>
+
+        </div>
+
+        <!-- Academic rank -->
+        <div class="form-row-kv">
+
+          <label for="academicRank">
+            Academic rank
+          </label>
+
+          <div class="form-field">
+
+            <select id="academicRank"
+                    class="ou-input"
+                    th:field="*{academicRank}">
+
+              <option value="">
+                — Select academic rank —
+              </option>
+
+              <option th:each="rank :
+                          ${T(ua.foxminded.university.model.domain.enums.AcademicRank).values()}"
+                      th:value="${rank}"
+                      th:text="${rank}">
+                LECTURER
+              </option>
+
+            </select>
+
+            <p class="form-help">
+              Select the teacher's academic rank.
+            </p>
+
+            <p class="form-error"
+               th:if="${#fields.hasErrors('academicRank')}"
+               th:errors="*{academicRank}">
+              Academic rank error
+            </p>
+
+          </div>
+
+        </div>
+
+        <!-- Office -->
+        <div class="form-row-kv">
+
+          <label for="office">
+            Office
+          </label>
+
+          <div class="form-field">
+
+            <input id="office"
+                   class="ou-input"
+                   type="text"
+                   placeholder="B-105"
+                   th:field="*{office}" />
+
+            <p class="form-help">
+              Enter the teacher's office code.
+            </p>
+
+            <p class="form-error"
+               th:if="${#fields.hasErrors('office')}"
+               th:errors="*{office}">
+              Office error
+            </p>
+
+          </div>
+
+        </div>
+
+        <div class="form-actions">
+
+          <a class="ou-btn ou-btn--ghost"
+             th:href="@{/teachers}">
+            Cancel
+          </a>
+
+          <button class="ou-btn"
+                  type="submit">
+            Create
+          </button>
+
+        </div>
+
+      </form>
+
+    </section>
+
+  </main>
+
+</body>
+</html>

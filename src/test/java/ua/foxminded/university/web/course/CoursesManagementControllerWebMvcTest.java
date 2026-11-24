@@ -9,12 +9,8 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
+import java.time.OffsetDateTime;
 import java.util.List;
-import java.util.Set;
-
-import jakarta.persistence.EntityNotFoundException;
-import jakarta.validation.ConstraintViolation;
-import jakarta.validation.Path;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -28,12 +24,16 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
+import jakarta.persistence.EntityNotFoundException;
 import ua.foxminded.university.model.persistence.course.projection.CourseCardView;
+import ua.foxminded.university.model.persistence.lesson.projection.OverlapHit;
 import ua.foxminded.university.service.course.CourseService;
 import ua.foxminded.university.service.course.dto.CourseDescriptionUpdateDto;
 import ua.foxminded.university.service.course.dto.CourseSelfUpdateDto;
+import ua.foxminded.university.service.course.exception.CourseTeacherReassignmentException;
+import ua.foxminded.university.service.course.exception.LessonTeacherReassignmentConflict;
+import ua.foxminded.university.service.course.exception.TeacherSummary;
 import ua.foxminded.university.service.teacher.TeacherService;
-import ua.foxminded.university.service.util.validation.ContextConstraintViolationException;
 import ua.foxminded.university.web.course.page.CoursesPageModel;
 import ua.foxminded.university.web.course.page.CoursesPageModelFactory;
 import ua.foxminded.university.web.course.page.strategy.AdminCoursesPageStrategy;
@@ -45,278 +45,829 @@ import ua.foxminded.university.web.util.PrincipalHandler;
 
 @WebMvcTest(controllers = CoursesManagementController.class)
 @Import({
-    CoursesManagementExceptionHandler.class,
-    MethodSecurityTestConfig.class,
-    CoursesPageModelFactory.class,
-    AdminCoursesPageStrategy.class,
-    TeacherCoursesPageStrategy.class,
-    StudentCoursesPageStrategy.class,
-    ExceptionMessageReader.class
+		CoursesManagementExceptionHandler.class,
+		MethodSecurityTestConfig.class,
+		CoursesPageModelFactory.class,
+		AdminCoursesPageStrategy.class,
+		TeacherCoursesPageStrategy.class,
+		StudentCoursesPageStrategy.class,
+		ExceptionMessageReader.class
 })
 class CoursesManagementControllerWebMvcTest {
 
-    private static final Long USER_ID = 42L;
-    private static final Long COURSE_ID = 42L;
+	private static final Long USER_ID = 42L;
+	private static final Long COURSE_ID = 42L;
 
-    @Autowired
-    MockMvc mockMvc;
+	@Autowired
+	MockMvc mockMvc;
 
-    @MockitoBean
-    CourseService courseService;
+	@MockitoBean
+	CourseService courseService;
 
-    @MockitoBean
-    TeacherService teacherService;
+	@MockitoBean
+	TeacherService teacherService;
 
-    @MockitoBean
-    PrincipalHandler principalHandler;
+	@MockitoBean
+	PrincipalHandler principalHandler;
 
-    private CoursesPageModel extractPage(MvcResult result) {
-        var model = result.getModelAndView().getModel();
-        assertTrue(model.containsKey("page"), "model must contain 'page'");
-        return (CoursesPageModel) model.get("page");
-    }
+	private CoursesPageModel extractPage(
+			MvcResult result) {
 
-    @Test
-    @DisplayName("GET /courses as admin -> 200, courses/courses, model has admin page")
-    void getCourses_admin_ok_returnsAdminModel() throws Exception {
-        var courses = List.of(mock(CourseCardView.class), mock(CourseCardView.class));
-        var coursesPage = new PageImpl<>(courses, PageRequest.of(0, 6), 7);
+		var model =
+				result.getModelAndView()
+						.getModel();
 
-        when(principalHandler.getRole(any())).thenReturn("admin");
-        when(principalHandler.parseUserId(any())).thenReturn(USER_ID);
-        when(courseService.listCourseCardsForAdmin(any(Pageable.class))).thenReturn(coursesPage);
+		assertTrue(
+				model.containsKey(
+						"page"),
+				"model must contain 'page'");
 
-        var result = mockMvc.perform(get("/courses")
-                        .with(user(USER_ID.toString()).roles("ADMIN")))
-                .andExpect(status().isOk())
-                .andExpect(view().name("courses/courses"))
-                .andExpect(model().attributeExists("page"))
-                .andReturn();
+		return (CoursesPageModel) model.get(
+				"page");
+	}
 
-        var page = extractPage(result);
+	@Test
+	@DisplayName("GET /courses as admin -> 200, courses/courses, model has admin page")
+	void getCourses_admin_ok_returnsAdminModel()
+			throws Exception {
 
-        assertEquals("Courses", page.pageTitle());
-        assertEquals("All courses in the system.", page.pageSubtitle());
-        assertIterableEquals(courses, page.courses());
-        assertTrue(page.showTeacherInfo());
-        assertTrue(page.allowDescriptionEdit());
-        assertTrue(page.showAdminActions());
-        assertTrue(page.showCreateButton());
-        assertEquals(0, page.currentPage());
-        assertEquals(2, page.totalPages());
-        assertFalse(page.hasPrevious());
-        assertTrue(page.hasNext());
+		var courses =
+				List.of(
+						mock(
+								CourseCardView.class),
+						mock(
+								CourseCardView.class));
 
-        verify(courseService).listCourseCardsForAdmin(argThat(p -> p.getPageNumber() == 0));
-    }
+		var coursesPage =
+				new PageImpl<>(
+						courses,
+						PageRequest.of(
+								0,
+								6),
+						7);
 
-    @Test
-    @DisplayName("GET /courses as teacher -> 200, courses/courses, model has teacher page")
-    void getCourses_teacher_ok_returnsTeacherModel() throws Exception {
-        var courses = List.of(mock(CourseCardView.class));
-        var coursesPage = new PageImpl<>(courses, PageRequest.of(1, 6), 7);
+		when(principalHandler.getRole(
+				any()))
+				.thenReturn(
+						"admin");
 
-        when(principalHandler.getRole(any())).thenReturn("teacher");
-        when(principalHandler.parseUserId(any())).thenReturn(USER_ID);
-        when(courseService.listCourseCardsForTeacher(eq(USER_ID), any(Pageable.class))).thenReturn(coursesPage);
+		when(principalHandler.parseUserId(
+				any()))
+				.thenReturn(
+						USER_ID);
 
-        var result = mockMvc.perform(get("/courses")
-                        .param("page", "1")
-                        .with(user(USER_ID.toString()).roles("TEACHER")))
-                .andExpect(status().isOk())
-                .andExpect(view().name("courses/courses"))
-                .andExpect(model().attributeExists("page"))
-                .andReturn();
+		when(courseService.listCourseCardsForAdmin(
+				any(
+						Pageable.class)))
+				.thenReturn(
+						coursesPage);
 
-        var page = extractPage(result);
+		var result =
+				mockMvc.perform(
+						get("/courses")
+								.with(user(
+										USER_ID.toString())
+										.roles("ADMIN")))
+						.andExpect(
+								status().isOk())
+						.andExpect(
+								view().name(
+										"courses/courses"))
+						.andExpect(
+								model().attributeExists(
+										"page"))
+						.andReturn();
 
-        assertEquals("My courses", page.pageTitle());
-        assertEquals("Courses you teach.", page.pageSubtitle());
-        assertIterableEquals(courses, page.courses());
-        assertFalse(page.showTeacherInfo());
-        assertTrue(page.allowDescriptionEdit());
-        assertFalse(page.showAdminActions());
-        assertFalse(page.showCreateButton());
-        assertEquals(1, page.currentPage());
-        assertEquals(2, page.totalPages());
-        assertTrue(page.hasPrevious());
-        assertFalse(page.hasNext());
+		var page =
+				extractPage(
+						result);
 
-        verify(courseService).listCourseCardsForTeacher(eq(USER_ID), argThat(p -> p.getPageNumber() == 1));
-    }
+		assertEquals(
+				"Courses",
+				page.pageTitle());
 
-    @Test
-    @DisplayName("GET /courses as student -> 200, courses/courses, model has student page")
-    void getCourses_student_ok_returnsStudentModel() throws Exception {
-        var courses = List.of(mock(CourseCardView.class));
-        var coursesPage = new PageImpl<>(courses, PageRequest.of(0, 6), 1);
+		assertEquals(
+				"All courses in the system.",
+				page.pageSubtitle());
 
-        when(principalHandler.getRole(any())).thenReturn("student");
-        when(principalHandler.parseUserId(any())).thenReturn(USER_ID);
-        when(courseService.listCourseCardsForStudent(eq(USER_ID), any(Pageable.class))).thenReturn(coursesPage);
+		assertIterableEquals(
+				courses,
+				page.courses());
 
-        var result = mockMvc.perform(get("/courses")
-                        .with(user(USER_ID.toString()).roles("STUDENT")))
-                .andExpect(status().isOk())
-                .andExpect(view().name("courses/courses"))
-                .andExpect(model().attributeExists("page"))
-                .andReturn();
+		assertTrue(
+				page.showTeacherInfo());
 
-        var page = extractPage(result);
+		assertTrue(
+				page.allowDescriptionEdit());
 
-        assertEquals("My courses", page.pageTitle());
-        assertEquals("Courses assigned to your group.", page.pageSubtitle());
-        assertIterableEquals(courses, page.courses());
-        assertTrue(page.showTeacherInfo());
-        assertFalse(page.allowDescriptionEdit());
-        assertFalse(page.showAdminActions());
-        assertFalse(page.showCreateButton());
-        assertEquals(0, page.currentPage());
-        assertEquals(1, page.totalPages());
-        assertFalse(page.hasPrevious());
-        assertFalse(page.hasNext());
+		assertTrue(
+				page.showAdminActions());
 
-        verify(courseService).listCourseCardsForStudent(eq(USER_ID), argThat(p -> p.getPageNumber() == 0));
-    }
+		assertTrue(
+				page.showCreateButton());
 
-    @Test
-    @DisplayName("POST /courses/description/update as TEACHER ok -> redirects /courses?page=1, flash ok/courseId, calls service")
-    void postUpdateDescription_teacher_ok_redirectsAndSetsFlash() throws Exception {
-        mockMvc.perform(post("/courses/description/update")
-                        .with(user(USER_ID.toString()).roles("TEACHER"))
-                        .with(csrf())
-                        .param("id", COURSE_ID.toString())
-                        .param("description", "New desc")
-                        .param("page", "1"))
-                .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/courses?page=1"))
-                .andExpect(flash().attribute("ok", "Description updated."))
-                .andExpect(flash().attribute("courseId", COURSE_ID));
+		assertEquals(
+				0,
+				page.currentPage());
 
-        verify(courseService).updateDescription(new CourseDescriptionUpdateDto(COURSE_ID, "New desc"));
-    }
+		assertEquals(
+				2,
+				page.totalPages());
 
-    @Test
-    @DisplayName("POST /courses/self/update as ADMIN ok -> redirects /courses?page=2, flash ok/courseId, calls service")
-    void postUpdateSelf_admin_ok_redirectsAndSetsFlash() throws Exception {
-        mockMvc.perform(post("/courses/self/update")
-                        .with(user(USER_ID.toString()).roles("ADMIN"))
-                        .with(csrf())
-                        .param("id", COURSE_ID.toString())
-                        .param("code", "CS-999")
-                        .param("name", "X")
-                        .param("teacherId", "5")
-                        .param("page", "2"))
-                .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/courses?page=2"))
-                .andExpect(flash().attribute("ok", "Course updated."))
-                .andExpect(flash().attribute("courseId", COURSE_ID));
+		assertFalse(
+				page.hasPrevious());
 
-        verify(courseService).updateSelf(new CourseSelfUpdateDto(COURSE_ID, "CS-999", "X", 5L));
-    }
+		assertTrue(
+				page.hasNext());
 
-    @Test
-    @DisplayName("POST /courses/self/update as TEACHER -> redirect /courses, flash err=Access denied, service not called")
-    void postUpdateSelf_teacher_forbidden_redirectsAndSetsErrFlash() throws Exception {
-        mockMvc.perform(post("/courses/self/update")
-                        .with(user(USER_ID.toString()).roles("TEACHER"))
-                        .with(csrf())
-                        .param("id", COURSE_ID.toString())
-                        .param("code", "CS-101")
-                        .param("name", "Some name")
-                        .param("page", "1"))
-                .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/courses"))
-                .andExpect(flash().attribute("err", "Access denied."));
+		verify(courseService)
+				.listCourseCardsForAdmin(
+						argThat(pageable ->
+								pageable.getPageNumber()
+										== 0));
+	}
 
-        verify(courseService, never()).updateSelf(any());
-    }
+	@Test
+	@DisplayName("GET /courses as teacher -> 200, courses/courses, model has teacher page")
+	void getCourses_teacher_ok_returnsTeacherModel()
+			throws Exception {
 
-    @Test
-    @DisplayName("POST /courses/{id}/delete as ADMIN -> redirects /courses?page=3, flash ok, calls service.delete(id)")
-    void postDeleteCourse_deleted_ok() throws Exception {
-        doNothing().when(courseService).delete(COURSE_ID);
+		var courses =
+				List.of(
+						mock(
+								CourseCardView.class));
 
-        mockMvc.perform(post("/courses/{id}/delete", COURSE_ID)
-                        .with(user(USER_ID.toString()).roles("ADMIN"))
-                        .with(csrf())
-                        .param("page", "3"))
-                .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/courses?page=3"))
-                .andExpect(flash().attribute("ok", "Course deleted."));
+		var coursesPage =
+				new PageImpl<>(
+						courses,
+						PageRequest.of(
+								1,
+								6),
+						7);
 
-        verify(courseService).delete(COURSE_ID);
-    }
+		when(principalHandler.getRole(
+				any()))
+				.thenReturn(
+						"teacher");
 
-    @Test
-    @DisplayName("POST /courses/{id}/delete as ADMIN when not found -> redirects /courses, flash err from handler")
-    void postDeleteCourse_notFound_err() throws Exception {
-        doThrow(new EntityNotFoundException("Course not found: id=" + COURSE_ID))
-                .when(courseService).delete(COURSE_ID);
+		when(principalHandler.parseUserId(
+				any()))
+				.thenReturn(
+						USER_ID);
 
-        mockMvc.perform(post("/courses/{id}/delete", COURSE_ID)
-                        .with(user(USER_ID.toString()).roles("ADMIN"))
-                        .with(csrf())
-                        .param("page", "3"))
-                .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/courses"))
-                .andExpect(flash().attribute("err", "Course not found: id=" + COURSE_ID));
+		when(courseService.listCourseCardsForTeacher(
+				eq(
+						USER_ID),
+				any(
+						Pageable.class)))
+				.thenReturn(
+						coursesPage);
 
-        verify(courseService).delete(COURSE_ID);
-    }
+		var result =
+				mockMvc.perform(
+						get("/courses")
+								.param(
+										"page",
+										"1")
+								.with(user(
+										USER_ID.toString())
+										.roles("TEACHER")))
+						.andExpect(
+								status().isOk())
+						.andExpect(
+								view().name(
+										"courses/courses"))
+						.andExpect(
+								model().attributeExists(
+										"page"))
+						.andReturn();
 
-    @Test
-    @DisplayName("POST /courses/{id}/delete as TEACHER -> redirect /courses, flash err=Access denied, service not called")
-    void postDeleteCourse_teacher_forbidden_redirectsAndSetsErrFlash() throws Exception {
-        mockMvc.perform(post("/courses/{id}/delete", COURSE_ID)
-                        .with(user(USER_ID.toString()).roles("TEACHER"))
-                        .with(csrf())
-                        .param("page", "1"))
-                .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/courses"))
-                .andExpect(flash().attribute("err", "Access denied."));
+		var page =
+				extractPage(
+						result);
 
-        verify(courseService, never()).delete(anyLong());
-    }
+		assertEquals(
+				"My courses",
+				page.pageTitle());
 
-    @Test
-    @DisplayName("POST /courses/self/update when ContextConstraintViolationException -> redirects /courses, flash err + courseId (handler)")
-    void postUpdateSelf_validationException_redirectsAndSetsErrFromHandler() throws Exception {
-        ConstraintViolation<Object> violations = mock(ConstraintViolation.class);
-        Path path = mock(Path.class);
+		assertEquals(
+				"Courses you teach.",
+				page.pageSubtitle());
 
-        when(path.toString()).thenReturn("code");
-        when(violations.getPropertyPath()).thenReturn(path);
-        when(violations.getMessage()).thenReturn("invalid");
+		assertIterableEquals(
+				courses,
+				page.courses());
 
-        var ex = new ContextConstraintViolationException(COURSE_ID, Set.of(violations));
+		assertFalse(
+				page.showTeacherInfo());
 
-        doThrow(ex).when(courseService).updateSelf(any());
+		assertTrue(
+				page.allowDescriptionEdit());
 
-        mockMvc.perform(post("/courses/self/update")
-                        .with(user(USER_ID.toString()).roles("ADMIN"))
-                        .with(csrf())
-                        .param("id", COURSE_ID.toString())
-                        .param("code", "bad")
-                        .param("page", "2"))
-                .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/courses"))
-                .andExpect(flash().attribute("err", "code: invalid"))
-                .andExpect(flash().attribute("courseId", COURSE_ID));
-    }
+		assertFalse(
+				page.showAdminActions());
 
-    @Test
-    @DisplayName("POST /courses/{id}/delete when EntityNotFoundException -> redirects /courses, flash err (handler)")
-    void postDeleteCourse_entityNotFound_redirectsAndSetsErrFromHandler() throws Exception {
-        doThrow(new EntityNotFoundException("Course not found: id=" + COURSE_ID))
-                .when(courseService).delete(COURSE_ID);
+		assertFalse(
+				page.showCreateButton());
 
-        mockMvc.perform(post("/courses/{id}/delete", COURSE_ID)
-                        .with(user(USER_ID.toString()).roles("ADMIN"))
-                        .with(csrf())
-                        .param("page", "2"))
-                .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/courses"))
-                .andExpect(flash().attribute("err", "Course not found: id=" + COURSE_ID));
-    }
+		assertEquals(
+				1,
+				page.currentPage());
+
+		assertEquals(
+				2,
+				page.totalPages());
+
+		assertTrue(
+				page.hasPrevious());
+
+		assertFalse(
+				page.hasNext());
+
+		verify(courseService)
+				.listCourseCardsForTeacher(
+						eq(
+								USER_ID),
+						argThat(pageable ->
+								pageable.getPageNumber()
+										== 1));
+	}
+
+	@Test
+	@DisplayName("GET /courses as student -> 200, courses/courses, model has student page")
+	void getCourses_student_ok_returnsStudentModel()
+			throws Exception {
+
+		var courses =
+				List.of(
+						mock(
+								CourseCardView.class));
+
+		var coursesPage =
+				new PageImpl<>(
+						courses,
+						PageRequest.of(
+								0,
+								6),
+						1);
+
+		when(principalHandler.getRole(
+				any()))
+				.thenReturn(
+						"student");
+
+		when(principalHandler.parseUserId(
+				any()))
+				.thenReturn(
+						USER_ID);
+
+		when(courseService.listCourseCardsForStudent(
+				eq(
+						USER_ID),
+				any(
+						Pageable.class)))
+				.thenReturn(
+						coursesPage);
+
+		var result =
+				mockMvc.perform(
+						get("/courses")
+								.with(user(
+										USER_ID.toString())
+										.roles("STUDENT")))
+						.andExpect(
+								status().isOk())
+						.andExpect(
+								view().name(
+										"courses/courses"))
+						.andExpect(
+								model().attributeExists(
+										"page"))
+						.andReturn();
+
+		var page =
+				extractPage(
+						result);
+
+		assertEquals(
+				"My courses",
+				page.pageTitle());
+
+		assertEquals(
+				"Courses assigned to your group.",
+				page.pageSubtitle());
+
+		assertIterableEquals(
+				courses,
+				page.courses());
+
+		assertTrue(
+				page.showTeacherInfo());
+
+		assertFalse(
+				page.allowDescriptionEdit());
+
+		assertFalse(
+				page.showAdminActions());
+
+		assertFalse(
+				page.showCreateButton());
+
+		assertEquals(
+				0,
+				page.currentPage());
+
+		assertEquals(
+				1,
+				page.totalPages());
+
+		assertFalse(
+				page.hasPrevious());
+
+		assertFalse(
+				page.hasNext());
+
+		verify(courseService)
+				.listCourseCardsForStudent(
+						eq(
+								USER_ID),
+						argThat(pageable ->
+								pageable.getPageNumber()
+										== 0));
+	}
+
+	@Test
+	@DisplayName("POST /courses/description/update as TEACHER ok -> redirects /courses?page=1, flash ok/courseId, calls service")
+	void postUpdateDescription_teacher_ok_redirectsAndSetsFlash()
+			throws Exception {
+
+		mockMvc.perform(
+				post("/courses/description/update")
+						.with(user(
+								USER_ID.toString())
+								.roles("TEACHER"))
+						.with(csrf())
+						.param(
+								"id",
+								COURSE_ID.toString())
+						.param(
+								"description",
+								"New desc")
+						.param(
+								"page",
+								"1"))
+				.andExpect(
+						status().is3xxRedirection())
+				.andExpect(
+						redirectedUrl(
+								"/courses?page=1"))
+				.andExpect(
+						flash().attribute(
+								"ok",
+								"Description updated."))
+				.andExpect(
+						flash().attribute(
+								"courseId",
+								COURSE_ID));
+
+		verify(courseService)
+				.updateDescription(
+						new CourseDescriptionUpdateDto(
+								COURSE_ID,
+								"New desc"));
+	}
+
+	@Test
+	@DisplayName("POST /courses/description/update with invalid data -> redirects same page, targets course card, service not called")
+	void postUpdateDescription_invalidData_redirectsToTargetCard()
+			throws Exception {
+
+		var description =
+				"A".repeat(
+						10_001);
+
+		mockMvc.perform(
+				post("/courses/description/update")
+						.with(user(
+								USER_ID.toString())
+								.roles("TEACHER"))
+						.with(csrf())
+						.param(
+								"id",
+								COURSE_ID.toString())
+						.param(
+								"description",
+								description)
+						.param(
+								"page",
+								"1"))
+				.andExpect(
+						status().is3xxRedirection())
+				.andExpect(
+						redirectedUrl(
+								"/courses?page=1"))
+				.andExpect(
+						flash().attribute(
+								"courseId",
+								COURSE_ID))
+				.andExpect(
+						flash().attribute(
+								"requestedDescription",
+								description))
+				.andExpect(
+						flash().attributeExists(
+								"err"));
+
+		verify(
+				courseService,
+				never())
+				.updateDescription(
+						any());
+	}
+
+	@Test
+	@DisplayName("POST /courses/self/update as ADMIN ok -> redirects /courses?page=2, flash ok/courseId, calls service")
+	void postUpdateSelf_admin_ok_redirectsAndSetsFlash()
+			throws Exception {
+
+		mockMvc.perform(
+				post("/courses/self/update")
+						.with(user(
+								USER_ID.toString())
+								.roles("ADMIN"))
+						.with(csrf())
+						.param(
+								"id",
+								COURSE_ID.toString())
+						.param(
+								"code",
+								"CS-999")
+						.param(
+								"name",
+								"X")
+						.param(
+								"teacherId",
+								"5")
+						.param(
+								"page",
+								"2"))
+				.andExpect(
+						status().is3xxRedirection())
+				.andExpect(
+						redirectedUrl(
+								"/courses?page=2"))
+				.andExpect(
+						flash().attribute(
+								"ok",
+								"Course updated."))
+				.andExpect(
+						flash().attribute(
+								"courseId",
+								COURSE_ID));
+
+		verify(courseService)
+				.updateSelf(
+						new CourseSelfUpdateDto(
+								COURSE_ID,
+								"CS-999",
+								"X",
+								5L));
+	}
+
+	@Test
+	@DisplayName("POST /courses/self/update with invalid data -> redirects same page, targets course card, service not called")
+	void postUpdateSelf_invalidData_redirectsToTargetCard()
+			throws Exception {
+
+		mockMvc.perform(
+				post("/courses/self/update")
+						.with(user(
+								USER_ID.toString())
+								.roles("ADMIN"))
+						.with(csrf())
+						.param(
+								"id",
+								COURSE_ID.toString())
+						.param(
+								"code",
+								"bad")
+						.param(
+								"page",
+								"2"))
+				.andExpect(
+						status().is3xxRedirection())
+				.andExpect(
+						redirectedUrl(
+								"/courses?page=2"))
+				.andExpect(
+						flash().attribute(
+								"courseId",
+								COURSE_ID))
+				.andExpect(
+						flash().attributeExists(
+								"requestedCode"))
+				.andExpect(
+						flash().attributeExists(
+								"err"));
+
+		verify(
+				courseService,
+				never())
+				.updateSelf(
+						any());
+	}
+
+	@Test
+	@DisplayName("POST /courses/self/update as TEACHER -> redirect /courses, flash err=Access denied, service not called")
+	void postUpdateSelf_teacher_forbidden_redirectsAndSetsErrFlash()
+			throws Exception {
+
+		mockMvc.perform(
+				post("/courses/self/update")
+						.with(user(
+								USER_ID.toString())
+								.roles("TEACHER"))
+						.with(csrf())
+						.param(
+								"id",
+								COURSE_ID.toString())
+						.param(
+								"code",
+								"CS-101")
+						.param(
+								"name",
+								"Some name")
+						.param(
+								"page",
+								"1"))
+				.andExpect(
+						status().is3xxRedirection())
+				.andExpect(
+						redirectedUrl(
+								"/courses"))
+				.andExpect(
+						flash().attribute(
+								"err",
+								"Access denied."));
+
+		verify(
+				courseService,
+				never())
+				.updateSelf(
+						any());
+	}
+
+	@Test
+	@DisplayName("POST /courses/{id}/delete as ADMIN -> redirects /courses?page=3, flash ok, calls service.delete(id)")
+	void postDeleteCourse_deleted_ok()
+			throws Exception {
+
+		doNothing()
+				.when(courseService)
+				.delete(
+						COURSE_ID);
+
+		mockMvc.perform(
+				post(
+						"/courses/{id}/delete",
+						COURSE_ID)
+						.with(user(
+								USER_ID.toString())
+								.roles("ADMIN"))
+						.with(csrf())
+						.param(
+								"page",
+								"3"))
+				.andExpect(
+						status().is3xxRedirection())
+				.andExpect(
+						redirectedUrl(
+								"/courses?page=3"))
+				.andExpect(
+						flash().attribute(
+								"ok",
+								"Course deleted."));
+
+		verify(courseService)
+				.delete(
+						COURSE_ID);
+	}
+
+	@Test
+	@DisplayName("POST /courses/{id}/delete as ADMIN when not found -> redirects /courses, flash err from handler")
+	void postDeleteCourse_notFound_err()
+			throws Exception {
+
+		doThrow(
+				new EntityNotFoundException(
+						"Course not found: id="
+								+ COURSE_ID))
+				.when(courseService)
+				.delete(
+						COURSE_ID);
+
+		mockMvc.perform(
+				post(
+						"/courses/{id}/delete",
+						COURSE_ID)
+						.with(user(
+								USER_ID.toString())
+								.roles("ADMIN"))
+						.with(csrf())
+						.param(
+								"page",
+								"3"))
+				.andExpect(
+						status().is3xxRedirection())
+				.andExpect(
+						redirectedUrl(
+								"/courses"))
+				.andExpect(
+						flash().attribute(
+								"err",
+								"Course not found: id="
+										+ COURSE_ID));
+
+		verify(courseService)
+				.delete(
+						COURSE_ID);
+	}
+
+	@Test
+	@DisplayName("POST /courses/{id}/delete as TEACHER -> redirect /courses, flash err=Access denied, service not called")
+	void postDeleteCourse_teacher_forbidden_redirectsAndSetsErrFlash()
+			throws Exception {
+
+		mockMvc.perform(
+				post(
+						"/courses/{id}/delete",
+						COURSE_ID)
+						.with(user(
+								USER_ID.toString())
+								.roles("TEACHER"))
+						.with(csrf())
+						.param(
+								"page",
+								"1"))
+				.andExpect(
+						status().is3xxRedirection())
+				.andExpect(
+						redirectedUrl(
+								"/courses"))
+				.andExpect(
+						flash().attribute(
+								"err",
+								"Access denied."));
+
+		verify(
+				courseService,
+				never())
+				.delete(
+						anyLong());
+	}
+
+	@Test
+	@DisplayName("POST /courses/{id}/delete when EntityNotFoundException -> redirects /courses, flash err (handler)")
+	void postDeleteCourse_entityNotFound_redirectsAndSetsErrFromHandler()
+			throws Exception {
+
+		doThrow(
+				new EntityNotFoundException(
+						"Course not found: id="
+								+ COURSE_ID))
+				.when(courseService)
+				.delete(
+						COURSE_ID);
+
+		mockMvc.perform(
+				post(
+						"/courses/{id}/delete",
+						COURSE_ID)
+						.with(user(
+								USER_ID.toString())
+								.roles("ADMIN"))
+						.with(csrf())
+						.param(
+								"page",
+								"2"))
+				.andExpect(
+						status().is3xxRedirection())
+				.andExpect(
+						redirectedUrl(
+								"/courses"))
+				.andExpect(
+						flash().attribute(
+								"err",
+								"Course not found: id="
+										+ COURSE_ID));
+	}
+
+	@Test
+	@DisplayName("POST /courses/self/update when teacher reassignment conflicts -> redirects same page and targets course card")
+	void postUpdateSelf_teacherReassignmentConflict_redirectsAndSetsFlash()
+			throws Exception {
+
+		var currentTeacher =
+				new TeacherSummary(
+						1L,
+						"Ada",
+						"Lovelace",
+						"ada@example.com");
+
+		var targetTeacher =
+				new TeacherSummary(
+						5L,
+						"Alan",
+						"Turing",
+						"alan@example.com");
+
+		var requestedStart =
+				OffsetDateTime.parse(
+						"2030-01-11T10:00:00Z");
+
+		var requestedEnd =
+				OffsetDateTime.parse(
+						"2030-01-11T11:00:00Z");
+
+		var overlap =
+				new OverlapHit(
+						7001L,
+						2002L,
+						3003L,
+						5L,
+						OffsetDateTime.parse(
+								"2030-01-11T10:30:00Z"),
+						OffsetDateTime.parse(
+								"2030-01-11T11:30:00Z"),
+						"B-202");
+
+		var conflict =
+				new LessonTeacherReassignmentConflict(
+						6001L,
+						2001L,
+						requestedStart,
+						requestedEnd,
+						"A-101",
+						List.of(
+								overlap));
+
+		var exception =
+				new CourseTeacherReassignmentException(
+						COURSE_ID,
+						"CS-999",
+						"Algorithms",
+						currentTeacher,
+						targetTeacher,
+						List.of(
+								conflict));
+
+		doThrow(
+				exception)
+				.when(courseService)
+				.updateSelf(
+						any());
+
+		mockMvc.perform(
+				post("/courses/self/update")
+						.with(user(
+								USER_ID.toString())
+								.roles("ADMIN"))
+						.with(csrf())
+						.param(
+								"id",
+								COURSE_ID.toString())
+						.param(
+								"teacherId",
+								"5")
+						.param(
+								"page",
+								"2"))
+				.andExpect(
+						status().is3xxRedirection())
+				.andExpect(
+						redirectedUrl(
+								"/courses?page=2"))
+				.andExpect(
+						flash().attribute(
+								"courseId",
+								COURSE_ID))
+				.andExpect(
+						flash().attribute(
+								"err",
+								"Teacher change was not applied. "
+										+ "Alan Turing (alan@example.com) "
+										+ "has schedule conflicts with 1 future course lesson(s)."))
+				.andExpect(
+						flash().attribute(
+								"teacherReassignmentError",
+								exception));
+
+		verify(courseService)
+				.updateSelf(
+						new CourseSelfUpdateDto(
+								COURSE_ID,
+								null,
+								null,
+								5L));
+	}
 }

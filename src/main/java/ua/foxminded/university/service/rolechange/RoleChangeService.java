@@ -1,7 +1,5 @@
 package ua.foxminded.university.service.rolechange;
 
-import java.util.Optional;
-
 import org.springframework.stereotype.Service;
 
 import jakarta.persistence.EntityNotFoundException;
@@ -14,7 +12,6 @@ import ua.foxminded.university.service.rolechange.current.CurrentRoleProfileHand
 import ua.foxminded.university.service.rolechange.exception.RoleChangeException;
 import ua.foxminded.university.service.rolechange.target.TargetRoleProfileData;
 import ua.foxminded.university.service.rolechange.target.strategy.TargetRoleProfileHandler;
-import ua.foxminded.university.service.util.validation.EntityValidatior;
 
 @RequiredArgsConstructor
 @Service
@@ -23,7 +20,6 @@ public class RoleChangeService {
 
     private final AppUserRepository userRepository;
     private final CurrentRoleProfileHandlerRegistry currentRoleHandlerRegistry;
-    private final EntityValidatior validator;
 
     @Transactional(value = TxType.REQUIRES_NEW)
     <T extends TargetRoleProfileData> void performRoleChange(long userId,
@@ -31,7 +27,6 @@ public class RoleChangeService {
                                                              TargetRoleProfileHandler<T> targetHandler,
                                                              T targetData) {
 
-        Optional.ofNullable(targetData).ifPresent(validator::validate);
 
         var user = userRepository.findById(userId)
                 .orElseThrow(() -> new EntityNotFoundException("Active account not found: id=" + userId));

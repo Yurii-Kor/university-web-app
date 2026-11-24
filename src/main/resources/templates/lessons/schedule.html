@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+  <meta charset="utf-8" />
+  <title th:text="${page.pageTitle}">Schedule</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <link rel="icon"
+        th:href="@{/favicon.ico}"
+        href="/favicon.ico" />
+
+  <link rel="stylesheet"
+        th:href="@{/css/app.css}"
+        href="/css/app.css" />
+
+  <link rel="stylesheet"
+        th:href="@{/css/pages/schedule.css}"
+        href="/css/pages/schedule.css" />
+</head>
+
+<body class="ou-page schedule-page">
+
+<div th:replace="~{fragments/header :: ouHeader('schedule')}"></div>
+
+<main class="schedule-main">
+  <section class="ou-card schedule-shell"
+           aria-label="Weekly schedule">
+
+    <div class="schedule-toolbar">
+
+      <div>
+        <h1 class="ou-card__title"
+            th:text="${page.pageTitle}">
+          My schedule
+        </h1>
+
+        <p class="schedule-subtitle"
+           th:text="${page.pageSubtitle}">
+          Your schedule.
+        </p>
+      </div>
+
+      <div class="schedule-toolbar__period">
+
+        <span class="schedule-toolbar__period-label">
+          Week
+        </span>
+
+        <strong th:text="|${#temporals.format(page.weekStart, 'MMM d')} – ${#temporals.format(page.weekEnd, 'MMM d, yyyy')}|">
+          Sep 9 – Sep 15, 2030
+        </strong>
+        
+		<a class="ou-btn ou-btn--ghost"
+	       th:href="@{/schedule/export(date=${page.weekStart})}">
+	      Download PDF
+	    </a>
+        
+        <a class="ou-btn"
+     	  th:if="${page.allowManage}"
+     	  th:href="@{/lessons/create}">
+    	  + Create lesson
+  		</a>
+
+      </div>
+    </div>
+
+    <nav class="schedule-navigation"
+         aria-label="Schedule week navigation">
+
+      <a class="ou-btn ou-btn--ghost"
+         th:href="@{/schedule(date=${page.weekStart.minusWeeks(1)})}">
+        ← Previous week
+      </a>
+
+      <a class="ou-btn"
+         th:href="@{/schedule}">
+        Today
+      </a>
+
+      <a class="ou-btn ou-btn--ghost"
+         th:href="@{/schedule(date=${page.weekStart.plusWeeks(1)})}">
+        Next week →
+      </a>
+
+    </nav>
+
+    <div class="schedule-week">
+
+      <th:block th:each="day : ${page.days}">
+
+        <th:block th:replace="~{lessons/cards/schedule-day-card :: scheduleDayCard(
+            ${day},
+            ${page.showTeacherInfo},
+            ${page.showGroupInfo}
+        )}">
+        </th:block>
+
+      </th:block>
+
+    </div>
+
+  </section>
+</main>
+
+</body>
+</html>

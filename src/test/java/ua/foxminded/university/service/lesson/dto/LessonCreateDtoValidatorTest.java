@@ -1,24 +1,26 @@
 package ua.foxminded.university.service.lesson.dto;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import jakarta.validation.ConstraintViolation;
-import jakarta.validation.Validator;
-
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.*;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.ContextConfiguration;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 
+import jakarta.validation.ConstraintViolation;
+import jakarta.validation.Validator;
 import ua.foxminded.university.model.domain.enums.LessonType;
 import ua.foxminded.university.service.util.validation.config.ValidatorConfig;
 
@@ -26,115 +28,258 @@ import ua.foxminded.university.service.util.validation.config.ValidatorConfig;
 @ContextConfiguration(classes = { ValidatorConfig.class })
 class LessonCreateDtoValidatorTest {
 
-    private static final OffsetDateTime NOW     = OffsetDateTime.of(2025, 1, 10, 10, 0, 0, 0, ZoneOffset.UTC);
-    private static final OffsetDateTime PLUS_1H = NOW.plusHours(1);
+	private static final LocalDate DATE =
+			LocalDate.of(
+					2025,
+					1,
+					10);
 
-    private static final Long TID = 100L;
-    private static final Long CID = 10L;
-    private static final Long GID = 20L;
+	private static final LocalTime START_TIME =
+			LocalTime.of(
+					10,
+					0);
 
-    private static final String ROOM_VALID     = "B-105";
-    private static final String ROOM_LOWER     = "b-105";
-    private static final String ROOM_NO_DASH   = "B105";
-    private static final String ROOM_SHORT_DIG = "B-12";
-    private static final String ROOM_EMPTY     = "";
-    private static final String ROOM_SPACED    = "B-105 ";
+	private static final LocalTime END_TIME =
+			START_TIME.plusHours(1);
 
-    @Autowired
-    private Validator validator;
+	private static final Long CID = 10L;
+	private static final Long GID = 20L;
 
-    // -------- VALID CASES --------
+	private static final String ROOM_VALID = "B-105";
+	private static final String ROOM_LOWER = "b-105";
+	private static final String ROOM_NO_DASH = "B105";
+	private static final String ROOM_SHORT_DIG = "B-12";
+	private static final String ROOM_EMPTY = "";
+	private static final String ROOM_SPACED = "B-105 ";
 
-    @ParameterizedTest(name = "[{index}] valid -> t={0}, c={1}, g={2}, start={3}, end={4}, room=\"{5}\", type={6}, desc={7}")
-    @MethodSource("validCases")
-    @DisplayName("LessonCreateDto: valid payloads produce no violations")
-    void validate_validCases_noViolations(Long teacherId,
-                                          Long courseId,
-                                          Long groupId,
-                                          OffsetDateTime startTime,
-                                          OffsetDateTime endTime,
-                                          String room,
-                                          LessonType lessonType,
-                                          String description) {
+	@Autowired
+	private Validator validator;
 
-        var dto = new LessonCreateDto(
-                teacherId,
-                courseId,
-                groupId,
-                startTime,
-                endTime,
-                room,
-                lessonType,
-                description
-        );
+	@ParameterizedTest(
+			name = "[{index}] valid -> c={0}, g={1}, date={2}, start={3}, end={4}, room=\"{5}\", type={6}, desc={7}")
+	@MethodSource("validCases")
+	@DisplayName("LessonCreateDto: valid payloads produce no violations")
+	void validate_validCases_noViolations(
+			Long courseId,
+			Long groupId,
+			LocalDate date,
+			LocalTime startTime,
+			LocalTime endTime,
+			String room,
+			LessonType lessonType,
+			String description) {
 
-        Set<ConstraintViolation<LessonCreateDto>> violations = validator.validate(dto);
-        assertTrue(violations.isEmpty(), "Expected no violations, but got: " + violations);
-    }
+		var dto =
+				new LessonCreateDto(
+						courseId,
+						groupId,
+						date,
+						startTime,
+						endTime,
+						room,
+						lessonType,
+						description);
 
-    static Stream<Arguments> validCases() {
-        return Stream.of(
-                Arguments.of(TID, CID, GID, NOW, PLUS_1H, ROOM_VALID, LessonType.LECTURE, "note"),
-                Arguments.of(TID, CID, GID, NOW, PLUS_1H, ROOM_VALID, null, "note"),
-                Arguments.of(TID, CID, GID, NOW, PLUS_1H, ROOM_VALID, null, null),
-                Arguments.of(TID, CID, GID, PLUS_1H, NOW, ROOM_VALID, null, "note")
-        );
-    }
+		Set<ConstraintViolation<LessonCreateDto>> violations =
+				validator.validate(
+						dto);
 
-    // -------- INVALID CASES --------
+		assertTrue(
+				violations.isEmpty(),
+				"Expected no violations, but got: "
+						+ violations);
+	}
 
-    @ParameterizedTest(name = "[{index}] invalid -> t={0}, c={1}, g={2}, start={3}, end={4}, room=\"{5}\" -> field={6}")
-    @MethodSource("invalidCases")
-    @DisplayName("LessonCreateDto: invalid payloads produce violations on expected field")
-    void validate_invalidCases_violationOnExpectedField(Long teacherId,
-                                                        Long courseId,
-                                                        Long groupId,
-                                                        OffsetDateTime startTime,
-                                                        OffsetDateTime endTime,
-                                                        String room,
-                                                        String expectedField) {
+	static Stream<Arguments> validCases() {
 
-        var dto = new LessonCreateDto(
-                teacherId,
-                courseId,
-                groupId,
-                startTime,
-                endTime,
-                room,
-                null,  
-                "note"
-        );
+		return Stream.of(
+				Arguments.of(
+						CID,
+						GID,
+						DATE,
+						START_TIME,
+						END_TIME,
+						ROOM_VALID,
+						LessonType.LECTURE,
+						"note"),
+				Arguments.of(
+						CID,
+						GID,
+						DATE,
+						START_TIME,
+						END_TIME,
+						ROOM_VALID,
+						null,
+						"note"),
+				Arguments.of(
+						CID,
+						GID,
+						DATE,
+						START_TIME,
+						END_TIME,
+						ROOM_VALID,
+						null,
+						null),
+				Arguments.of(
+						CID,
+						GID,
+						DATE,
+						END_TIME,
+						START_TIME,
+						ROOM_VALID,
+						null,
+						"note"));
+	}
 
-        Set<ConstraintViolation<LessonCreateDto>> violations = validator.validate(dto);
+	@ParameterizedTest(
+			name = "[{index}] invalid -> c={0}, g={1}, date={2}, start={3}, end={4}, room=\"{5}\" -> field={6}")
+	@MethodSource("invalidCases")
+	@DisplayName("LessonCreateDto: invalid payloads produce violations on expected field")
+	void validate_invalidCases_violationOnExpectedField(
+			Long courseId,
+			Long groupId,
+			LocalDate date,
+			LocalTime startTime,
+			LocalTime endTime,
+			String room,
+			String expectedField) {
 
-        assertFalse(violations.isEmpty(),
-                "Expected violations for field '" + expectedField + "', but got none");
+		var dto =
+				new LessonCreateDto(
+						courseId,
+						groupId,
+						date,
+						startTime,
+						endTime,
+						room,
+						null,
+						"note");
 
-        var fields = violations.stream()
-                .map(v -> v.getPropertyPath().toString())
-                .collect(Collectors.toSet());
+		Set<ConstraintViolation<LessonCreateDto>> violations =
+				validator.validate(
+						dto);
 
-        assertEquals(1, fields.size(),
-                "Expected violations only for field '" + expectedField + "', but got fields: " + fields);
-        assertEquals(expectedField, fields.iterator().next(),
-                "Violations must be on field '" + expectedField + "'");
-    }
+		assertFalse(
+				violations.isEmpty(),
+				"Expected violations for field '"
+						+ expectedField
+						+ "', but got none");
 
-    static Stream<Arguments> invalidCases() {
-        return Stream.of(
-                Arguments.of(null, CID,  GID,  NOW, PLUS_1H, ROOM_VALID, "teacherId"),
-                Arguments.of(TID,  null, GID,  NOW, PLUS_1H, ROOM_VALID, "courseId"),
-                Arguments.of(TID,  CID,  null, NOW, PLUS_1H, ROOM_VALID, "groupId"),
+		var fields =
+				violations.stream()
+						.map(violation ->
+								violation.getPropertyPath()
+										.toString())
+						.collect(
+								Collectors.toSet());
 
-                Arguments.of(TID, CID, GID, null,     PLUS_1H, ROOM_VALID, "startTime"),
-                Arguments.of(TID, CID, GID, NOW,      null,    ROOM_VALID, "endTime"),
+		assertEquals(
+				1,
+				fields.size(),
+				"Expected violations only for field '"
+						+ expectedField
+						+ "', but got fields: "
+						+ fields);
 
-                Arguments.of(TID, CID, GID, NOW, PLUS_1H, null,          "room"),
-                Arguments.of(TID, CID, GID, NOW, PLUS_1H, ROOM_EMPTY,    "room"),
-                Arguments.of(TID, CID, GID, NOW, PLUS_1H, ROOM_LOWER,    "room"),
-                Arguments.of(TID, CID, GID, NOW, PLUS_1H, ROOM_NO_DASH,  "room"),
-                Arguments.of(TID, CID, GID, NOW, PLUS_1H, ROOM_SHORT_DIG,"room"),
-                Arguments.of(TID, CID, GID, NOW, PLUS_1H, ROOM_SPACED,   "room")
-        );
-    }
+		assertEquals(
+				expectedField,
+				fields.iterator()
+						.next(),
+				"Violations must be on field '"
+						+ expectedField
+						+ "'");
+	}
+
+	static Stream<Arguments> invalidCases() {
+
+		return Stream.of(
+				Arguments.of(
+						null,
+						GID,
+						DATE,
+						START_TIME,
+						END_TIME,
+						ROOM_VALID,
+						"courseId"),
+				Arguments.of(
+						CID,
+						null,
+						DATE,
+						START_TIME,
+						END_TIME,
+						ROOM_VALID,
+						"groupId"),
+				Arguments.of(
+						CID,
+						GID,
+						null,
+						START_TIME,
+						END_TIME,
+						ROOM_VALID,
+						"date"),
+				Arguments.of(
+						CID,
+						GID,
+						DATE,
+						null,
+						END_TIME,
+						ROOM_VALID,
+						"startTime"),
+				Arguments.of(
+						CID,
+						GID,
+						DATE,
+						START_TIME,
+						null,
+						ROOM_VALID,
+						"endTime"),
+				Arguments.of(
+						CID,
+						GID,
+						DATE,
+						START_TIME,
+						END_TIME,
+						null,
+						"room"),
+				Arguments.of(
+						CID,
+						GID,
+						DATE,
+						START_TIME,
+						END_TIME,
+						ROOM_EMPTY,
+						"room"),
+				Arguments.of(
+						CID,
+						GID,
+						DATE,
+						START_TIME,
+						END_TIME,
+						ROOM_LOWER,
+						"room"),
+				Arguments.of(
+						CID,
+						GID,
+						DATE,
+						START_TIME,
+						END_TIME,
+						ROOM_NO_DASH,
+						"room"),
+				Arguments.of(
+						CID,
+						GID,
+						DATE,
+						START_TIME,
+						END_TIME,
+						ROOM_SHORT_DIG,
+						"room"),
+				Arguments.of(
+						CID,
+						GID,
+						DATE,
+						START_TIME,
+						END_TIME,
+						ROOM_SPACED,
+						"room"));
+	}
 }

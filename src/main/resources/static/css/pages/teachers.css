@@ -4,9 +4,13 @@
   margin: 0 auto;
 }
 
+
 body.teachers-page {
   background: var(--bg);
 }
+
+
+/* ---------- Toolbar ---------- */
 
 .teachers-toolbar {
   display: flex;
@@ -16,16 +20,22 @@ body.teachers-page {
   margin-bottom: var(--space-4);
 }
 
+
 .teachers-subtitle {
   margin: 6px 0 0 0;
   color: var(--text-muted);
 }
 
+
+/* ---------- Teachers grid ---------- */
+
 .teachers-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--space-3);
+  align-items: start;
 }
+
 
 @media (max-width: 860px) {
   .teachers-grid {
@@ -33,76 +43,196 @@ body.teachers-page {
   }
 }
 
+
+/* ---------- Teacher card ---------- */
+
 .teacher-card.ou-card {
   background: rgba(255, 221, 170, 0.22);
   padding: var(--space-3);
-  transition: box-shadow 0.15s ease, transform 0.15s ease;
+  transition:
+    box-shadow 0.15s ease,
+    transform 0.15s ease;
 }
+
 
 .teacher-card.ou-card:hover {
   box-shadow: 0 18px 36px rgba(0, 0, 0, 0.22);
   transform: translateY(-2px);
 }
 
+
 .teacher-card__head {
-  display: flex;
-  justify-content: space-between;
-  gap: var(--space-2);
-  align-items: flex-start;
   margin-bottom: var(--space-2);
 }
+
 
 .teacher-card__who {
   min-width: 0;
 }
 
+
+.teacher-card__name {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  flex-wrap: wrap;
+  font-weight: 800;
+  font-size: 1.05rem;
+}
+
+
 .teacher-card__email {
-  font-weight: 700;
+  margin-top: 4px;
+  color: var(--text-muted);
   overflow-wrap: anywhere;
 }
 
-.teacher-card__name {
-  margin-top: 4px;
-  color: var(--text-muted);
-  font-weight: 600;
-}
+
+/* ---------- Teacher info ---------- */
 
 .teacher-kv {
   margin: 0;
   display: grid;
-  grid-template-columns: 100px 1fr;
+  grid-template-columns: 130px 1fr;
   column-gap: var(--space-2);
   row-gap: 8px;
   padding-top: var(--space-2);
   border-top: 1px dashed rgba(0, 0, 0, 0.16);
 }
 
-@media (max-width: 420px) {
-  .teacher-kv {
-    grid-template-columns: 84px 1fr;
-  }
-}
 
 .teacher-kv dt {
+  margin: 0;
   color: var(--text-muted);
   font-weight: 700;
-  margin: 0;
 }
+
 
 .teacher-kv dd {
   margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
-.teachers-pagination {
+
+@media (max-width: 420px) {
+  .teacher-kv {
+    grid-template-columns: 105px 1fr;
+  }
+}
+
+
+/* ---------- Teacher actions ---------- */
+
+.teacher-actions {
+  margin-top: var(--space-3);
+}
+
+
+.teacher-actions-bar {
+  width: 100%;
+}
+
+
+.teacher-edit {
+  width: fit-content;
+}
+
+
+.teacher-edit > summary {
+  list-style: none;
+}
+
+
+.teacher-edit > summary::-webkit-details-marker {
+  display: none;
+}
+
+
+.teacher-edit[open] {
+  width: 100%;
+}
+
+
+.teacher-edit__form {
+  margin-top: var(--space-2);
+  display: grid;
+  gap: var(--space-2);
+}
+
+
+.teacher-edit__divider {
+  border-top: 1px dashed rgba(0, 0, 0, 0.16);
+  margin-top: var(--space-2);
+  padding-top: var(--space-2);
+}
+
+
+.teacher-edit__fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(14ch, 18ch);
+  gap: var(--space-2);
+  align-items: end;
+}
+
+
+.teacher-edit__label {
+  display: block;
+  margin: 0 0 6px 0;
+  color: var(--text-muted);
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+
+
+.teacher-edit__actions {
+  display: flex;
+  gap: var(--space-2);
+  justify-content: flex-end;
+}
+
+
+.teacher-card > .ou-alert {
+  margin-top: var(--space-3);
+}
+
+
+@media (max-width: 560px) {
+  .teacher-edit__fields {
+    grid-template-columns: 1fr;
+  }
+}
+
+
+/* ---------- Page alerts ---------- */
+
+.teachers-shell > .ou-alert {
+  margin-bottom: var(--space-3);
+}
+
+
+/* ---------- Pagination ---------- */
+
+.teachers-pager {
   margin-top: var(--space-4);
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: var(--space-3);
+  gap: var(--space-2);
   flex-wrap: wrap;
 }
 
-.teachers-pagination__info {
-  color: var(--text-muted);
-  font-weight: 600;
+
+/* ---------- Responsive toolbar ---------- */
+
+@media (max-width: 560px) {
+  .teachers-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+
+  .teachers-toolbar > .ou-btn {
+    width: fit-content;
+  }
 }

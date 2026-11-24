@@ -29,11 +29,19 @@
         Courses
       </a>
 
-      <a class="ou-tab"
-         th:href="@{/groups}"
-         th:classappend="${activeTab} == 'groups' ? ' ou-tab--active' : ''">
-        Groups
-      </a>
+	  <a class="ou-tab"
+	     sec:authorize="hasAnyRole('ADMIN','TEACHER')"
+	     th:href="@{/groups}"
+	     th:classappend="${activeTab} == 'groups' ? ' ou-tab--active' : ''">
+	    Groups
+	  </a>
+	
+	  <a class="ou-tab"
+	     sec:authorize="hasRole('STUDENT')"
+	     th:href="@{/group}"
+	     th:classappend="${activeTab} == 'groups' ? ' ou-tab--active' : ''">
+	    Group
+	  </a>
 
       <a class="ou-tab"
          th:href="@{/students}"

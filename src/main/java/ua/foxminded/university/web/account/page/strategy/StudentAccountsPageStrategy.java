@@ -24,7 +24,7 @@ public class StudentAccountsPageStrategy implements AccountsPageStrategy {
 
     @Override
     public AccountsPage build(Pageable pageable) {
-        var studentsPage = studentService.listStudentCardsForAdmin(pageable);
+        var studentsPage = studentService.listStudentCardsForAccountManagement(pageable);
         var view = view();
 
         return new AccountsPage(

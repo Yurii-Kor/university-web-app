@@ -2,10 +2,13 @@ package ua.foxminded.university.web.profile;
 
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+
+import java.util.Objects;
+
+import org.springframework.validation.BindException;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import jakarta.persistence.EntityNotFoundException;
-import jakarta.validation.ConstraintViolationException;
 import lombok.RequiredArgsConstructor;
 import ua.foxminded.university.web.util.ExceptionMessageReader;
 
@@ -21,9 +24,24 @@ public class ProfileExceptionHandler {
         return "redirect:/profile";
     }
 
-    @ExceptionHandler(ConstraintViolationException.class)
-    public String handleValidation(ConstraintViolationException ex, RedirectAttributes ra) {
-        ra.addFlashAttribute("err", messageReader.formatViolations(ex));
+    @ExceptionHandler(BindException.class)
+    public String handleValidation(
+            BindException ex,
+            RedirectAttributes ra) {
+
+        var message =
+                ex.getBindingResult()
+                        .getAllErrors()
+                        .stream()
+                        .map(error -> error.getDefaultMessage())
+                        .filter(Objects::nonNull)
+                        .findFirst()
+                        .orElse("Invalid input.");
+
+        ra.addFlashAttribute(
+                "err",
+                message);
+
         return "redirect:/profile";
     }
 

@@ -23,7 +23,6 @@ import ua.foxminded.university.service.util.validation.config.ValidatorConfig;
 @ContextConfiguration(classes = { ValidatorConfig.class })
 class AppUserPasswordChangeDtoValidatorTest {
 
-    private static final Long   ID_OK   = 1L;
     private static final String PWD_OK  = "Abcd1234!";
     private static final String CURR_OK = "whatever";
 
@@ -39,15 +38,15 @@ class AppUserPasswordChangeDtoValidatorTest {
     private Validator validator;
 
     // ---------- VALID CASES ----------
-
-    @ParameterizedTest(name = "[{index}] valid -> id={0}, currPwd={1}, newPwd={2}")
+    
+    @ParameterizedTest(name = "[{index}] valid -> currPwd={0}, newPwd={1}, confirmPwd={2}")
     @MethodSource("validCases")
     @DisplayName("AppUserPasswordChangeDto: valid payloads produce no violations")
-    void validate_validCases_noViolations(Long id,
-                                          String currentPassword,
-                                          String newPassword) {
+    void validate_validCases_noViolations(String currentPassword,
+                                          String newPassword,
+                                          String confirmPassword) {
 
-        var dto = new AppUserPasswordChangeDto(id, currentPassword, newPassword);
+        var dto = new AppUserPasswordChangeDto(currentPassword, newPassword, confirmPassword);
 
         Set<ConstraintViolation<AppUserPasswordChangeDto>> violations = validator.validate(dto);
 
@@ -55,55 +54,72 @@ class AppUserPasswordChangeDtoValidatorTest {
     }
 
     static Stream<Arguments> validCases() {
-        return Stream.of(
-                Arguments.of(ID_OK, CURR_OK, PWD_OK)
-        );
+        return Stream.of(Arguments.of(CURR_OK, PWD_OK, PWD_OK));
     }
 
     // ---------- INVALID CASES ----------
-
-    @ParameterizedTest(name = "[{index}] invalid -> id={0}, currPwd={1}, newPwd={2}, field={3}")
+    
+    @ParameterizedTest(
+            name = "[{index}] invalid -> currPwd={0}, newPwd={1}, confirmPwd={2}, field={3}")
     @MethodSource("invalidCases")
     @DisplayName("AppUserPasswordChangeDto: invalid payloads produce violations on expected field")
-    void validate_invalidCases_violationsOnExpectedField(Long id,
-                                                         String currentPassword,
-                                                         String newPassword,
-                                                         String expectedField) {
+    void validate_invalidCases_violationsOnExpectedField(
+            String currentPassword,
+            String newPassword,
+            String confirmPassword,
+            String expectedField) {
 
-        var dto = new AppUserPasswordChangeDto(id, currentPassword, newPassword);
+        var dto = new AppUserPasswordChangeDto(
+                currentPassword,
+                newPassword,
+                confirmPassword);
 
-        Set<ConstraintViolation<AppUserPasswordChangeDto>> violations = validator.validate(dto);
+        Set<ConstraintViolation<AppUserPasswordChangeDto>> violations =
+                validator.validate(dto);
 
-        assertFalse(violations.isEmpty(),
-                "Expected violations for field " + expectedField + ", but got none");
+        assertFalse(
+                violations.isEmpty(),
+                "Expected violations for field "
+                        + expectedField
+                        + ", but got none");
 
         var fields = violations.stream()
                 .map(v -> v.getPropertyPath().toString())
                 .collect(Collectors.toSet());
 
-        assertEquals(1, fields.size(),
-                "Expected violations only for field '" + expectedField + "', but got fields: " + fields);
-        assertEquals(expectedField, fields.iterator().next(),
-                "Violations must be on field '" + expectedField + "'");
+        assertEquals(
+                1,
+                fields.size(),
+                "Expected violations only for field '"
+                        + expectedField
+                        + "', but got fields: "
+                        + fields);
+
+        assertEquals(
+                expectedField,
+                fields.iterator().next(),
+                "Violations must be on field '"
+                        + expectedField
+                        + "'");
     }
 
     static Stream<Arguments> invalidCases() {
-        return Stream.of(
-                Arguments.of(null, CURR_OK, PWD_OK, "id"),
+        return Stream.of(Arguments.of(null, PWD_OK, PWD_OK, "currentPassword"),
+                Arguments.of("", PWD_OK, PWD_OK, "currentPassword"),
+                Arguments.of("   ", PWD_OK, PWD_OK, "currentPassword"),
 
-                Arguments.of(ID_OK, null,   PWD_OK, "currentPassword"),
-                Arguments.of(ID_OK, "",     PWD_OK, "currentPassword"),
-                Arguments.of(ID_OK, "   ",  PWD_OK, "currentPassword"),
+                Arguments.of(CURR_OK, null, PWD_OK, "newPassword"), Arguments.of(CURR_OK, "", PWD_OK, "newPassword"),
+                Arguments.of(CURR_OK, PWD_SHORT, PWD_OK, "newPassword"),
+                Arguments.of(CURR_OK, PWD_NO_UPPER, PWD_OK, "newPassword"),
+                Arguments.of(CURR_OK, PWD_NO_LOWER, PWD_OK, "newPassword"),
+                Arguments.of(CURR_OK, PWD_NO_DIGIT, PWD_OK, "newPassword"),
+                Arguments.of(CURR_OK, PWD_NO_SPEC, PWD_OK, "newPassword"),
+                Arguments.of(CURR_OK, PWD_WITH_SPACE, PWD_OK, "newPassword"),
+                Arguments.of(CURR_OK, PWD_101, PWD_OK, "newPassword"),
 
-                Arguments.of(ID_OK, CURR_OK, null,           "newPassword"),
-                Arguments.of(ID_OK, CURR_OK, "",             "newPassword"),
-                Arguments.of(ID_OK, CURR_OK, PWD_SHORT,      "newPassword"),
-                Arguments.of(ID_OK, CURR_OK, PWD_NO_UPPER,   "newPassword"),
-                Arguments.of(ID_OK, CURR_OK, PWD_NO_LOWER,   "newPassword"),
-                Arguments.of(ID_OK, CURR_OK, PWD_NO_DIGIT,   "newPassword"),
-                Arguments.of(ID_OK, CURR_OK, PWD_NO_SPEC,    "newPassword"),
-                Arguments.of(ID_OK, CURR_OK, PWD_WITH_SPACE, "newPassword"),
-                Arguments.of(ID_OK, CURR_OK, PWD_101,        "newPassword")
+                Arguments.of(CURR_OK, PWD_OK, null, "confirmPassword"),
+                Arguments.of(CURR_OK, PWD_OK, "", "confirmPassword"),
+                Arguments.of(CURR_OK, PWD_OK, "   ", "confirmPassword")
         );
     }
 }
